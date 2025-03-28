@@ -20,6 +20,12 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            .formLogin(form -> form.disable())
+            .exceptionHandling(exception -> exception.authenticationEntryPoint((request, response, authException) -> {
+                response.setContentType("application/json");
+                response.setStatus(401);
+                response.getWriter().write("{ \"error\": \"" + authException.getMessage() + "\" }");
+            }))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
