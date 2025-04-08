@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+    font-family: 'righteous_regular';
+    src: url('../assets/fonts/Righteous/Righteous-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'worksans_regular';
+    src: url('../assets/fonts/WorkSans/WorkSans-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'worksans_bold';
+    src: url('../assets/fonts/WorkSans/WorkSans-Bold.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
