@@ -12,10 +12,10 @@ public class AuthService {
     private final Map<String, User> users = new HashMap<>();
 
     public boolean registerUser(User user) {
-        if (users.containsKey(user.getUsername())) {
+        if (users.containsKey(user.getName())) {
             return false;
         }
-        users.put(user.getUsername(), user);
+        users.put(user.getName(), user);
         return true;
     }
 

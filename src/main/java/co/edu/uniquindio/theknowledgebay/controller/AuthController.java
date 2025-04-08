@@ -29,7 +29,7 @@ public class AuthController {
         if (registered) {
             return ResponseEntity.ok(Map.of(
                 "message", "Usuario registrado exitosamente",
-                "username", user.getUsername()
+                "username", user.getName()
             ));
         }
 
@@ -48,7 +48,7 @@ public class AuthController {
             User user = userOpt.get();
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Login exitoso");
-            response.put("username", user.getUsername());
+            response.put("username", user.getName());
             response.put("email", user.getEmail());
             return ResponseEntity.ok(response);
         }
