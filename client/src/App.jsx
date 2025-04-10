@@ -1,18 +1,22 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './components/Login';
-import Register from './components/Register';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+
+import Login from "./components/Login";
+import Register from "./components/Register";
+import Landing from "./pages/Landing.jsx";
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-red-50">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/landing" element={<Landing />} />
+        <Route path="/" element={<Navigate to="/landing" replace />} />
+      </Routes>
     </Router>
   );
 }

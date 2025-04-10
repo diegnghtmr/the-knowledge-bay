@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./App.css";
 
 @font-face {
     font-family: 'righteous_regular';
@@ -19,4 +20,29 @@
     src: url('../assets/fonts/WorkSans/WorkSans-Bold.woff2') format('woff2');
     font-weight: normal;
     font-style: normal;
+}
+
+/* font families */
+* {
+    --righteous: 'righteous_regular', 'cursive';
+    --workSans: 'worksans_regular', 'sans-serif';
+    --workSans-bold: 'worksans_bold', 'bold';
+}
+
+.font-righteous {
+    font-family: var(--righteous), sans-serif;
+}
+.font-workSans {
+    font-family: var(--workSans), sans-serif;
+}
+.font-workSans-bold {
+    font-family: var(--workSans-bold), sans-serif;
+}
+
+/* colors */
+* {
+    --coastal-sea: #2A9D8F;
+    --open-sea: #264653;
+    --deep-sea: #1C1F21;
+    --sand: #F2F3D9;
 }
