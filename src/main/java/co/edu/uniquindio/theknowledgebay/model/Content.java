@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -21,8 +20,8 @@ public class Content implements Comparable<Content> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int contentId;
 
-    @ManyToMany
-    private List<Interest> topics;
+    @Transient
+    private DoublyLinkedList<Interest> topics;
 
     private String title;
 
