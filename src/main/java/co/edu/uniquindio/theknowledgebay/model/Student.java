@@ -1,7 +1,6 @@
 package co.edu.uniquindio.theknowledgebay.model;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -13,7 +12,6 @@ import jakarta.persistence.Transient;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "students")
 @Data
 @NoArgsConstructor
 @SuperBuilder
