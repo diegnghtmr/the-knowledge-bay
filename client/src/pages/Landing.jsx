@@ -1,5 +1,5 @@
-// src/components/Landing.jsx
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
+import AuthComponent from "../components/AuthComponent";
 import { Link } from "react-router-dom";
 import Logotipo from "../assets/img/Logotipo.webp";
 import beach from "../assets/img/beach.webp";
@@ -26,6 +26,13 @@ const scrollToTopSmooth = (duration = 2000, multiplier = 1) => {
 };
 
 const Landing = () => {
+  const [showAuth, setShowAuth] = useState(false);
+  const [authType, setAuthType] = useState('login');
+
+  const handleAuthShow = (type) => {
+    setAuthType(type);
+    setShowAuth(true);
+  };
   useEffect(() => {
     window.scrollTo(0, document.body.scrollHeight);
 
@@ -53,18 +60,28 @@ const Landing = () => {
         </header>
         <nav className="z-10">
           <button
-            onClick={() => scrollToTopSmooth(1500, 2)}
+            onClick={() => {
+              scrollToTopSmooth(1500, 2);
+              setTimeout(() => handleAuthShow('register'), 1500);
+            }}
             className="bg-(--coastal-sea) hover:bg-(--sand) text-white hover:text-[var(--deep-sea)] font-workSans-bold py-3 px-6 rounded-2xl shadow-lg transition duration-300 mr-7"
           >
             ¡Unirse ahora!
           </button>
-          <Link
-            to="/login"
+          <button
+            onClick={() => {
+              scrollToTopSmooth(1500, 2);
+              setTimeout(() => handleAuthShow('login'), 1500);
+            }}
             className="border border-(--sand) hover:bg-[var(--sand)] text-[var(--sand)] hover:text-[var(--deep-sea)] font-workSans-bold py-3 px-6 rounded-2xl transition duration-300"
           >
             Ya tengo cuenta
-          </Link>
+          </button>
         </nav>
+        <AuthComponent
+          isVisible={showAuth}
+          initialView={authType}
+        />
       </article>
       <section className="h-dvh text-white flex flex-col items-center justify-center px-6 py-12 text-center relative">
         <svg

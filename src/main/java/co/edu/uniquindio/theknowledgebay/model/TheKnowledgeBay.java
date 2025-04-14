@@ -28,6 +28,7 @@ public class TheKnowledgeBay {
     private DoublyLinkedList<Chat> chats;
     private DoublyLinkedList<Comment> comments;
     private DoublyLinkedList<Message> messages;
+    private DoublyLinkedList<Interest> interests;
 
     public void register(Student s) {
         if (students == null) {
