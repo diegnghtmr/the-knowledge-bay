@@ -21,7 +21,7 @@ const LockIcon = () => (
   </svg>
 );
 
-const InputField = ({ icon, label, type, id, placeholder, error }) => (
+const InputField = ({ icon, label, type, id, placeholder, error, isActive = true }) => (
   <div className="relative">
     <label htmlFor={id} className="block text-sm font-workSans-bold text-[var(--deep-sea)] mb-1">
       {label}
@@ -31,6 +31,7 @@ const InputField = ({ icon, label, type, id, placeholder, error }) => (
         {icon}
       </div>
       <input
+        tabIndex={isActive ? 0 : -1}
         type={type}
         id={id}
         className={`
@@ -56,7 +57,7 @@ const SubmitButton = ({ children, isLoading }) => (
     type="submit"
     disabled={isLoading}
     className={`
-      relative w-full flex justify-center py-3 px-6
+      relative w-full flex justify-center py-3 px-6 z-30
       bg-(--coastal-sea) hover:bg-(--sand) text-white hover:text-[var(--deep-sea)]
       font-workSans-bold rounded-2xl shadow-lg 
       transition-all duration-300 transform hover:scale-[1.02]
@@ -78,10 +79,10 @@ const SubmitButton = ({ children, isLoading }) => (
 
 const WallSwitch = ({ isLogin, onToggle }) => {
   return (
-    <div 
+    <div
       className="group relative w-16 h-8 rounded-full cursor-pointer shadow-inner overflow-hidden
-                 transition-all duration-300 ease-in-out hover:shadow-lg
-                 hover:scale-105"
+                 transition-all duration-500 ease-in-out hover:shadow-lg
+                 hover:scale-105 z-20"
       onClick={onToggle}
     >
       <div className={`
@@ -92,12 +93,13 @@ const WallSwitch = ({ isLogin, onToggle }) => {
       `}/>
 
       <div className={`
-        absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300
-        bg-white
+        absolute inset-0 opacity-0 group-hover:opacity-20 transition-all duration-500
+        bg-white backdrop-blur
       `}/>
 
       <div className={`
-        absolute top-1 w-6 h-6 rounded-full shadow-lg transition-all duration-500 ease-in-out
+        absolute top-1 w-6 h-6 rounded-full shadow-lg
+        transition-all duration-500 ease-in-out
         bg-white backdrop-blur-sm
         group-hover:ring-2 ring-white/50
         ${isLogin
@@ -109,11 +111,18 @@ const WallSwitch = ({ isLogin, onToggle }) => {
       `}>
         <div className="w-full h-full flex items-center justify-center">
           <div className={`
-            w-3 h-[2px] bg-[var(--coastal-sea)] rounded-full 
-            transform transition-transform duration-500
+            w-3 h-[2px] bg-[var(--coastal-sea)] rounded-full
+            transform transition-all duration-500
             ${isLogin ? '-rotate-45' : 'rotate-135'}
           `}/>
         </div>
+      </div>
+      <div className={`
+        absolute inset-0 pointer-events-none
+        transition-opacity duration-500 ease-in-out
+        ${isLogin ? 'opacity-0' : 'opacity-100'}
+      `}>
+        <div className="absolute inset-0 bg-white/10"/>
       </div>
       <span className="sr-only">{isLogin ? 'Cambiar a Registro' : 'Cambiar a Inicio de Sesión'}</span>
     </div>
@@ -158,15 +167,17 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
   };
 
   const containerClasses = `
-    fixed inset-0 flex items-center justify-center bg-black bg-opacity-50
-    transition-opacity duration-300 ease-in-out
+    fixed inset-0 flex items-center justify-center
+    transition-all duration-500 ease-in-out
+    bg-black ${isVisible ? 'bg-opacity-50' : 'bg-opacity-0'}
     ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
   `;
 
   const mainContainerClasses = `
     bg-linear-to-t from-10% from-(--sand) to-white rounded-xl
     shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] w-full max-w-5xl relative
-    ${isVisible ? 'translate-y-0' : 'translate-y-full'}
+    transform transition-all duration-500 ease-in-out
+    ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}
   `;
 
   const LoginForm = () => (
@@ -182,6 +193,7 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
         type="email"
         id="email"
         placeholder="tu@email.com"
+        isActive={isLogin}
       />
       <InputField
         icon={<LockIcon />}
@@ -189,10 +201,12 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
         type="password"
         id="password"
         placeholder="••••••••"
+        isActive={isLogin}
       />
       <div className="flex items-center justify-between pt-2">
         <button
           type="button"
+          tabIndex={isLogin ? 0 : -1}
           className="text-sm text-[var(--coastal-sea)] hover:text-[var(--sand)] transition-colors duration-300"
         >
           ¿Olvidaste tu contraseña?
@@ -217,6 +231,7 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
         type="text"
         id="username"
         placeholder="usuario123"
+        isActive={!isLogin}
       />
       <InputField
         icon={<EmailIcon />}
@@ -224,6 +239,7 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
         type="email"
         id="register-email"
         placeholder="tu@email.com"
+        isActive={!isLogin}
       />
       <InputField
         icon={<LockIcon />}
@@ -231,6 +247,7 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
         type="password"
         id="register-password"
         placeholder="••••••••"
+        isActive={!isLogin}
       />
       <InputField
         icon={<LockIcon />}
@@ -238,6 +255,7 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
         type="password"
         id="confirm-password"
         placeholder="••••••••"
+        isActive={!isLogin}
       />
       <div className="pt-2">
         <SubmitButton isLoading={isLoading}>
@@ -249,30 +267,68 @@ const AuthComponent = ({ initialView = 'login', isVisible = false }) => {
 
   return (
     <div className={containerClasses}>
-      <div className={mainContainerClasses}>
-        <div className="relative min-h-[650px] overflow-y-auto">
-          <div className={`
-            absolute top-0 w-1/2 h-full
-            bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)
-            ${isLogin ? 'left-0' : 'left-1/2'}
-          `}>
-            <div className="absolute inset-0 bg-black/5"/>
-            <div className="relative w-full h-full">
-              <InfoPanel isLogin={isLogin} />
+      <div className={`${mainContainerClasses} relative z-10`}>
+        <div className="relative min-h-[650px] overflow-hidden bg-white rounded-xl">
+          {/* Left Panel - Info & Login Form */}
+          <div className="absolute inset-0 grid grid-cols-2">
+            {/* Info Panel - Login State */}
+            <div className={`
+              relative bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)
+              transition-all duration-500 ease-in-out
+              ${isLogin ? 'opacity-100 z-10' : 'opacity-0 z-0'}
+            `}>
+              <div className="absolute inset-0 bg-black/5"/>
+              <div className="relative w-full h-full">
+                <InfoPanel isLogin={true} />
+              </div>
+            </div>
+            
+            {/* Login Form */}
+            <div className={`
+              relative flex items-center justify-center py-8 px-6
+              transition-all duration-500 ease-in-out
+              ${isLogin ? 'opacity-100 z-20' : 'opacity-0 z-0'}
+            `}>
+              <div className="w-full max-w-lg">
+                <LoginForm />
+              </div>
             </div>
           </div>
 
-          <div className={`
-            absolute top-0 w-1/2 h-full flex items-center justify-center py-8 px-6
-            ${isLogin ? 'right-0' : 'left-0'}
-          `}>
-            <div className="w-full max-w-lg">
-              {isLogin ? <LoginForm /> : <RegisterForm />}
+          {/* Right Panel - Register Form & Info */}
+          <div className="absolute inset-0 grid grid-cols-2">
+            {/* Register Form */}
+            <div className={`
+              relative flex items-center justify-center py-8 px-6
+              transition-all duration-500 ease-in-out
+              ${!isLogin ? 'opacity-100 z-20' : 'opacity-0 z-0'}
+            `}>
+              <div className="w-full max-w-lg">
+                <RegisterForm />
+              </div>
+            </div>
+
+            {/* Info Panel - Register State */}
+            <div className={`
+              relative bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)
+              transition-all duration-500 ease-in-out
+              ${!isLogin ? 'opacity-100 z-10' : 'opacity-0 z-0'}
+            `}>
+              <div className="absolute inset-0 bg-black/5"/>
+              <div className="relative w-full h-full">
+                <InfoPanel isLogin={false} />
+              </div>
             </div>
           </div>
 
-          <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-10">
-            <WallSwitch isLogin={isLogin} onToggle={() => setActiveForm(isLogin ? 'register' : 'login')} />
+          {/* Switch Control */}
+          <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50">
+            <div className={`
+              transform transition-all duration-500 ease-in-out
+              ${isVisible ? 'translate-y-0 opacity-100 scale-100' : '-translate-y-4 opacity-0 scale-95'}
+            `}>
+              <WallSwitch isLogin={isLogin} onToggle={() => setActiveForm(isLogin ? 'register' : 'login')} />
+            </div>
           </div>
         </div>
       </div>
