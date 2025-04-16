@@ -6,6 +6,8 @@ import {
   Navigate,
 } from "react-router-dom";
 
+import Login from "./components/Login";
+import Register from "./components/Register";
 import Landing from "./pages/Landing.jsx";
 
 function App() {

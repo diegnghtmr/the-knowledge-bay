@@ -27,6 +27,7 @@
     --righteous: 'righteous_regular', 'cursive';
     --workSans: 'worksans_regular', 'sans-serif';
     --workSans-bold: 'worksans_bold', 'bold';
+    font-family: var(--workSans), sans-serif;
 }
 
 .font-righteous {
