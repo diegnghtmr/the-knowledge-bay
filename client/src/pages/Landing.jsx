@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import AuthComponent from "../components/Auth";
 // Assets
-import Logotipo from "../assets/img/Logotipo.webp";
+import Logo from "../assets/img/logo.webp";
 import beach from "../assets/img/beach.webp";
 
 const scrollToTopSmooth = (duration = 2000, multiplier = 1) => {
@@ -52,7 +52,7 @@ const Landing = () => {
           />
         </div>
         <header className="flex flex-col items-center justify-center mb-30">
-          <img src={Logotipo} alt="logo" className="w-1/2 h-auto mb-14" />
+          <img src={Logo} alt="logo" className="w-1/2 h-auto mb-14" />
           <p className="text-xl text-(--sand) text-center max-w-[390px]">
             Una red social educativa donde compartir, aprender y conectar es
             solo el comienzo.

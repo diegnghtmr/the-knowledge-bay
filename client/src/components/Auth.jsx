@@ -6,9 +6,9 @@ import {
 } from "@heroicons/react/24/solid";
 
 // Assets
-import LogotipoAlt from "../assets/img/LogotipoAlt.webp";
-import loginImg from "../assets/img/login_img.webp";
-import RegisterImg from "../assets/img/register_img.webp";
+import logo from "../assets/img/logoAlt.webp";
+import loginImg from "../assets/img/stayWithUs.webp";
+import registrationImg from "../assets/img/joinNow.webp";
 
 const IconWrapper = ({ Icon }) => (
   <Icon className="w-5 h-5 text-[var(--deep-sea)]" aria-hidden="true" />
@@ -179,7 +179,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
               />
 
               <div className="flex gap-4 p-4 bg-(--deep-sea) rounded-b-lg">
-                <img src={LogotipoAlt} alt="logo" className="h-[2rem] w-auto" />
+                <img src={logo} alt="logo" className="h-[2rem] w-auto" />
                 <p className="text-xs text-(--coastal-sea) text-left max-w-[200px] ">
                   Conectando mentes, esparciendo el conocimiento.
                 </p>
@@ -272,7 +272,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
             <aside
               className={` rounded-xl bg-(--sand) transition-all duration-500 ease-in-out ${!isLogin ? "opacity-100 z-10" : "opacity-0 z-0"}`}
             >
-              <header className="w-full flex flex-col justify-center p-12 text-(--coastal-sea)">
+              <header className="w-full flex flex-col justify-center p-12 mb-[0.6rem] text-(--coastal-sea)">
                 <h2 className="text-3xl font-workSans-bold text-left">
                   ¡Únete hoy mismo!
                 </h2>
@@ -283,13 +283,13 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
               </header>
 
               <img
-                src={RegisterImg}
+                src={registrationImg}
                 className="max-h-[220px] m-auto mb-[2rem]"
                 alt="ilustración de usuarios creando conocimiento"
               ></img>
 
               <div className="flex gap-4 p-4 bg-(--deep-sea) rounded-b-lg">
-                <img src={LogotipoAlt} alt="logo" className="h-[2rem] w-auto" />
+                <img src={logo} alt="logo" className="h-[2rem] w-auto" />
                 <p className="text-xs text-(--coastal-sea) text-left max-w-[200px] ">
                   Conectando mentes, esparciendo el conocimiento.
                 </p>
