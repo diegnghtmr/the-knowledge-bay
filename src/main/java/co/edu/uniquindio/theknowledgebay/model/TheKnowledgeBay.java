@@ -1,5 +1,6 @@
 package co.edu.uniquindio.theknowledgebay.model;
 
+import co.edu.uniquindio.theknowledgebay.model.factories.UserFactory;
 import co.edu.uniquindio.theknowledgebay.util.datastructures.trees.BinarySearchTree;
 import co.edu.uniquindio.theknowledgebay.util.datastructures.graphs.UndirectedGraph;
 import co.edu.uniquindio.theknowledgebay.util.datastructures.queues.PriorityQueue;
@@ -19,9 +20,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class TheKnowledgeBay {
-    private Moderator moderator;
-    private DoublyLinkedList<Student> students;
-    private UndirectedGraph<Student> studentGraph;
+    private UserFactory userFactory = UserFactory.getInstance();
     private BinarySearchTree<Content> contentTree;
     private PriorityQueue<HelpRequest> helpRequestQueue;
     private DoublyLinkedList<StudyGroup> studyGroups;
@@ -29,27 +28,6 @@ public class TheKnowledgeBay {
     private DoublyLinkedList<Comment> comments;
     private DoublyLinkedList<Message> messages;
     private DoublyLinkedList<Interest> interests;
-
-    public void register(Student s) {
-        if (students == null) {
-            students = new DoublyLinkedList<>();
-        }
-        students.addLast(s);
-    }
-
-    public User logIn(String email, String password) {
-        // Check moderator first
-        if (moderator != null && email.equals(moderator.getEmail()) && password.equals(moderator.getPassword())) {
-            return moderator;
-        }
-        
-        // Check students
-        if (students != null) {
-            // Stub: Actual iteration will depend on DoublyLinkedList implementation
-            return null;
-        }
-        return null;
-    }
 
     public void createContent(Content c) {
         if (contentTree == null) {
