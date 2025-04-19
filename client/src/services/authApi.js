@@ -31,14 +31,7 @@ export const register = async (userData) => {
   }
 };
 
-export const login = async (credentials) => {
-  try {
-    const response = await authApi.post('/api/auth/login', credentials);
-    return response.data;
-  } catch (error) {
-    return error.response?.data || { success: false, message: 'Login failed' };
-  }
-};
+export const login = (credentials) => authApi.post('/api/auth/login', credentials);
 
 // Logout doesn't strictly need the interceptor if it's already applied,
 // but explicitly adding it here ensures it works even if interceptors change.

@@ -26,9 +26,11 @@ export const AuthProvider = ({ children }) => {
   }, []); // Empty dependency array ensures this runs only once on mount
 
   const login = async (credentials) => {
+    console.log('AuthContext login called with credentials:', credentials);
     try {
-      const data = await apiLogin(credentials);
-      if (data.token && data.role) {
+      const response = await apiLogin(credentials); // Get the full Axios response
+      const data = response.data; // Extract the data object
+      if (data && data.token && data.role) { // Check if data exists before accessing properties
         sessionStorage.setItem('token', data.token);
         sessionStorage.setItem('role', data.role);
         setToken(data.token);
@@ -38,13 +40,16 @@ export const AuthProvider = ({ children }) => {
       } else {
         // Handle cases where API returns success:false or unexpected structure
         setIsAuthenticated(false); // Ensure state reflects failed login
-        return data; // Return the error message from API { success, message }
+        // If API returns success:false or unexpected structure within data
+        return data || { success: false, message: 'Login failed: Invalid response structure.' };
       }
     } catch (error) {
       console.error("Login context error:", error);
       setIsAuthenticated(false); // Ensure state reflects failed login
       // Return a generic error structure if API call itself failed badly
-      return { success: false, message: error.message || 'An unexpected error occurred during login.' };
+      // Handle Axios errors (e.g., network error, 4xx/5xx status outside of data)
+      const errorData = error.response?.data;
+      return errorData || { success: false, message: error.message || 'An unexpected error occurred during login.' };
     }
   };
 
