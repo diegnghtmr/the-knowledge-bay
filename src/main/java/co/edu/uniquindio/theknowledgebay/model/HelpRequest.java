@@ -2,7 +2,6 @@ package co.edu.uniquindio.theknowledgebay.model;
 
 import co.edu.uniquindio.theknowledgebay.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.model.enums.Urgency;
-import jakarta.persistence.*;
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,31 +12,22 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Entity
-@Table(name = "help_requests")
 public class HelpRequest implements Comparable<HelpRequest> {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int requestId;
 
-    @Transient
     private DoublyLinkedList<Interest> topics;
 
     private String information;
 
-    @Enumerated(EnumType.STRING)
     private Urgency urgency;
 
-    @ManyToOne
-    @JoinColumn(name = "student_id")
     private Student student;
 
     private boolean isCompleted;
 
     private LocalDate requestDate;
 
-    @Transient
     private DoublyLinkedList<Comment> comments;
 
     public void markAsCompleted() {

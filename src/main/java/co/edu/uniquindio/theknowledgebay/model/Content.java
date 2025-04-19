@@ -1,7 +1,6 @@
 package co.edu.uniquindio.theknowledgebay.model;
 
 import co.edu.uniquindio.theknowledgebay.util.datastructures.lists.DoublyLinkedList;
-import jakarta.persistence.*;
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,31 +11,22 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Entity
-@Table(name = "contents")
 public class Content implements Comparable<Content> {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int contentId;
 
-    @Transient
     private DoublyLinkedList<Interest> topics;
 
     private String title;
 
     private String information;
 
-    @ManyToOne
-    @JoinColumn(name = "author_id")
     private Student author;
 
-    @Transient
     private DoublyLinkedList<Student> likedBy;
 
     private int likeCount;
 
-    @Transient
     private DoublyLinkedList<Comment> comments;
 
     private LocalDate date;
