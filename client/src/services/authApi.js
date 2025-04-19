@@ -7,7 +7,7 @@ const authApi = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Interceptor to add the token to requests
+// Request Interceptor: Add token to headers
 authApi.interceptors.request.use(
   (config) => {
     const token = sessionStorage.getItem('token');
@@ -17,36 +17,63 @@ authApi.interceptors.request.use(
     return config;
   },
   (error) => {
-    return Promise.reject(error);
+    // This typically shouldn't happen with request setup, but good practice
+    console.error('Request Error:', error);
+    return Promise.reject({
+      success: false,
+      message: error.message || 'Request configuration error',
+    });
   }
 );
 
+// Response Interceptor: Handle successful responses and errors consistently
+authApi.interceptors.response.use(
+  (response) => {
+    // Assume successful responses have data in response.data
+    // Wrap successful response in the desired structure
+    return {
+      success: true,
+      data: response.data,
+    };
+  },
+  (error) => {
+    // Handle API errors (e.g., 4xx, 5xx responses)
+    console.error('API Error:', error.response || error.message);
+    const message = error.response?.data?.message || // Specific message from backend
+                    error.message || // General Axios error message
+                    'An unexpected error occurred';
+    const errorData = error.response?.data || null; // Include full error data if available
+
+    // Return the standardized error structure
+    // Use Promise.resolve so the calling function receives the structured error,
+    // rather than having to catch a rejection.
+    return Promise.resolve({
+      success: false,
+      message: message,
+      data: errorData,
+    });
+  }
+);
+
+// --- API Functions :D ---
+
+// Register user
 export const register = async (userData) => {
-  try {
-    const response = await authApi.post('/api/auth/register', userData);
-    return response.data;
-  } catch (error) {
-    // Return error response data or a generic error object
-    return error.response?.data || { success: false, message: 'Registration failed' };
-  }
+  // Interceptor handles success/error formatting
+  return await authApi.post('/api/auth/register', userData);
 };
 
-export const login = (credentials) => authApi.post('/api/auth/login', credentials);
+// Login user
+export const login = async (credentials) => {
+  // Interceptor handles success/error formatting
+  return await authApi.post('/api/auth/login', credentials);
+};
 
-// Logout doesn't strictly need the interceptor if it's already applied,
-// but explicitly adding it here ensures it works even if interceptors change.
-// However, the interceptor *should* handle this automatically.
+// Logout user
 export const logout = async () => {
-   // The interceptor will add the token header automatically
-  try {
-    const response = await authApi.post('/api/auth/logout');
-    return response.data;
-  } catch (error) {
-     // Even if logout API fails, we might want to clear client-side session
-    console.error("Logout API call failed:", error.response?.data || error.message);
-    // Decide if you want to return failure or a specific structure
-    return error.response?.data || { success: false, message: 'Logout failed on server' };
-  }
+  // Interceptor handles success/error formatting
+  // The request interceptor adds the token automatically
+  return await authApi.post('/api/auth/logout');
 };
 
-export default authApi; // Export the configured instance if needed elsewhere
+export default authApi; // Export the configured instance

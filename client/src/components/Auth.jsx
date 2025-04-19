@@ -149,33 +149,37 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
     const formData = new FormData(e.target);
     const credentials = Object.fromEntries(formData.entries());
 
-    try {
-      let response;
+    let response;
+    try { 
       if (isLogin) {
-        console.log('Attempting login via Auth modal:', credentials);
+        console.log('Attempting login via Auth modal:', { email: credentials.email, password: '***' }); // Avoid logging password
         response = await login({ email: credentials.email, password: credentials.password });
       } else {
-        // Basic validation for registration form
         if (credentials['register-password'] !== credentials['confirm-password']) {
-          throw new Error("Passwords do not match.");
+          setError("Passwords do not match.");
+          setIsLoading(false); // Stop loading if passwords don't match
+          return; 
         }
-        console.log('Attempting registration via Auth modal:', credentials);
+        console.log('Attempting registration via Auth modal:', { name: credentials.username, email: credentials['register-email'], password: '***' }); // Avoid logging password
         response = await register({
-          name: credentials.username, // Assuming username maps to name
+          name: credentials.username,
           email: credentials['register-email'],
           password: credentials['register-password']
         });
       }
 
       console.log('Auth modal response:', response);
-      if (!response || !response.success) {
-        setError(response?.message || (isLogin ? 'Login failed.' : 'Registration failed.'));
+
+      if (!response.success) {
+        // Use the message from the response, provide a default if none exists
+        setError(response.message || (isLogin ? 'Login failed. Please check your credentials.' : 'Registration failed. Please try again.'));
+      } else {
+         setError(''); // Explicitly clear error on success
+         // Context handles navigation/state update, modal might close elsewhere or based on context state
       }
-      // TODO: On success, the AuthProvider should handle state change and App.jsx redirection
-      // Optionally, you could add logic here to close the modal on success
     } catch (err) {
-      console.error("Auth modal error:", err);
-      setError(err.message || 'An unexpected error occurred.');
+      console.error("Unexpected error during auth:", err);
+      setError('An unexpected error occurred. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -252,7 +256,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Contraseña"
                   type="password"
                   id="password"
-                  name="password" // Add name attribute
+                  name="password" 
                   placeholder="••••••••"
                   isActive={isLogin}
                 />
@@ -285,7 +289,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Nombre de usuario"
                   type="text"
                   id="username"
-                  name="username" // Add name attribute
+                  name="username" 
                   placeholder="usuario123"
                   isActive={!isLogin}
                 />
@@ -294,7 +298,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Correo electrónico"
                   type="email"
                   id="register-email"
-                  name="register-email" // Add name attribute
+                  name="register-email" 
                   placeholder="tu@email.com"
                   isActive={!isLogin}
                 />
@@ -303,7 +307,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Contraseña"
                   type="password"
                   id="register-password"
-                  name="register-password" // Add name attribute
+                  name="register-password" 
                   placeholder="••••••••"
                   isActive={!isLogin}
                 />
@@ -312,7 +316,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Confirmar contraseña"
                   type="password"
                   id="confirm-password"
-                  name="confirm-password" // Add name attribute
+                  name="confirm-password" 
                   placeholder="••••••••"
                   isActive={!isLogin}
                 />
