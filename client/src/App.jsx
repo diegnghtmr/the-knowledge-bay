@@ -2,9 +2,9 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom"; // Removed BrowserRouter as it's in index.jsx
 import { useAuth } from "./context/AuthContext"; // Import useAuth
 
-import Login from "./components/Login";
-import Register from "./components/Register";
-import Landing from "./pages/Landing.jsx";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import Landing from "./pages/landing/Landing.jsx";
 // Placeholder for authenticated content
 const AuthenticatedApp = () => {
   const { userRole, logout } = useAuth();

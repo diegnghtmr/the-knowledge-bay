@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="App" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="theknowledgebay" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="co.edu.uniquindio.theknowledgebay.App" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/server" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
