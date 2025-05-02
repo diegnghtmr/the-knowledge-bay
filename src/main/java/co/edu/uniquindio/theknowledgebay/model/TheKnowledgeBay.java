@@ -103,10 +103,6 @@ public class TheKnowledgeBay {
         // TODO: implement functionality
     }
 
-    public DoublyLinkedList<Student> suggestContacts(Student s) {
-        // TODO: implement functionality
-        return null;
-    }
 
     public DoublyLinkedList<Student> findShortestPath(Student s1, Student s2) {
         // TODO: implement functionality
@@ -116,4 +112,6 @@ public class TheKnowledgeBay {
     public void processHelpRequests() {
         // TODO: implement functionality
     }
+
+
 }

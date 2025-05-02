@@ -49,7 +49,12 @@ public class Student extends User {
         // TODO: implement functionality
         return null;
     }
-    
+
+    public DoublyLinkedList<Student> suggestContacts(Student s) {
+        // TODO: implement functionality
+        return null;
+    }
+
     public void sendMessage(Message m) {
         // TODO: implement functionality
     }
