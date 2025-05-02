@@ -1,31 +1,23 @@
 package co.edu.uniquindio.theknowledgebay.model;
 
-import jakarta.persistence.Entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import java.time.LocalDate;
 import co.edu.uniquindio.theknowledgebay.util.datastructures.lists.DoublyLinkedList;
-import jakarta.persistence.Transient;
 
 
 @EqualsAndHashCode(callSuper = true)
-@Entity
 @Data
 @NoArgsConstructor
 @SuperBuilder
 public class Student extends User {
 
-    @Transient
     private DoublyLinkedList<Interest> interests;
-    @Transient
     private DoublyLinkedList<Content> publishedContents;
-    @Transient
     private DoublyLinkedList<HelpRequest> helpRequests;
-    @Transient
     private DoublyLinkedList<StudyGroup> studyGroups;
-    @Transient
     private DoublyLinkedList<Chat> chats;
     
     private String username;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 import {
   EnvelopeIcon,
   UserIcon,
@@ -132,6 +133,8 @@ const WallSwitch = ({ isLogin, onToggle }) => (
 const Auth = ({ initialView = "login", isVisible = false }) => {
   const [activeForm, setActiveForm] = useState(initialView);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(''); // Add error state
+  const { login, register } = useAuth(); // Get login/register from context
   const isLogin = activeForm === "login";
 
   useEffect(() => {
@@ -140,10 +143,48 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(''); // Clear previous errors
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsLoading(false);
+
+    const formData = new FormData(e.target);
+    const credentials = Object.fromEntries(formData.entries());
+
+    let response;
+    try { 
+      if (isLogin) {
+        console.log('Attempting login via Auth modal:', { email: credentials.email, password: '***' }); // Avoid logging password
+        response = await login({ email: credentials.email, password: credentials.password });
+      } else {
+        if (credentials['register-password'] !== credentials['confirm-password']) {
+          setError("Passwords do not match.");
+          setIsLoading(false); // Stop loading if passwords don't match
+          return; 
+        }
+        console.log('Attempting registration via Auth modal:', { name: credentials.username, email: credentials['register-email'], password: '***' }); // Avoid logging password
+        response = await register({
+          name: credentials.username,
+          email: credentials['register-email'],
+          password: credentials['register-password']
+        });
+      }
+
+      console.log('Auth modal response:', response);
+
+      if (!response.success) {
+        // Use the message from the response, provide a default if none exists
+        setError(response.message || (isLogin ? 'Login failed. Please check your credentials.' : 'Registration failed. Please try again.'));
+      } else {
+         setError(''); // Explicitly clear error on success
+         // Context handles navigation/state update, modal might close elsewhere or based on context state
+      }
+    } catch (err) {
+      console.error("Unexpected error during auth:", err);
+      setError('An unexpected error occurred. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   return (
     <section
@@ -160,6 +201,13 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
         }`}
       >
         <section className="box-border relative overflow-hidden bg-white">
+         {/* Error Display */}
+          {error && (
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded shadow-md max-w-md text-center">
+              {error}
+            </div>
+          )}
+
           {/* Paneles para Login */}
           <div className="box-border inset-0 grid grid-cols-2 min-h-[500px]">
             <aside
@@ -199,6 +247,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Correo electrónico"
                   type="email"
                   id="email"
+                  name="email" // Add name attribute
                   placeholder="tu@email.com"
                   isActive={isLogin}
                 />
@@ -207,6 +256,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Contraseña"
                   type="password"
                   id="password"
+                  name="password" 
                   placeholder="••••••••"
                   isActive={isLogin}
                 />
@@ -239,6 +289,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Nombre de usuario"
                   type="text"
                   id="username"
+                  name="username" 
                   placeholder="usuario123"
                   isActive={!isLogin}
                 />
@@ -247,6 +298,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Correo electrónico"
                   type="email"
                   id="register-email"
+                  name="register-email" 
                   placeholder="tu@email.com"
                   isActive={!isLogin}
                 />
@@ -255,6 +307,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Contraseña"
                   type="password"
                   id="register-password"
+                  name="register-password" 
                   placeholder="••••••••"
                   isActive={!isLogin}
                 />
@@ -263,6 +316,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Confirmar contraseña"
                   type="password"
                   id="confirm-password"
+                  name="confirm-password" 
                   placeholder="••••••••"
                   isActive={!isLogin}
                 />
