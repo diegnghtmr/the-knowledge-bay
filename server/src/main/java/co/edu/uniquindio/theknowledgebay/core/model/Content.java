@@ -14,21 +14,13 @@ import java.time.LocalDate;
 public class Content implements Comparable<Content> {
 
     private int contentId;
-
     private DoublyLinkedList<Interest> topics;
-
     private String title;
-
     private String information;
-
     private Student author;
-
     private DoublyLinkedList<Student> likedBy;
-
     private int likeCount;
-
     private DoublyLinkedList<Comment> comments;
-
     private LocalDate date;
 
     public void addLike(Student s) {

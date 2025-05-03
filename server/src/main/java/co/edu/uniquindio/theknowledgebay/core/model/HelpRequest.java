@@ -15,19 +15,12 @@ import java.time.LocalDate;
 public class HelpRequest implements Comparable<HelpRequest> {
 
     private int requestId;
-
     private DoublyLinkedList<Interest> topics;
-
     private String information;
-
     private Urgency urgency;
-
     private Student student;
-
     private boolean isCompleted;
-
     private LocalDate requestDate;
-
     private DoublyLinkedList<Comment> comments;
 
     public void markAsCompleted() {

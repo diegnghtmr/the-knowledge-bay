@@ -15,19 +15,12 @@ import java.time.LocalDate;
 public class StudyGroup {
 
     private int groupId;
-
     private String name;
-
     private DoublyLinkedList<Student> members;
-
     private Interest topic;
-
     private LocalDate date;
-
     private boolean hidden;
-
     private DoublyLinkedList<Content> associatedContents;
-
     private DoublyLinkedList<HelpRequest> associatedHelpRequests;
 
     public void addStudent(Student s) {
