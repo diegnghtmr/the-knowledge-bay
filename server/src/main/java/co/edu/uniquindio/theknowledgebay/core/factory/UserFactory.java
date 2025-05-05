@@ -1,4 +1,4 @@
-package co.edu.uniquindio.theknowledgebay.factory;
+package co.edu.uniquindio.theknowledgebay.core.factory;
 
 import co.edu.uniquindio.theknowledgebay.core.model.Moderator;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
@@ -15,7 +15,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class UserFactory {
-    private Moderator moderator;
+    private Moderator moderator = new Moderator();
     private DoublyLinkedList<Student> students = new DoublyLinkedList<>();
     private UndirectedGraph<Student> studentGraph = new UndirectedGraph<>();
     private static UserFactory instance;
@@ -26,6 +26,7 @@ public class UserFactory {
             return instance;
         } return instance;
     }
+
     public void addStudent(Student s) {
         students.addLast(s);
     }

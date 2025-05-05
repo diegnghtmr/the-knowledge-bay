@@ -5,7 +5,7 @@ import co.edu.uniquindio.theknowledgebay.api.dto.LoginRequestDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.LoginResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.RegisterStudentDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
-import co.edu.uniquindio.theknowledgebay.core.service.InMemoryAuthService;
+import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,7 @@ import java.util.Optional;
 @RequiredArgsConstructor // Use constructor injection
 public class AuthController {
 
-    private final InMemoryAuthService authService;
+    private final AuthService authService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@RequestBody RegisterStudentDTO registerDto) {

@@ -1,6 +1,7 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
-import co.edu.uniquindio.theknowledgebay.factory.UserFactory;
+import co.edu.uniquindio.theknowledgebay.core.factory.UserFactory;
+import co.edu.uniquindio.theknowledgebay.core.repository.StudentRepository;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.queues.PriorityQueue;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.trees.BinarySearchTree;
@@ -19,23 +20,21 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Properties;
-// Removed Map and HashMap imports if no longer needed elsewhere
 
-@Getter // Changed from Data
-@NoArgsConstructor
-// Removed AllArgsConstructor and Builder
+@Getter
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class TheKnowledgeBay {
-    private final UserFactory userFactory = UserFactory.getInstance();
 
-    // Centralized Data Storage
-    private DoublyLinkedList<Student> students = new DoublyLinkedList<>();
-    private Moderator moderator;
-    // Removed activeSessions map - Moved to SessionManager
+   // DataBase connection
+    @Autowired
+    private final StudentRepository studentRepository;
 
-    // Existing fields
+
+   // field for data storage
+    private final UserFactory users = UserFactory.getInstance();
     private BinarySearchTree<Content> contentTree;
     private PriorityQueue<HelpRequest> helpRequestQueue;
     private DoublyLinkedList<StudyGroup> studyGroups = new DoublyLinkedList<>();
@@ -54,6 +53,13 @@ public class TheKnowledgeBay {
     @Value("${moderator.properties.path:classpath:moderator.properties}")
     private String moderatorPropertiesPath;
 
+    @Autowired
+    public TheKnowledgeBay(StudentRepository studentRepository) {
+        this.studentRepository = studentRepository;
+
+        this.initialize();
+    }
+
 
     @PostConstruct
     private void initializeModerator() {
@@ -70,12 +76,7 @@ public class TheKnowledgeBay {
 
             if (email != null && password != null && name != null) {
                 String hashedPassword = passwordEncoder.encode(password);
-                this.moderator = Moderator.builder()
-                        .email(email)
-                        .password(hashedPassword) // Store hashed password
-                        .name(name)
-                        .build();
-                System.out.println("Moderator loaded successfully: " + this.moderator.getEmail());
+                System.out.println("Moderator loaded successfully: " + this.users.getModerator().getEmail());
             } else {
                 System.err.println("Error loading moderator: Missing properties (email, password, or name).");
                 // Handle error appropriately - maybe throw an exception?
@@ -83,10 +84,8 @@ public class TheKnowledgeBay {
 
         } catch (IOException e) {
             System.err.println("Error loading moderator properties file from " + moderatorPropertiesPath + ": " + e.getMessage());
-            // Handle error appropriately
         } catch (Exception e) {
             System.err.println("An unexpected error occurred during moderator initialization: " + e.getMessage());
-            // Handle error appropriately
         }
     }
 
@@ -110,6 +109,19 @@ public class TheKnowledgeBay {
 
     public void processHelpRequests() {
         // TODO: implement functionality
+    }
+
+    public void initialize() {
+        // Initialize moderator
+        Moderator moderator = users.getModerator();
+
+        // Initialize students
+        List<Student> students = studentRepository.findAll();
+        for (Student student : students) {
+            this.users.addStudent(student);
+        }
+
+
     }
 
 

@@ -1,9 +1,8 @@
 package co.edu.uniquindio.theknowledgebay.infrastructure.config;
 
-import co.edu.uniquindio.theknowledgebay.core.service.InMemoryAuthService;
+import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -18,7 +17,7 @@ import java.util.Optional;
 public class AuthInterceptor implements HandlerInterceptor {
 
     @Autowired
-    private InMemoryAuthService authService;
+    private AuthService authService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {

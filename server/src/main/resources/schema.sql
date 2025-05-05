@@ -1,15 +1,13 @@
--- Usuarios base
-CREATE TABLE IF NOT EXISTS users (
-                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                     name TEXT NOT NULL,
-                                     email TEXT NOT NULL UNIQUE,
-                                     password TEXT NOT NULL
-);
-
--- Moderadores
-CREATE TABLE IF NOT EXISTS moderators (
-                                          id INTEGER PRIMARY KEY,
-                                          FOREIGN KEY (id) REFERENCES users(id)
+-- Estudiantes
+CREATE TABLE IF NOT EXISTS students (
+                                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                        name TEXT NOT NULL,
+                                        last_name TEXT NOT NULL,
+                                        email TEXT NOT NULL UNIQUE,
+                                        password TEXT NOT NULL,
+                                        username TEXT NOT NULL UNIQUE,
+                                        date_birth DATE NOT NULL,
+                                        biography TEXT
 );
 
 -- Intereses
@@ -24,7 +22,7 @@ CREATE TABLE IF NOT EXISTS comments (
                                         text TEXT NOT NULL,
                                         author_id INTEGER NOT NULL,
                                         date DATE NOT NULL,
-                                        FOREIGN KEY (author_id) REFERENCES users(id)
+                                        FOREIGN KEY (author_id) REFERENCES students(id)
 );
 
 -- Contenidos
@@ -35,7 +33,7 @@ CREATE TABLE IF NOT EXISTS contents (
                                         author_id INTEGER NOT NULL,
                                         like_count INTEGER DEFAULT 0,
                                         date DATE NOT NULL,
-                                        FOREIGN KEY (author_id) REFERENCES users(id)
+                                        FOREIGN KEY (author_id) REFERENCES students(id)
 );
 
 -- Temas de un contenido (muchos-a-muchos)
@@ -47,13 +45,13 @@ CREATE TABLE IF NOT EXISTS content_topics (
                                               FOREIGN KEY (interest_id) REFERENCES interests(id_interest)
 );
 
--- Likes de usuarios a contenidos
+-- Likes de estudiantes a contenidos
 CREATE TABLE IF NOT EXISTS content_likes (
                                              content_id INTEGER,
                                              student_id INTEGER,
                                              PRIMARY KEY (content_id, student_id),
                                              FOREIGN KEY (content_id) REFERENCES contents(content_id),
-                                             FOREIGN KEY (student_id) REFERENCES users(id)
+                                             FOREIGN KEY (student_id) REFERENCES students(id)
 );
 
 -- Comentarios en contenido
@@ -73,7 +71,7 @@ CREATE TABLE IF NOT EXISTS help_requests (
                                              student_id INTEGER NOT NULL,
                                              is_completed INTEGER NOT NULL,
                                              request_date DATE NOT NULL,
-                                             FOREIGN KEY (student_id) REFERENCES users(id)
+                                             FOREIGN KEY (student_id) REFERENCES students(id)
 );
 
 -- Temas de los pedidos
@@ -110,7 +108,7 @@ CREATE TABLE IF NOT EXISTS study_group_members (
                                                    student_id INTEGER,
                                                    PRIMARY KEY (group_id, student_id),
                                                    FOREIGN KEY (group_id) REFERENCES study_groups(group_id),
-                                                   FOREIGN KEY (student_id) REFERENCES users(id)
+                                                   FOREIGN KEY (student_id) REFERENCES students(id)
 );
 
 -- Contenidos asociados al grupo
@@ -131,13 +129,13 @@ CREATE TABLE IF NOT EXISTS study_group_help_requests (
                                                          FOREIGN KEY (request_id) REFERENCES help_requests(request_id)
 );
 
--- Chats
+-- Chats entre estudiantes
 CREATE TABLE IF NOT EXISTS chats (
                                      chat_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                      student_a_id INTEGER NOT NULL,
                                      student_b_id INTEGER NOT NULL,
-                                     FOREIGN KEY (student_a_id) REFERENCES users(id),
-                                     FOREIGN KEY (student_b_id) REFERENCES users(id)
+                                     FOREIGN KEY (student_a_id) REFERENCES students(id),
+                                     FOREIGN KEY (student_b_id) REFERENCES students(id)
 );
 
 -- Mensajes
@@ -147,6 +145,6 @@ CREATE TABLE IF NOT EXISTS messages (
                                         sender_id INTEGER NOT NULL,
                                         timestamp DATETIME NOT NULL,
                                         chat_id INTEGER NOT NULL,
-                                        FOREIGN KEY (sender_id) REFERENCES users(id),
+                                        FOREIGN KEY (sender_id) REFERENCES students(id),
                                         FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 );
