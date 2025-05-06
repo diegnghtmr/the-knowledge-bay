@@ -5,6 +5,7 @@ import { useAuth } from "./context/AuthContext"; // Import useAuth
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import Landing from "./pages/landing/Landing.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx"; // Import ProfilePage
 // Placeholder for authenticated content
 const AuthenticatedApp = () => {
   const { userRole, logout } = useAuth();
@@ -29,9 +30,10 @@ function App() {
     <Routes>
       {isAuthenticated ? (
         <>
-          {/* If authenticated, show the main app view */}
+          {/* If authenticated, show the main app view and other authenticated routes */}
           <Route path="/" element={<AuthenticatedApp />} />
-          {/* Redirect any other path to the main authenticated view */}
+          <Route path="/profile" element={<ProfilePage />} /> {/* Add route for ProfilePage */}
+          {/* Redirect any other unknown path to the main authenticated view */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </>
       ) : (

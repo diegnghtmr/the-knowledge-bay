@@ -4,6 +4,8 @@ import co.edu.uniquindio.theknowledgebay.core.model.Moderator;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.model.User;
+import co.edu.uniquindio.theknowledgebay.api.dto.RegisterStudentDTO;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 
 import lombok.RequiredArgsConstructor;
@@ -62,17 +64,28 @@ public class InMemoryAuthService {
         return false;
     }
 
-    public boolean registerStudent(Student student) {
-        if (doesEmailExist(student.getEmail())) {
-            log.warn("Registration attempt for existing email: {}", student.getEmail());
+    public boolean registerStudent(RegisterStudentDTO dto) {
+        if (doesEmailExist(dto.getEmail())) {
+            log.warn("Registration attempt for existing email: {}", dto.getEmail());
             return false; // Email already exists
         }
-        // Hash password using injected encoder
-        student.setPassword(passwordEncoder.encode(student.getPassword()));
-        // Ensure biography is initialized if not set
-        if (student.getBiography() == null) {
-            student.setBiography("");
-        }
+
+        Student student = new Student();
+        student.setEmail(dto.getEmail());
+        student.setPassword(passwordEncoder.encode(dto.getPassword())); // Hash password
+        student.setName(dto.getName());
+        student.setLastName(dto.getLastName());
+        student.setUserName(dto.getUsername()); // DTO uses username, Student model uses userName
+        student.setBiography(""); // Initialize biography
+        student.setDateBirth(null); // Or handle date conversion if provided in DTO
+
+        // Initialize collections
+        student.setInterests(new DoublyLinkedList<>());
+        student.setPublishedContents(new DoublyLinkedList<>());
+        student.setHelpRequests(new DoublyLinkedList<>());
+        student.setStudyGroups(new DoublyLinkedList<>());
+        student.setChats(new DoublyLinkedList<>());
+        
         // Add student to the central store
         theKnowledgeBay.getStudents().addLast(student);
         log.info("Registered new student: {}", student.getEmail());

@@ -8,9 +8,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RegisterStudentDTO {
-    private String name;
     private String email;
+    private String name;
+    private String lastName;
+    private String username;
     private String password;
-    // Add other fields from Student if needed for registration, e.g., username, lastName
+    // Add other fields from Student if needed for registration
     // For simplicity, starting with basic fields.
 }

@@ -16,23 +16,14 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8080"}) // Keep CORS for frontend
-@RequiredArgsConstructor // Use constructor injection
+@RequiredArgsConstructor 
 public class AuthController {
 
     private final InMemoryAuthService authService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@RequestBody RegisterStudentDTO registerDto) {
-        // Convert DTO to Student model using builder
-        Student newStudent = Student.builder()
-                .name(registerDto.getName())
-                .email(registerDto.getEmail())
-                .password(registerDto.getPassword()) // Password will be hashed in the service
-                .biography("") // Initialize biography as required
-                // Add other fields from DTO if they exist (e.g., username, lastName)
-                .build();
-
-        boolean registered = authService.registerStudent(newStudent);
+        boolean registered = authService.registerStudent(registerDto);
 
         if (registered) {
             return ResponseEntity.ok(new AuthResponseDTO(true, "Student registered successfully."));
@@ -60,15 +51,11 @@ public class AuthController {
     // Logout endpoint
     @PostMapping("/logout")
     public ResponseEntity<AuthResponseDTO> logout(@RequestHeader("Authorization") String authHeader) {
-        // The AuthInterceptor already validates the token before this method is called.
-        // We just need to extract it again to tell the service which session to remove.
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            authService.logout(token); // Call the service method to remove the session
+            authService.logout(token);
             return ResponseEntity.ok(new AuthResponseDTO(true, "Logged out successfully."));
         }
-        // This case should ideally not be reached if the interceptor is configured correctly
-        // for this path, but included for robustness.
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new AuthResponseDTO(false, "Missing or invalid Authorization header."));
     }

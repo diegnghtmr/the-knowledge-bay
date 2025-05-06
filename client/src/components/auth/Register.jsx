@@ -1,42 +1,45 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext'; // Import useAuth
+import { useAuth } from '../../context/AuthContext'; 
 
 const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth(); // Get register function from context
+  const { register } = useAuth(); 
   const [formData, setFormData] = useState({
-    name: '', // Changed from username to name to match API
+    name: '',
+    lastName: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
   });
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState(''); // Add success message state
-  const [isLoading, setIsLoading] = useState(false); // Add loading state
+  const [successMessage, setSuccessMessage] = useState(''); 
+  const [isLoading, setIsLoading] = useState(false); 
 
   const handleSubmit = async (e) => {
     console.log('Register handleSubmit triggered');
     e.preventDefault();
     setError('');
-    setSuccessMessage(''); // Clear previous success message
-    setIsLoading(true); // Set loading true
+    setSuccessMessage(''); 
+    setIsLoading(true); 
 
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
-      setIsLoading(false); // Stop loading if passwords don't match
+      setIsLoading(false); 
       return;
     }
 
     // Prepare data for the API (name, email, password)
     const userData = {
       name: formData.name,
+      lastName: formData.lastName,
+      username: formData.username,
       email: formData.email,
       password: formData.password,
     };
 
     try {
-      // Use the register function from context
       const response = await register(userData);
 
       if (response.success) {
@@ -44,7 +47,6 @@ const Register = () => {
         // Optionally clear form or navigate after a delay
         // navigate('/login'); // Navigate to login after successful registration
       } else {
-        // Set error message from context response
         setError(response.message || 'Error en el registro');
       }
     } catch (err) {
@@ -72,21 +74,47 @@ const Register = () => {
             {error}
           </div>
         )}
-        {successMessage && ( // Display success message
+        {successMessage && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
             {successMessage}
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Tu nombre"
+              value={formData.name}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">Apellido</label>
+            <input
+              id="lastName"
+              name="lastName"
+              type="text"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Tu apellido"
+              value={formData.lastName}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre Completo
+              Nombre de Usuario
             </label>
             <input
               type="text"
-              id="name" // Changed id to name
-              name="name" // Changed name to name
-              value={formData.name} // Changed value to formData.name
+              id="username" 
+              name="username" 
+              value={formData.username} 
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required

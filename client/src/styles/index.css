@@ -47,3 +47,8 @@
     --deep-sea: #1C1F21;
     --sand: #F2F3D9;
 }
+
+/* Disable body scroll */
+body.no-scroll {
+  overflow: hidden;
+}

@@ -34,12 +34,21 @@ const Landing = () => {
     setShowAuth(true);
   };
   useEffect(() => {
+    // Scroll to bottom and then animate scroll to top
     window.scrollTo(0, document.body.scrollHeight);
-
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       scrollToTopSmooth(2300);
     }, 500);
-  }, []);
+
+    // Disable body scroll
+    document.body.classList.add("no-scroll");
+
+    // Cleanup function to re-enable scroll and clear timer
+    return () => {
+      document.body.classList.remove("no-scroll");
+      clearTimeout(timer);
+    };
+  }, []); // Empty dependency array ensures this runs only on mount and unmount
   return (
     <main className="flex flex-col justify-between bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)">
       <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white"></section>
