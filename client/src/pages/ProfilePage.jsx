@@ -1,48 +1,102 @@
-import { useState, useEffect } from 'react'; 
-import axios from 'axios'; 
-import { useAuth } from '../context/AuthContext'; 
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import { Mail, BookOpen, HelpCircle, Users, Calendar } from 'lucide-react';
-import iconLogo from '../assets/img/iconLogo.webp'; 
+import iconLogo from '../assets/img/iconLogo.webp';
 import InterestTag from '../components/common/InterestTag';
+import Modal from '../components/common/Modal.jsx';
+import UserListItem from '../components/profile/UserListItem.jsx';
+import RequestListItem from '../components/profile/RequestListItem.jsx';
+import EditProfileForm from '../components/profile/EditProfileForm.jsx';
 
-const handleNavigate = (section) => {
-  console.log(`Navegando a ${section}`);
-  alert(`Navegando a la sección: ${section}`);
-};
+// Mock Data
+const mockFollowersData = [
+  { id: 1, name: 'Gandalf The Grey' },
+  { id: 2, name: 'Frodo Baggins' },
+  { id: 3, name: 'Samwise Gamgee' },
+];
+
+const mockFollowingData = [
+  { id: 4, name: 'Aragorn Elessar' },
+  { id: 5, name: 'Legolas Greenleaf' },
+];
+
+const mockRequestsData = [
+  { id: 1, name: 'Bilbo Baggins', details: 'Wants to join your adventure' },
+  { id: 2, name: 'Aragorn Elessar', details: 'Needs help with a quest' },
+  { id: 3, name: 'Gimli son of Glóin', details: 'Offers his axe' },
+];
+
+const mockGroupsData = [
+  { id: 'g1', name: 'Grupo de Estudio de React' },
+  { id: 'g2', name: 'Amantes de la IA' },
+  { id: 'g3', name: 'Desarrollo Web Full-Stack' },
+];
+
+const mockContentsData = [
+  { id: 'c1', name: 'Introducción a Tailwind CSS' },
+  { id: 'c2', name: 'Guía Avanzada de Java' },
+  { id: 'c3', name: 'Microservicios con Spring Boot' },
+];
 
 export default function ProfilePage() {
   const { token, isAuthenticated } = useAuth(); // Get token and authentication status
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [modalType, setModalType] = useState(null);
+  const [modalData, setModalData] = useState([]);
+  const [modalTitle, setModalTitle] = useState('');
+  const [showEditProfileForm, setShowEditProfileForm] = useState(false);
+
+  const fetchProfile = async () => {
+    if (!isAuthenticated || !token) {
+      setError('User not authenticated.');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true); // Set loading true before fetch
+    setError(null); // Clear previous errors
+
+    try {
+      const response = await axios.get('/api/users/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('API Response Data:', response.data); // <-- Add this log
+      setProfileData(response.data);
+    } catch (err) {
+      console.error('API Fetch Error:', err); // <-- Add this log
+      setError('Failed to load profile data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleProfileUpdateSuccess = (updatedUserData) => {
+    setShowEditProfileForm(false);
+    // Re-fetch data to ensure consistency
+    fetchProfile();
+    // Optionally, display a success message, e.g., using a toast notification library
+    // For now, an alert can be used for simplicity if desired, or removed.
+    // alert("Profile successfully updated on ProfilePage!");
+  };
+
+  const handleOpenModal = (type, title, data) => {
+    setModalType(type);
+    setModalTitle(title);
+    setModalData(data);
+  };
+
+  const handleCloseModal = () => {
+    setModalType(null);
+    setModalData([]);
+    setModalTitle('');
+  };
 
   useEffect(() => {
     // Ensure scrolling is enabled when the ProfilePage mounts
     document.body.classList.remove("no-scroll");
-
-    const fetchProfile = async () => {
-      if (!isAuthenticated || !token) {
-        setError('User not authenticated.');
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true); // Set loading true before fetch
-      setError(null); // Clear previous errors
-
-      try {
-        const response = await axios.get('/api/users/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        console.log('API Response Data:', response.data); // <-- Add this log
-        setProfileData(response.data);
-      } catch (err) {
-        console.error('API Fetch Error:', err); // <-- Add this log
-        setError('Failed to load profile data.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
     fetchProfile();
 
@@ -93,46 +147,56 @@ export default function ProfilePage() {
 
         {/* Stats - Interactive */}
         <div className="flex justify-center mt-4 px-4 text-center">
-          <button
-            className="px-4 hover:bg-white/50 rounded-lg transition-colors py-2 cursor-pointer" 
-            onClick={() => handleNavigate('seguidores')}
+          <div
+            className="text-center cursor-pointer hover:text-indigo-500 px-4 py-2 rounded-lg transition-colors hover:bg-white/50"
+            onClick={() => handleOpenModal('followers', 'Seguidores', mockFollowersData)}
             aria-label="Ver seguidores"
           >
-            <p className="font-workSans-bold text-[var(--deep-sea)]">0</p>
-            <p className="text-sm text-[var(--open-sea)] font-semibold">seguidores</p>
-          </button>
-          <button
-            className="px-4 hover:bg-white/50 rounded-lg transition-colors py-2 cursor-pointer" 
-            onClick={() => handleNavigate('siguiendo')}
+            <p className="text-xl font-semibold text-[var(--deep-sea)]">
+              {profileData?.followersCount || mockFollowersData.length}
+            </p>
+            <p className="text-sm text-[var(--open-sea)] font-semibold">Seguidores</p>
+          </div>
+          <div
+            className="text-center cursor-pointer hover:text-indigo-500 px-4 py-2 rounded-lg transition-colors hover:bg-white/50"
+            onClick={() => handleOpenModal('following', 'Siguiendo', mockFollowingData)}
             aria-label="Ver siguiendo"
           >
-            <p className="font-workSans-bold text-[var(--deep-sea)]">0</p>
-            <p className="text-sm text-[var(--open-sea)] font-semibold">siguiendo</p>
-          </button>
-          <button
-            className="px-4 hover:bg-white/50 rounded-lg transition-colors py-2 cursor-pointer" 
-            onClick={() => handleNavigate('grupos')}
-            aria-label="Ver grupos"
+            <p className="text-xl font-semibold text-[var(--deep-sea)]">
+              {profileData?.followingCount || mockFollowingData.length}
+            </p>
+            <p className="text-sm text-[var(--open-sea)] font-semibold">Siguiendo</p>
+          </div>
+          <div
+            className="text-center cursor-pointer hover:text-indigo-500 px-4 py-2 rounded-lg transition-colors hover:bg-white/50"
+            onClick={() => handleOpenModal('groups', 'Grupos', mockGroupsData)}
+            aria-label="Ver grupos de estudio"
           >
-            <p className="font-workSans-bold text-[var(--deep-sea)]">0</p>
-            <p className="text-sm text-[var(--open-sea)] font-semibold">grupos</p>
-          </button>
-          <button
-            className="px-4 hover:bg-white/50 rounded-lg transition-colors py-2 cursor-pointer" 
-            onClick={() => handleNavigate('contenidos')}
-            aria-label="Ver contenidos"
+            <p className="text-xl font-semibold text-[var(--deep-sea)]">
+              {mockGroupsData.length}
+            </p>
+            <p className="text-sm text-[var(--open-sea)] font-semibold">Grupos</p>
+          </div>
+          <div
+            className="text-center cursor-pointer hover:text-indigo-500 px-4 py-2 rounded-lg transition-colors hover:bg-white/50"
+            onClick={() => handleOpenModal('contents', 'Contenidos Publicados', mockContentsData)}
+            aria-label="Ver contenidos publicados"
           >
-            <p className="font-workSans-bold text-[var(--deep-sea)]">0</p>
-            <p className="text-sm text-[var(--open-sea)] font-semibold">contenidos</p>
-          </button>
-          <button
-            className="px-4 hover:bg-white/50 rounded-lg transition-colors py-2 cursor-pointer" 
-            onClick={() => handleNavigate('solicitudes')}
-            aria-label="Ver solicitudes"
+            <p className="text-xl font-semibold text-[var(--deep-sea)]">
+              {mockContentsData.length}
+            </p>
+            <p className="text-sm text-[var(--open-sea)] font-semibold">Publicaciones</p>
+          </div>
+          <div
+            className="text-center cursor-pointer hover:text-indigo-500 px-4 py-2 rounded-lg transition-colors hover:bg-white/50"
+            onClick={() => handleOpenModal('requests', 'Solicitudes de Amistad', mockRequestsData)}
+            aria-label="Ver solicitudes de amistad"
           >
-            <p className="font-workSans-bold text-[var(--deep-sea)]">0</p>
-            <p className="text-sm text-[var(--open-sea)] font-semibold">solicitudes</p>
-          </button>
+            <p className="text-xl font-semibold text-[var(--deep-sea)]">
+              {profileData?.requestsCount || mockRequestsData.length}
+            </p>
+            <p className="text-sm text-[var(--open-sea)] font-semibold">Solicitudes</p>
+          </div>
         </div>
 
         {/* Biography */}
@@ -143,7 +207,7 @@ export default function ProfilePage() {
               {profileData?.biography ? (
                 <strong className="font-semibold">{profileData.biography}</strong>
               ) : (
-                'Biografía no especificada'
+                'Biografía no disponible'
               )}
             </p>
           </div>
@@ -170,27 +234,27 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-xs text-[var(--open-sea)]">Contenidos Publicados</p>
-                <p className="text-xs text-[var(--deep-sea)]"><strong>0 publicaciones</strong></p> 
+                <p className="text-xs text-[var(--deep-sea)]"><strong>{mockContentsData.length} publicaciones</strong></p>
               </div>
             </div>
 
             <div className="flex items-center mb-3">
-              <div className="bg-[var(--coastal-sea)] p-2 rounded-lg mr-2"> 
-                <HelpCircle className="text-white w-5 h-5" /> 
+              <div className="bg-[var(--coastal-sea)] p-2 rounded-lg mr-2">
+                <HelpCircle className="text-white w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs text-[var(--open-sea)]">Solicitudes de Ayuda</p>
-                <p className="text-xs text-[var(--deep-sea)]"><strong>0 solicitudes</strong></p> 
+                <p className="text-xs text-[var(--deep-sea)]"><strong>{profileData?.helpRequestsCount || 0} solicitudes</strong></p>
               </div>
             </div>
 
             <div className="flex items-center mb-3">
-              <div className="bg-[var(--coastal-sea)] p-2 rounded-lg mr-2"> 
+              <div className="bg-[var(--coastal-sea)] p-2 rounded-lg mr-2">
                 <Users className="text-white w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs text-[var(--open-sea)]">Grupos de Estudio</p>
-                <p className="text-xs text-[var(--deep-sea)]"><strong>0 grupos</strong></p>
+                <p className="text-xs text-[var(--deep-sea)]"><strong>{mockGroupsData.length} grupos</strong></p>
               </div>
             </div>
 
@@ -216,7 +280,7 @@ export default function ProfilePage() {
                   </span>
                 ))
               ) : (
-                <p className="text-sm text-gray-500">No hay intereses especificados</p>
+                <p className="text-sm text-gray-500">Intereses no especificados</p>
               )}
             </div>
           </div>
@@ -224,11 +288,57 @@ export default function ProfilePage() {
 
         {/* Edit profile button */}
         <div className="flex justify-center mb-6">
-          <button className="bg-[var(--coastal-sea)] hover:bg-[var(--open-sea)] text-white font-workSans-bold py-2 px-8 rounded">
+          <button
+            onClick={() => setShowEditProfileForm(!showEditProfileForm)}
+            className="bg-[var(--coastal-sea)] hover:bg-[var(--open-sea)] text-white font-workSans-bold py-2 px-8 rounded"
+          >
             Editar Perfil
           </button>
         </div>
       </div>
+
+      {showEditProfileForm && profileData && (
+        <Modal
+          isOpen={showEditProfileForm}
+          onClose={() => setShowEditProfileForm(false)}
+          title="Editar Perfil"
+        >
+          <EditProfileForm
+            currentUserProfile={profileData}
+            onProfileUpdateSuccess={handleProfileUpdateSuccess}
+          />
+        </Modal>
+      )}
+
+      {modalType && (
+        <Modal isOpen={modalType !== null} onClose={handleCloseModal} title={modalTitle}>
+          {modalData && modalData.length > 0 ? (
+            <ul className="space-y-2 max-h-96 overflow-y-auto p-1">
+              {modalData.map((item) => (
+                <li key={item.id} className="border-b border-[var(--coastal-sea)] pb-2 last:border-b-0">
+                  {modalType === 'followers' || modalType === 'following' || modalType === 'groups' || modalType === 'contents' ? (
+                    <UserListItem
+                      user={item} // 'item' will have 'id' and 'name' for groups and contents
+                      onView={(itemId) => console.log(`View item: ${itemId}`)}
+                    />
+                  ) : modalType === 'requests' ? (
+                    <RequestListItem
+                      request={item}
+                      onView={(requestId) => console.log('View request:', requestId)}
+                      onAccept={(requestId) => console.log('Accept request:', requestId)}
+                      onReject={(requestId) => console.log('Reject request:', requestId)}
+                    />
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-center text-gray-500 py-4">
+              No hay {modalType === 'followers' ? 'seguidores' : modalType === 'following' ? 'personas a las que sigues' : modalType === 'requests' ? 'solicitudes' : modalType === 'groups' ? 'grupos' : modalType === 'contents' ? 'contenidos publicados' : 'elementos'} para mostrar.
+            </p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

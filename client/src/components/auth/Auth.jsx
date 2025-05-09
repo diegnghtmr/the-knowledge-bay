@@ -188,16 +188,18 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
 
   return (
     <section
-      className={`fixed inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${
+      className={`fixed inset-0 flex items-center justify-center transition-all duration-700 ease-in-out ${
         isVisible
-          ? "bg-opacity-50 opacity-100 pointer-events-auto"
-          : "bg-opacity-0 opacity-0 pointer-events-none"
+          ? "bg-transparent opacity-100 pointer-events-auto"
+          : "bg-transparent opacity-0 pointer-events-none"
       }`}
       aria-hidden={!isVisible}
     >
       <main
-        className={`p-8 bg-white rounded-xl shadow-lg w-full max-w-5xl transform transition-all duration-300 ease-in-out ${
-          isVisible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+        className={`p-8 bg-white rounded-xl shadow-lg w-full max-w-5xl transform transition-all duration-500 ease-out ${
+          isVisible
+            ? "translate-y-0 opacity-100 animate-[slideUp_500ms_ease-out_100ms]"
+            : "-translate-y-4 opacity-0"
         }`}
       >
         <section className="box-border relative overflow-hidden bg-white">
@@ -209,9 +211,13 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
           )}
 
           {/* Paneles para Login */}
-          <div className="box-border inset-0 grid grid-cols-2 min-h-[500px]">
+          <div className="box-border inset-0 grid grid-cols-2 min-h-[500px] overflow-hidden">
             <aside
-              className={`box-border h-full rounded-xl bg-(--sand) transition-all duration-500 ease-in-out ${isLogin ? "opacity-100 z-10" : "opacity-0 z-0"}`}
+              className={`box-border h-full rounded-xl bg-(--sand) transition-all duration-500 ease-out transform ${
+                isLogin
+                  ? "opacity-100 z-10 translate-x-0 animate-[slideRight_500ms_ease-out_200ms]"
+                  : "opacity-0 z-0 -translate-x-full"
+              }`}
             >
               <header className="box-border w-full flex flex-col justify-center p-12 text-(--coastal-sea)">
                 <p className="text-left">Nos alegra verte de nuevo,</p>
@@ -235,7 +241,11 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
             </aside>
 
             <article
-              className={`relative flex items-center justify-center py-8 px-6 transition-all duration-500 ease-in-out ${isLogin ? "opacity-100 z-20" : "opacity-0 z-0"}`}
+              className={`relative flex items-center justify-center py-8 px-6 transition-all duration-500 ease-out transform ${
+                isLogin
+                  ? "opacity-100 z-20 translate-x-0 animate-[slideLeft_500ms_ease-out_200ms]"
+                  : "opacity-0 z-0 translate-x-full"
+              }`}
             >
               <form
                 onSubmit={handleSubmit}
@@ -277,7 +287,11 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
           {/* Paneles para Registro */}
           <div className="absolute inset-0 grid grid-cols-2 gap-4">
             <article
-              className={`relative flex items-center justify-center py-8 px-6 transition-all duration-500 ease-in-out ${!isLogin ? "opacity-100 z-20" : "opacity-0 z-0"}`}
+              className={`relative flex items-center justify-center py-8 px-6 transition-all duration-500 ease-out transform ${
+                !isLogin
+                  ? "opacity-100 z-20 translate-x-0 animate-[slideRight_500ms_ease-out_200ms]"
+                  : "opacity-0 z-0 -translate-x-full"
+              }`}
             >
               <form
                 onSubmit={handleSubmit}
@@ -324,7 +338,11 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
               </form>
             </article>
             <aside
-              className={` rounded-xl bg-(--sand) transition-all duration-500 ease-in-out ${!isLogin ? "opacity-100 z-10" : "opacity-0 z-0"}`}
+              className={`rounded-xl bg-(--sand) transition-all duration-500 ease-out transform ${
+                !isLogin
+                  ? "opacity-100 z-10 translate-x-0 animate-[slideLeft_500ms_ease-out_200ms]"
+                  : "opacity-0 z-0 translate-x-full"
+              }`}
             >
               <header className="w-full flex flex-col justify-center p-12 mb-[0.6rem] text-(--coastal-sea)">
                 <h2 className="text-3xl font-workSans-bold text-left">
