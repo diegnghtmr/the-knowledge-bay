@@ -31,7 +31,7 @@ public class StudentRepository {
 
     public void save(Student student) {
         String sql = """
-                INSERT INTO students (id, username, email, password, full_name, last_name, date_birth, biography)
+                INSERT INTO students (id, username, email, password, first_name, last_name, date_birth, biography)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
@@ -42,7 +42,7 @@ public class StudentRepository {
                 student.getPassword(),
                 student.getFirstName(),
                 student.getLastName(),
-                student.getDateBirth().toString(),
+                student.getDateBirth() != null ? student.getDateBirth().toString() : null,
                 student.getBiography()
         );
     }
@@ -50,12 +50,17 @@ public class StudentRepository {
     private final RowMapper<Student> studentRowMapper = (rs, rowNum) -> {
         Student s = new Student();
             s.setId(rs.getInt("id"));
-            s.setUsername(rs.getString("name"));
+            s.setUsername(rs.getString("username")); // Assuming DB column is 'username'
             s.setEmail(rs.getString("email"));
             s.setPassword(rs.getString("password"));
-            s.setFirstName(rs.getString("last_name"));
-            s.setLastName(rs.getString("last_name"));
-            s.setDateBirth(LocalDate.parse(rs.getString("date_birth")));
+            s.setFirstName(rs.getString("first_name")); // Assuming DB column is 'first_name'
+            s.setLastName(rs.getString("last_name"));   // Assuming DB column is 'last_name'
+            String dateBirthStr = rs.getString("date_birth");
+            if (dateBirthStr != null) {
+                s.setDateBirth(LocalDate.parse(dateBirthStr));
+            } else {
+                s.setDateBirth(null);
+            }
             s.setBiography(rs.getString("biography"));
 
         return s;
@@ -80,7 +85,7 @@ public class StudentRepository {
                 student.getPassword(),
                 student.getFirstName(),
                 student.getLastName(),
-                student.getDateBirth().toString(),
+                student.getDateBirth() != null ? student.getDateBirth().toString() : null,
                 student.getBiography(),
                 student.getId()
         );

@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 @RestController
 @RequiredArgsConstructor // Use constructor injection
@@ -23,14 +25,26 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@RequestBody RegisterStudentDTO registerDto) {
+        LocalDate dateOfBirth = null;
+        if (registerDto.getDateOfBirth() != null && !registerDto.getDateOfBirth().isEmpty()) {
+            try {
+                dateOfBirth = LocalDate.parse(registerDto.getDateOfBirth()); // Assumes yyyy-MM-dd format
+            } catch (DateTimeParseException e) {
+                // Log the error or handle it as a bad request
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new AuthResponseDTO(false, "Invalid date format for dateOfBirth. Please use yyyy-MM-dd."));
+            }
+        }
+
         // Convert DTO to Student model using builder
         Student newStudent = Student.builder()
                 .username(registerDto.getName())
                 .email(registerDto.getEmail())
                 .password(registerDto.getPassword())
-                .firstName("")
-                .lastName("")
-                .biography("")
+                .firstName("") // Assuming firstName might be part of a more complete profile later
+                .lastName("")  // Assuming lastName might be part of a more complete profile later
+                .dateBirth(dateOfBirth) // Set the parsed dateOfBirth
+                .biography("") // Assuming biography might be part of a more complete profile later
                 .build();
 
         boolean registered = authService.registerStudent(newStudent);
