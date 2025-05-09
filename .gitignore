@@ -1,6 +1,6 @@
 **/*.bkp
 **/target
-/.idea/
+**/.idea
 *.xml
 mvnw
 *.cmd

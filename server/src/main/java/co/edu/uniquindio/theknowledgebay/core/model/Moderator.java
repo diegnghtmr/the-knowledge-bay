@@ -4,11 +4,12 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 @NoArgsConstructor
-@SuperBuilder
 public class Moderator extends User {
 
     @Override

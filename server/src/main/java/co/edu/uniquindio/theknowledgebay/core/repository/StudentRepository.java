@@ -31,16 +31,16 @@ public class StudentRepository {
 
     public void save(Student student) {
         String sql = """
-                INSERT INTO students (id, name, email, password, username, last_name, date_birth, biography)
+                INSERT INTO students (id, username, email, password, full_name, last_name, date_birth, biography)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         jdbcTemplate.update(sql,
                 student.getId(),
-                student.getName(),
+                student.getUsername(),
                 student.getEmail(),
                 student.getPassword(),
-                student.getUsername(),
+                student.getFirstName(),
                 student.getLastName(),
                 student.getDateBirth().toString(),
                 student.getBiography()
@@ -50,10 +50,10 @@ public class StudentRepository {
     private final RowMapper<Student> studentRowMapper = (rs, rowNum) -> {
         Student s = new Student();
             s.setId(rs.getInt("id"));
-            s.setName(rs.getString("name"));
+            s.setUsername(rs.getString("name"));
             s.setEmail(rs.getString("email"));
             s.setPassword(rs.getString("password"));
-            s.setUsername(rs.getString("username"));
+            s.setFirstName(rs.getString("last_name"));
             s.setLastName(rs.getString("last_name"));
             s.setDateBirth(LocalDate.parse(rs.getString("date_birth")));
             s.setBiography(rs.getString("biography"));
@@ -64,10 +64,10 @@ public class StudentRepository {
     public void update(Student student) {
         String sql = """
             UPDATE students SET
-                name = ?,
+                username = ?,
                 email = ?,
                 password = ?,
-                username = ?,
+                first_name = ?,
                 last_name = ?,
                 date_birth = ?,
                 biography = ?
@@ -75,10 +75,10 @@ public class StudentRepository {
             """;
 
         jdbcTemplate.update(sql,
-                student.getName(),
+                student.getUsername(),
                 student.getEmail(),
                 student.getPassword(),
-                student.getUsername(),
+                student.getFirstName(),
                 student.getLastName(),
                 student.getDateBirth().toString(),
                 student.getBiography(),

@@ -1,5 +1,6 @@
 package co.edu.uniquindio.theknowledgebay.core.service;
 
+import co.edu.uniquindio.theknowledgebay.core.dto.AuthResultDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Moderator;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
@@ -19,8 +20,7 @@ import java.util.Optional;
 @Slf4j
 public class AuthService {
 
-    // Inject the central data store and password encoder
-    @Autowired // Field injection for TheKnowledgeBay (singleton)
+    @Autowired
     private TheKnowledgeBay domain;
 
     private final PasswordEncoder passwordEncoder;
@@ -43,58 +43,40 @@ public class AuthService {
         return Optional.empty();
     }
 
-    public boolean doesEmailExist(String email) {
-        Moderator moderator = domain.getUsers().getModerator();
-        if (moderator != null && moderator.getEmail().equalsIgnoreCase(email)) {
-            return true;
-        }
-        // Manual iteration using data from TheKnowledgeBay
-        DoublyLinkedNode<Student> current = domain.getUsers().getStudents().getHead();
-        while (current != null) {
-            Student student = current.getData();
-            if (student.getEmail().equalsIgnoreCase(email)) {
-                return true;
-            }
-            current = current.getNext();
-        }
-        return false;
-    }
-
     public boolean registerStudent(Student student) {
-        if (doesEmailExist(student.getEmail())) {
+        Optional<User> userOpt = findUserByEmail(student.getEmail());
+        if (userOpt.isPresent()) {
             log.warn("Registration attempt for existing email: {}", student.getEmail());
-            return false; // Email already exists
+            return false;
         }
-        // Hash password using injected encoder
+
         student.setPassword(passwordEncoder.encode(student.getPassword()));
-        // Ensure biography is initialized if not set
         if (student.getBiography() == null) {
             student.setBiography("");
         }
-        // Add student to the central store
-        domain.getUsers().getStudents().addLast(student);
+
+        domain.addStudent(student);
         log.info("Registered new student: {}", student.getEmail());
         return true;
     }
 
-    public Optional<String> login(String email, String rawPassword) {
+    public Optional<AuthResultDTO> login(String email, String rawPassword) {
         Optional<User> userOpt = findUserByEmail(email);
+
         if (userOpt.isPresent()) {
             User user = userOpt.get();
-            // Use injected encoder for password matching
             if (passwordEncoder.matches(rawPassword, user.getPassword())) {
-                // Credentials valid, generate token
-                // Create session using SessionManager
                 String token = sessionManager.createSession(user.getEmail());
+                String role = getUserRole(user);
                 log.info("Login successful for user: {}", email);
-                return Optional.of(token);
+                return Optional.of(new AuthResultDTO(token, role));
             } else {
                 log.warn("Invalid password attempt for user: {}", email);
             }
         } else {
             log.warn("Login attempt for non-existent user: {}", email);
         }
-        return Optional.empty(); // Login failed
+        return Optional.empty();
     }
 
     public Optional<String> validateToken(String token) {
@@ -103,33 +85,22 @@ public class AuthService {
         return Optional.ofNullable(sessionManager.getUserIdentifier(token));
     }
 
-    public void logout(String token) {
-        // Remove session from the central store
-        // Remove session using SessionManager
-        sessionManager.removeSession(token);
-        // Logging can be simplified or removed if SessionManager handles it
-        log.info("Logout requested for token: {}", token);
-        // Removed old logging based on removedEmail
+    public boolean isValidToken(String token) {
+        return validateToken(token).isPresent();
     }
 
-    // Removed generateSessionToken() method - logic moved to SessionManager
+    public void logout(String token) {
+        sessionManager.removeSession(token);
+        log.info("Logout requested for token: {}", token);
+    }
 
-    // Helper to get user role - needed for LoginResponseDTO
-    public String getUserRole(String email) {
-        Moderator moderator = domain.getUsers().getModerator();
-        if (moderator != null && moderator.getEmail().equalsIgnoreCase(email)) {
+    private String getUserRole(User user) {
+        if (user instanceof Moderator) {
             return "Moderator";
+        } else if (user instanceof Student) {
+            return "Student";
+        } else {
+            return "Unknown";
         }
-        // Manual iteration using data from TheKnowledgeBay
-        DoublyLinkedNode<Student> current = domain.getUsers().getStudents().getHead();
-        while (current != null) {
-            Student student = current.getData();
-            if (student.getEmail().equalsIgnoreCase(email)) {
-                return "Student";
-            }
-            current = current.getNext();
-        }
-        log.warn("Could not determine role for existing email: {}", email); // Should not happen
-        return "Unknown";
     }
 }

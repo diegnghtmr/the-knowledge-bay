@@ -20,7 +20,7 @@ public class Student extends User {
     private DoublyLinkedList<StudyGroup> studyGroups;
     private DoublyLinkedList<Chat> chats;
     
-    private String username;
+    private String firstName;
     private String lastName;
     private LocalDate dateBirth;
     private String biography;
