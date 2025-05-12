@@ -24,7 +24,8 @@ const FollowersModal = ({ followers, onClose }) => {
           followers.map(follower => (
             <ListItem
               key={follower.id}
-              name={follower.name}
+              firstName={follower.firstName}
+              lastName={follower.lastName}
               onView={() => handleViewFollower(follower.id)}
             />
           ))
@@ -38,7 +39,8 @@ FollowersModal.propTypes = {
   followers: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,
-      name: PropTypes.string.isRequired
+      firstName: PropTypes.string.isRequired,
+      lastName: PropTypes.string.isRequired
     })
   ).isRequired,
   onClose: PropTypes.func.isRequired

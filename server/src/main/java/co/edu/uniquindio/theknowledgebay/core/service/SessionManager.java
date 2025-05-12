@@ -64,4 +64,16 @@ public class SessionManager {
             }
         }
     }
+    /**
+     * Recupera el ID del usuario actual basado en su token de sesión.
+     *
+     * @param sessionToken El token de sesión del usuario actual
+     * @return El identificador del usuario asociado con la sesión, o null si la sesión no es válida
+     */
+    public String getCurrentUserId(String sessionToken) {
+        if (isTokenValid(sessionToken)) {
+            return getUserIdentifier(sessionToken);
+        }
+        return null;
+    }
 }

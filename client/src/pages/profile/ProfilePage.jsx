@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProfileHeader from '../../components/profile/ProfileHeader';
 import ProfileStats from '../../components/profile/ProfileStats';
 import ProfileDetails from '../../components/profile/ProfileDetails';
@@ -10,132 +10,103 @@ import ContentModal from '../../components/profile/modals/ContentModal';
 import RequestsModal from '../../components/profile/modals/RequestsModal';
 import EditProfileModal from '../../components/profile/modals/EditProfileModal';
 import profileLogo from '../../assets/img/profileLogo.png';
+// Import profile API service
+import { getProfile, updateProfile } from '../../services/profileApi';
 
 const ProfilePage = () => {
-  // Estado para controlar la visibilidad de los modales
   const [activeModal, setActiveModal] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Datos del usuario (simulados, en producción vendrían de una API)
-  const [userData, setUserData] = useState({
-    name: 'Nombre Apellido',
-    username: 'nombreusuario',
-    profileImage: profileLogo,
-    stats: {
-      following: 125,
-      followers: 237,
-      groups: 8,
-      content: 42,
-      requests: 5
-    },
-    bio: 'Entusiasta del conocimiento compartido. Me gusta aprender y enseñar sobre tecnología, ciencia y arte.',
-    email: 'usuario@example.com',
-    birthday: '15/03/90',
-    interests: ['Programación', 'Inteligencia Artificial', 'Diseño Web', 'Literatura', 'Fotografía']
-  });
+  useEffect(() => {
+    sessionStorage.setItem('token', '1');
+    (async () => {
+      const response = await getProfile();
+      if (response.success) {
+        setUserData(response.data);
+      } else {
+        console.error('Error fetching profile:', response.message);
+      }
+      setLoading(false);
+    })();
+  }, []);
+  
+  if (loading) return <div>Cargando perfil...</div>;
 
-  // Lista de ejemplos para los modales
-  const mockFollowers = Array(userData.stats.followers).fill().map((_, i) => ({ id: i, name: `Seguidor ${i + 1}` }));
-  const mockFollowing = Array(userData.stats.following).fill().map((_, i) => ({ id: i, name: `Seguido ${i + 1}` }));
-  const mockGroups = Array(userData.stats.groups).fill().map((_, i) => ({ id: i, name: `Grupo ${i + 1}` }));
-  const mockContent = Array(userData.stats.content).fill().map((_, i) => ({ id: i, title: `Publicación ${i + 1}` }));
-  const mockRequests = Array(userData.stats.requests).fill().map((_, i) => ({ 
-    id: i, 
-    title: `Solicitud ${i + 1}`, 
-    isCompleted: false 
-  }));
-
-  // Funciones para abrir modales
-  const openModal = (modalName) => {
-    setActiveModal(modalName);
-  };
-
-  // Función para cerrar cualquier modal
-  const closeModal = () => {
-    setActiveModal(null);
-  };
-
-  // Función para marcar solicitudes como completadas
+  const openModal = (modalName) => setActiveModal(modalName);
+  const closeModal = () => setActiveModal(null);
   const markRequestAsCompleted = (requestId) => {
-    // En producción, aquí iría una llamada a la API
     console.log(`Solicitud ${requestId} marcada como completada`);
   };
-
-  // Función para guardar cambios del perfil
-  const saveProfileChanges = (updatedData) => {
-    // En producción, aquí iría una llamada a la API
-    console.log('Datos actualizados:', updatedData);
-    setUserData(updatedData);
-    closeModal();
+  const saveProfileChanges = async (updatedData) => {
+    const response = await updateProfile(updatedData);
+    if (response.success) {
+      setUserData(response.data);
+      closeModal();
+    } else {
+      console.error('Error updating profile:', response.message);
+    }
   };
+
+  // Obtener datos limpios para el perfil
+  const firstName = userData.firstName || '';
+  const lastName = userData.lastName || '';
+  
+  // Comprobar si la biografía es el placeholder por defecto
+  const bio = userData.biography === '[Tu biografía aquí]' ? '' : (userData.biography || '');
+  
+  const email = userData.email || '';
+  const birthday = userData.dateBirth || '';
+  const interests = userData.interests || [];
 
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-8">
-        {/* Cabecera del perfil */}
-        <ProfileHeader 
-          name={userData.name}
+        <ProfileHeader
+          firstName={firstName}
+          lastName={lastName}
           username={userData.username}
-          profileImage={userData.profileImage}
+          profileImage={profileLogo}
         />
 
-        {/* Estadísticas interactivas */}
-        <ProfileStats 
-          stats={userData.stats}
+        <ProfileStats
+          stats={{ following: 0, followers: 0, groups: 0, content: 0, requests: 0 }}
           onStatClick={openModal}
         />
 
-        {/* Detalles del perfil */}
-        <ProfileDetails 
-          bio={userData.bio}
-          email={userData.email}
-          birthday={userData.birthday}
-          interests={userData.interests}
+        <ProfileDetails
+          bio={bio}
+          email={email}
+          birthday={birthday}
+          interests={interests}
         />
 
-        {/* Acciones del perfil */}
         <ProfileActions onEditProfile={() => openModal('edit')} />
 
         {/* Modales */}
-        {activeModal === 'followers' && (
-          <FollowersModal 
-            followers={mockFollowers} 
-            onClose={closeModal} 
-          />
-        )}
-        
-        {activeModal === 'following' && (
-          <FollowingModal 
-            following={mockFollowing} 
-            onClose={closeModal} 
-          />
-        )}
-        
-        {activeModal === 'groups' && (
-          <GroupsModal 
-            groups={mockGroups} 
-            onClose={closeModal} 
-          />
-        )}
-        
-        {activeModal === 'content' && (
-          <ContentModal 
-            content={mockContent} 
-            onClose={closeModal} 
-          />
-        )}
-        
+        {activeModal === 'followers' && <FollowersModal followers={mockFollowers} onClose={closeModal} />}
+        {activeModal === 'following' && <FollowingModal following={mockFollowing} onClose={closeModal} />}
+        {activeModal === 'groups' && <GroupsModal groups={mockGroups} onClose={closeModal} />}
+        {activeModal === 'content' && <ContentModal content={mockContent} onClose={closeModal} />}
         {activeModal === 'requests' && (
-          <RequestsModal 
-            requests={mockRequests} 
-            onClose={closeModal} 
+          <RequestsModal
+            requests={mockRequests}
+            onClose={closeModal}
             onMarkAsCompleted={markRequestAsCompleted}
           />
         )}
-        
         {activeModal === 'edit' && (
-          <EditProfileModal 
-            userData={userData} 
-            onClose={closeModal} 
+          <EditProfileModal
+            userData={{
+              firstName,
+              lastName,
+              username: userData.username,
+              bio,
+              email,
+              birthday,
+              interests
+            }}
+            onClose={closeModal}
             onSave={saveProfileChanges}
           />
         )}
@@ -144,4 +115,4 @@ const ProfilePage = () => {
   );
 };
 
-export default ProfilePage; 
+export default ProfilePage;

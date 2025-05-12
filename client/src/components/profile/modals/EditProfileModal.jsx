@@ -4,8 +4,10 @@ import ImprovedModalBase from './ImprovedModalBase';
 import { PencilSquareIcon } from '@heroicons/react/24/solid';
 
 const EditProfileModal = ({ userData, onClose, onSave }) => {
+  // Inicializar con los valores de firstName y lastName directamente
   const [formData, setFormData] = useState({
-    name: userData.name,
+    firstName: userData.firstName || '',
+    lastName: userData.lastName || '',
     username: userData.username,
     bio: userData.bio,
     email: userData.email,
@@ -192,14 +194,30 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre Completo
+          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+            Nombre
           </label>
           <input
             type="text"
-            id="name"
-            name="name"
-            value={formData.name}
+            id="firstName"
+            name="firstName"
+            placeholder="Escribe tu nombre"
+            value={formData.firstName}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)] focus:border-[var(--coastal-sea)]"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+            Apellido
+          </label>
+          <input
+            type="text"
+            id="lastName"
+            name="lastName"
+            placeholder="Escribe tu apellido"
+            value={formData.lastName}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)] focus:border-[var(--coastal-sea)]"
             required
@@ -216,6 +234,7 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
               type="text"
               id="username"
               name="username"
+              placeholder="Elige un nombre de usuario único"
               value={formData.username}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)] focus:border-[var(--coastal-sea)]"
@@ -231,6 +250,7 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
           <textarea
             id="bio"
             name="bio"
+            placeholder="Cuéntanos un poco sobre ti..."
             value={formData.bio}
             onChange={handleChange}
             style={{ 
@@ -259,7 +279,7 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
             Fecha de Nacimiento
           </label>
           <p className="font-bold text-[var(--deep-sea)] mb-2">
-            {formData.birthday}
+            {formData.birthday || 'Selecciona tu fecha de nacimiento'}
           </p>
           <input
             type="date"
@@ -355,7 +375,8 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
 
 EditProfileModal.propTypes = {
   userData: PropTypes.shape({
-    name: PropTypes.string.isRequired,
+    firstName: PropTypes.string.isRequired,
+    lastName: PropTypes.string.isRequired,
     username: PropTypes.string.isRequired,
     bio: PropTypes.string.isRequired,
     email: PropTypes.string.isRequired,
@@ -366,4 +387,4 @@ EditProfileModal.propTypes = {
   onSave: PropTypes.func.isRequired
 };
 
-export default EditProfileModal; 
+export default EditProfileModal;

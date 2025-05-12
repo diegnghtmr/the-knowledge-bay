@@ -24,7 +24,8 @@ const FollowingModal = ({ following, onClose }) => {
           following.map(followedUser => (
             <ListItem
               key={followedUser.id}
-              name={followedUser.name}
+              firstName={followedUser.firstName}
+              lastName={followedUser.lastName}
               onView={() => handleViewFollowing(followedUser.id)}
             />
           ))
@@ -38,7 +39,8 @@ FollowingModal.propTypes = {
   following: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,
-      name: PropTypes.string.isRequired
+      firstName: PropTypes.string.isRequired,
+      lastName: PropTypes.string.isRequired
     })
   ).isRequired,
   onClose: PropTypes.func.isRequired
