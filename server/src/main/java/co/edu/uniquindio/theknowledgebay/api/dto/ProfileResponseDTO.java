@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -23,4 +24,5 @@ public class ProfileResponseDTO {
     private int groups;
     private int content;
     private int requests;
+    private List<String> interests;
 }

@@ -71,9 +71,26 @@ public class SessionManager {
      * @return El identificador del usuario asociado con la sesión, o null si la sesión no es válida
      */
     public String getCurrentUserId(String sessionToken) {
-        if (isTokenValid(sessionToken)) {
-            return getUserIdentifier(sessionToken);
+        if (sessionToken == null) {
+            System.out.println("Token es nulo");
+            return null;
         }
+        
+        // Extraer el token si está en formato Bearer
+        String token = sessionToken;
+        if (sessionToken.startsWith("Bearer ")) {
+            token = sessionToken.substring(7);
+        }
+        
+        System.out.println("Validando token: " + token);
+        
+        if (isTokenValid(token)) {
+            String userId = getUserIdentifier(token);
+            System.out.println("Token válido. Usuario: " + userId);
+            return userId;
+        }
+        
+        System.out.println("Token inválido");
         return null;
     }
 }

@@ -17,21 +17,95 @@ const ProfilePage = () => {
   const [activeModal, setActiveModal] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Datos mock para los modales
+  const mockFollowers = [];
+  const mockFollowing = [];
+  const mockGroups = [];
+  const mockContent = [];
+  const mockRequests = [];
 
   useEffect(() => {
-    sessionStorage.setItem('token', '1');
+    // Usamos el token que ya está en sessionStorage (del login)
     (async () => {
-      const response = await getProfile();
-      if (response.success) {
-        setUserData(response.data);
-      } else {
-        console.error('Error fetching profile:', response.message);
+      try {
+        const response = await getProfile();
+        if (response.success) {
+          setUserData(response.data);
+        } else {
+          console.error('Error fetching profile:', response.message);
+          setError('No se pudo cargar el perfil: ' + response.message);
+          // Establecer datos de usuario predeterminados para evitar errores
+          setUserData({
+            firstName: '',
+            lastName: '',
+            username: 'usuario',
+            biography: '',
+            email: '',
+            dateBirth: '',
+            interests: []
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err.message);
+        setError('No se pudo cargar el perfil: ' + err.message);
+        // Establecer datos de usuario predeterminados para evitar errores
+        setUserData({
+          firstName: '',
+          lastName: '',
+          username: 'usuario',
+          biography: '',
+          email: '',
+          dateBirth: '',
+          interests: []
+        });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
   
   if (loading) return <div>Cargando perfil...</div>;
+  
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center p-8 max-w-md mx-auto bg-red-50 border border-red-200 rounded-lg">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Error al cargar el perfil</h2>
+          <p className="text-gray-700 mb-4">{error}</p>
+          <p className="text-gray-600">
+            Por favor, verifica tu conexión a internet y que el servidor esté funcionando correctamente.
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-[var(--coastal-sea)] text-white rounded-md"
+          >
+            Intentar nuevamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Si userData es null, no debería llegar aquí debido al manejo de errores,
+  // pero por si acaso, agregamos una verificación adicional
+  if (!userData) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center p-8">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Error inesperado</h2>
+          <p className="text-gray-700">No se pudieron cargar los datos del perfil.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-[var(--coastal-sea)] text-white rounded-md"
+          >
+            Intentar nuevamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const openModal = (modalName) => setActiveModal(modalName);
   const closeModal = () => setActiveModal(null);
@@ -56,7 +130,28 @@ const ProfilePage = () => {
   const bio = userData.biography === '[Tu biografía aquí]' ? '' : (userData.biography || '');
   
   const email = userData.email || '';
-  const birthday = userData.dateBirth || '';
+  
+  // Convertir el formato de fecha ISO a formato legible (DD/MM/YYYY)
+  const formatDate = (isoDate) => {
+    if (!isoDate) return '';
+    try {
+      // Si es un objeto Date en formato ISO
+      const date = new Date(isoDate);
+      if (isNaN(date.getTime())) {
+        // Si no es una fecha válida, devolver la cadena original
+        return isoDate;
+      }
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      // Si hay algún error, devolver la cadena original
+      return isoDate;
+    }
+  };
+  
+  const birthday = formatDate(userData.dateBirth);
   const interests = userData.interests || [];
 
   return (

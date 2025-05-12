@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,15 +23,26 @@ public class ProfileController {
 
     @GetMapping
     public ResponseEntity<ProfileResponseDTO> getProfile(@RequestHeader(value = "Authorization", required = false) String token) {
+        System.out.println("GET /api/profile - Token recibido: " + token);
+        
         String currentUserId = sessionManager.getCurrentUserId(token);
+        System.out.println("GET /api/profile - User ID: " + currentUserId);
+        
         // Default to user id "1" if no valid token (development stub)
         if (currentUserId == null) {
             currentUserId = "1";
+            System.out.println("GET /api/profile - Usando ID por defecto: " + currentUserId);
         }
+        
         User user = theKnowledgeBay.getUserById(currentUserId);
+        
         if (user == null) {
+            System.out.println("GET /api/profile - Usuario no encontrado con ID: " + currentUserId);
             return ResponseEntity.notFound().build();
         }
+        
+        System.out.println("GET /api/profile - Usuario encontrado: " + user.getUsername());
+        
         String defaultName = "Información no disponible";
         LocalDate defaultDate = LocalDate.of(1900,1,1);
         String defaultBio = "[Tu biografía aquí]";
@@ -41,17 +54,24 @@ public class ProfileController {
                 .lastName(user instanceof Student && ((Student) user).getLastName() != null ? ((Student) user).getLastName() : defaultName)
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
+                .interests(user instanceof Student && ((Student) user).getInterests() != null ? ((Student) user).getInterests() : Arrays.asList())
                 .build();
+                
         return ResponseEntity.ok(response);
     }
 
     @PutMapping
     public ResponseEntity<ProfileResponseDTO> updateProfile(@RequestHeader(value = "Authorization", required = false) String token,
                                                             @RequestBody ProfileUpdateDTO dto) {
+        System.out.println("PUT /api/profile - Token recibido: " + token);
+        
         String currentUserId = sessionManager.getCurrentUserId(token);
+        System.out.println("PUT /api/profile - User ID: " + currentUserId);
+        
         // Default to user id "1" if no valid token (development stub)
         if (currentUserId == null) {
             currentUserId = "1";
+            System.out.println("PUT /api/profile - Usando ID por defecto: " + currentUserId);
         }
 
         Student updated = Student.builder()
@@ -64,16 +84,26 @@ public class ProfileController {
                 .dateBirth(dto.getDateBirth())
                 .biography(dto.getBiography())
                 .build();
+        
+        System.out.println("PUT /api/profile - Actualizando usuario: " + updated.getUsername());
+                
         theKnowledgeBay.updateUser(currentUserId, updated);
 
         User user = theKnowledgeBay.getUserById(currentUserId);
+        
         if (user == null) {
+            System.out.println("PUT /api/profile - Usuario no encontrado después de actualizar");
             return ResponseEntity.notFound().build();
         }
 
         String defaultName = "Información no disponible";
         LocalDate defaultDate = LocalDate.of(1900,1,1);
         String defaultBio = "[Tu biografía aquí]";
+        
+        System.out.println("PUT /api/profile - Construyendo respuesta con intereses");
+        List<String> userInterests = (user instanceof Student) ? ((Student) user).getInterests() : Arrays.asList();
+        System.out.println("PUT /api/profile - Intereses: " + userInterests);
+        
         ProfileResponseDTO response = ProfileResponseDTO.builder()
                 .id(currentUserId)
                 .username(user.getUsername())
@@ -82,7 +112,11 @@ public class ProfileController {
                 .lastName(user instanceof Student && ((Student) user).getLastName() != null ? ((Student) user).getLastName() : defaultName)
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
+                .interests(userInterests)
                 .build();
+                
+        System.out.println("PUT /api/profile - Usuario actualizado correctamente: " + response.getUsername());
+                
         return ResponseEntity.ok(response);
     }
 }
