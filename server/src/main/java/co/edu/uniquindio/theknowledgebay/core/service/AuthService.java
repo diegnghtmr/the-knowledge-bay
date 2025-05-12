@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired; // Keep Autowired
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.lang.reflect.MalformedParameterizedTypeException;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -40,14 +42,38 @@ public class AuthService {
             }
             current = current.getNext();
         }
+
         return Optional.empty();
     }
 
-    public boolean registerStudent(Student student) {
-        Optional<User> userOpt = findUserByEmail(student.getEmail());
-        if (userOpt.isPresent()) {
+    public Optional<User> findUserByUsername(String username) {
+        Moderator moderator = domain.getUsers().getModerator();
+        if (moderator != null && moderator.getUsername().equalsIgnoreCase(username)) {
+            return Optional.of(moderator);
+        }
+        // Manual iteration using data from TheKnowledgeBay
+        DoublyLinkedNode<Student> current = domain.getUsers().getStudents().getHead();
+        while (current != null) {
+            Student student = current.getData();
+            if (student.getUsername().equalsIgnoreCase(username)) {
+                return Optional.of(student);
+            }
+            current = current.getNext();
+        }
+
+        return Optional.empty();
+    }
+
+    public String[] registerStudent(Student student) {
+
+        if (findUserByUsername(student.getUsername()).isPresent()) {
+            log.warn("Registration attempt for existing username: {}", student.getEmail());
+            return new String[] { "false", "Username already exists." };
+        }
+
+        if (findUserByEmail(student.getEmail()).isPresent()) {
             log.warn("Registration attempt for existing email: {}", student.getEmail());
-            return false;
+            return new String[] { "false", "Email already exists." };
         }
 
         student.setPassword(passwordEncoder.encode(student.getPassword()));
@@ -57,7 +83,8 @@ public class AuthService {
 
         domain.addStudent(student);
         log.info("Registered new student: {}", student.getEmail());
-        return true;
+
+        return new String[] { "true", "Student registered successfully." };
     }
 
     public Optional<AuthResultDTO> login(String email, String rawPassword) {
@@ -103,4 +130,5 @@ public class AuthService {
             return "Unknown";
         }
     }
+
 }

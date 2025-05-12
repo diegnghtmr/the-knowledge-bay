@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -25,22 +27,23 @@ public class AuthController {
     public ResponseEntity<AuthResponseDTO> register(@RequestBody RegisterStudentDTO registerDto) {
         // Convert DTO to Student model using builder
         Student newStudent = Student.builder()
-                .username(registerDto.getName())
+                .username(registerDto.getUsername())
                 .email(registerDto.getEmail())
                 .password(registerDto.getPassword())
                 .firstName("")
                 .lastName("")
+                .dateBirth(LocalDate.now())
                 .biography("")
                 .build();
 
-        boolean registered = authService.registerStudent(newStudent);
+        String[] registered = authService.registerStudent(newStudent);
 
-        if (registered) {
-            return ResponseEntity.ok(new AuthResponseDTO(true, "Student registered successfully."));
+        if (registered[0].equals("true")) {
+            return ResponseEntity.ok(new AuthResponseDTO(true, registered[1]));
         } else {
             // Assuming failure is due to existing email based on service logic
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new AuthResponseDTO(false, "Email already exists."));
+                    .body(new AuthResponseDTO(false, registered[1]));
         }
     }
     @PostMapping("/login")

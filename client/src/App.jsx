@@ -2,8 +2,6 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom"; // Removed BrowserRouter as it's in index.jsx
 import { useAuth } from "./context/AuthContext"; // Import useAuth
 
-import Login from "./components/auth/Login";
-import Register from "./components/auth/Register";
 import Landing from "./pages/landing/Landing.jsx";
 // Placeholder for authenticated content
 const AuthenticatedApp = () => {
@@ -37,8 +35,6 @@ function App() {
       ) : (
         <>
           {/* If not authenticated, show public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/landing" element={<Landing />} />
           {/* Default redirect for root path when not authenticated */}
           <Route path="/" element={<Navigate to="/landing" replace />} />

@@ -1,10 +1,10 @@
 -- Estudiantes
 CREATE TABLE IF NOT EXISTS students (
                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        username TEXT NOT NULL,
+                                        username TEXT NOT NULL UNIQUE,
                                         email TEXT NOT NULL UNIQUE,
                                         password TEXT NOT NULL,
-                                        first_name TEXT NOT NULL UNIQUE,
+                                        first_name TEXT NOT NULL,
                                         last_name TEXT NOT NULL,
                                         date_birth DATE NOT NULL,
                                         biography TEXT

@@ -160,9 +160,9 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
           setIsLoading(false); // Stop loading if passwords don't match
           return; 
         }
-        console.log('Attempting registration via Auth modal:', { name: credentials.username, email: credentials['register-email'], password: '***' }); // Avoid logging password
+        console.log('Attempting registration via Auth modal:', { username: credentials.username, email: credentials['register-email'], password: '***' }); // Avoid logging password
         response = await register({
-          name: credentials.username,
+          username: credentials.username,
           email: credentials['register-email'],
           password: credentials['register-password']
         });
@@ -289,7 +289,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                   label="Nombre de usuario"
                   type="text"
                   id="username"
-                  name="username" 
+                  name="username"
                   placeholder="usuario123"
                   isActive={!isLogin}
                 />

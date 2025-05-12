@@ -31,7 +31,7 @@ public class StudentRepository {
 
     public void save(Student student) {
         String sql = """
-                INSERT INTO students (id, username, email, password, full_name, last_name, date_birth, biography)
+                INSERT INTO students (id, username, email, password, first_name, last_name, date_birth, biography)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
@@ -50,7 +50,7 @@ public class StudentRepository {
     private final RowMapper<Student> studentRowMapper = (rs, rowNum) -> {
         Student s = new Student();
             s.setId(rs.getInt("id"));
-            s.setUsername(rs.getString("name"));
+            s.setUsername(rs.getString("username"));
             s.setEmail(rs.getString("email"));
             s.setPassword(rs.getString("password"));
             s.setFirstName(rs.getString("last_name"));
