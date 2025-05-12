@@ -65,6 +65,33 @@ public class ProfileController {
                                                             @RequestBody ProfileUpdateDTO dto) {
         System.out.println("PUT /api/profile - Token recibido: " + token);
         
+        System.out.println("PUT /api/profile - JSON Recibido: {");
+        System.out.println("  username: " + dto.getUsername());
+        System.out.println("  email: " + dto.getEmail());
+        System.out.println("  password: " + (dto.getPassword() != null ? "[CONFIDENCIAL]" : "null"));
+        System.out.println("  firstName: " + dto.getFirstName());
+        System.out.println("  lastName: " + dto.getLastName());
+        System.out.println("  birthday: " + dto.getBirthday());
+        System.out.println("  bio: " + dto.getBiography());
+        System.out.println("  interests: " + dto.getInterests());
+        System.out.println("}");
+        
+        // Convertir el formato de fecha si existe
+        if (dto.getBirthday() != null && !dto.getBirthday().isEmpty()) {
+            try {
+                // Definir el formato de la fecha de entrada
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yy");
+                // Parsear la fecha
+                LocalDate birthDate = LocalDate.parse(dto.getBirthday(), formatter);
+                dto.setDateBirth(birthDate);
+                System.out.println("Fecha de nacimiento convertida: " + birthDate);
+            } catch (DateTimeParseException e) {
+                System.out.println("Error al convertir la fecha: " + e.getMessage() + " para el valor: " + dto.getBirthday());
+            } catch (Exception e) {
+                System.out.println("Error inesperado al procesar la fecha: " + e.getMessage());
+            }
+        }
+        
         String currentUserId = sessionManager.getCurrentUserId(token);
         System.out.println("PUT /api/profile - User ID: " + currentUserId);
         
@@ -72,6 +99,12 @@ public class ProfileController {
         if (currentUserId == null) {
             currentUserId = "1";
             System.out.println("PUT /api/profile - Usando ID por defecto: " + currentUserId);
+        }
+
+        User existingUser = theKnowledgeBay.getUserById(currentUserId);
+        if (existingUser == null) {
+            System.out.println("PUT /api/profile - Usuario no encontrado para actualizar");
+            return ResponseEntity.notFound().build();
         }
 
         Student updated = Student.builder()
@@ -85,9 +118,15 @@ public class ProfileController {
                 .biography(dto.getBiography())
                 .build();
         
+        if (dto.getInterests() != null && !dto.getInterests().isEmpty()) {
+            System.out.println("PUT /api/profile - Intereses recibidos: " + dto.getInterests());
+        }
+        
         System.out.println("PUT /api/profile - Actualizando usuario: " + updated.getUsername());
+        System.out.println("PUT /api/profile - Biografía a actualizar: " + updated.getBiography());
+        System.out.println("PUT /api/profile - Fecha a actualizar: " + updated.getDateBirth());
                 
-        theKnowledgeBay.updateUser(currentUserId, updated);
+        theKnowledgeBay.updateUser(currentUserId, updated, dto.getInterests());
 
         User user = theKnowledgeBay.getUserById(currentUserId);
         

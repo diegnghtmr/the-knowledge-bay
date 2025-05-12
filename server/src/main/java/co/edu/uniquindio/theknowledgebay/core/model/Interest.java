@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class Interest {
-    private int idInterest;
+    private String idInterest;
     private String name;
 }

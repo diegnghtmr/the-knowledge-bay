@@ -93,11 +93,7 @@ public class TheKnowledgeBay {
         }
     }
 
-    /**
-     * Busca un usuario por email. Si no existe, crea uno automáticamente.
-     * @param email el email del usuario
-     * @return el usuario encontrado o creado
-     */
+
     public User findOrCreateUserByEmail(String email) {
         System.out.println("Buscando usuario con email: " + email);
         
@@ -137,20 +133,13 @@ public class TheKnowledgeBay {
         return newStudent;
     }
     
-    /**
-     * Genera un nuevo ID único para estudiantes
-     * @return el nuevo ID
-     */
+
     private String generateNewStudentId() {
         // Generar un ID único basado en timestamp
         return "user_" + System.currentTimeMillis();
     }
 
-    /**
-     * Retrieves a User by ID or email, applying defaults for Student fields.
-     * @param userId the user ID as String or email
-     * @return the User or null if not found
-     */
+
     public User getUserById(String userId) {
         // Buscar al moderador
         Moderator mod = users.getModerator();
@@ -158,7 +147,6 @@ public class TheKnowledgeBay {
             return mod;
         }
         
-        // Buscar en estudiantes por ID directamente
         DoublyLinkedNode<Student> current = users.getStudents().getHead();
         while (current != null) {
             Student s = current.getData();
@@ -174,7 +162,6 @@ public class TheKnowledgeBay {
             current = current.getNext();
         }
             
-        // Si parece ser un email (contiene @), buscar o crear usuario
         if (userId.contains("@")) {
             return findOrCreateUserByEmail(userId);
         }
@@ -182,12 +169,8 @@ public class TheKnowledgeBay {
         return null;
     }
 
-    /**
-     * Merges non-null fields from an updated User into the existing one.
-     * @param userId the user ID as String or email
-     * @param updated the User with updated values
-     */
-    public void updateUser(String userId, User updated) {
+
+    public void updateUser(String userId, User updated, List<String> interestNames) {
         // Buscar al moderador
         Moderator mod = users.getModerator();
         if (mod.getId() != null && mod.getId().equals(userId)) {
@@ -197,42 +180,71 @@ public class TheKnowledgeBay {
             return;
         }
         
-        // Buscar en estudiantes por ID directamente
         DoublyLinkedNode<Student> current = users.getStudents().getHead();
         while (current != null) {
             Student s = current.getData();
             if (s.getId() != null && s.getId().equals(userId)) {
                 updateStudentFields(s, updated);
+                
+                if (interestNames != null && !interestNames.isEmpty()) {
+                    updateStudentInterests(s, interestNames);
+                }
+                
                 return;
             }
             current = current.getNext();
         }
         
-        // Si es un email, buscar por email
         if (userId.contains("@")) {
-            // Buscar por email
             current = users.getStudents().getHead();
             while (current != null) {
                 Student s = current.getData();
                 if (s.getEmail() != null && s.getEmail().equals(userId)) {
                     updateStudentFields(s, updated);
+                    
+                    if (interestNames != null && !interestNames.isEmpty()) {
+                        updateStudentInterests(s, interestNames);
+                    }
+                    
                     return;
                 }
                 current = current.getNext();
             }
             
-            // Si no existe, crear un nuevo estudiante con este email
             System.out.println("updateUser: No se encontró el usuario para actualizar, creando uno nuevo");
             User newUser = findOrCreateUserByEmail(userId);
             if (newUser instanceof Student) {
-                updateStudentFields((Student)newUser, updated);
+                Student student = (Student)newUser;
+                updateStudentFields(student, updated);
+                
+                if (interestNames != null && !interestNames.isEmpty()) {
+                    updateStudentInterests(student, interestNames);
+                }
             }
         }
     }
+
+    public void updateUser(String userId, User updated) {
+        updateUser(userId, updated, null);
+    }
     
-    /**
-     * Helper method to update student fields
-     */
+
+    private void updateStudentInterests(Student target, List<String> interestNames) {
+        System.out.println("Actualizando intereses del estudiante: " + interestNames);
+        
+        DoublyLinkedList<Interest> newInterests = new DoublyLinkedList<>();
+        
+        for (String name : interestNames) {
+            Interest interest = new Interest();
+            interest.setName(name);
+            newInterests.addLast(interest);
+        }
+        
+        target.setInterests(newInterests);
+        System.out.println("Intereses actualizados correctamente.");
+    }
+    
+ 
     private void updateStudentFields(Student target, User updated) {
         // update common fields
         if (updated.getUsername() != null) target.setUsername(updated.getUsername());
