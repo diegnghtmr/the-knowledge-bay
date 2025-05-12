@@ -97,7 +97,7 @@ public class ProfileController {
         }
 
         String defaultName = "Información no disponible";
-        LocalDate defaultDate = LocalDate.of(1900,1,1);
+        LocalDate defaultDate = LocalDate.of(1999,1,1);
         String defaultBio = "[Tu biografía aquí]";
         
         System.out.println("PUT /api/profile - Construyendo respuesta con intereses");

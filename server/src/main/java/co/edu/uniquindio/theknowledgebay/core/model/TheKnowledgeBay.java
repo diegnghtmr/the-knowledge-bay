@@ -121,7 +121,7 @@ public class TheKnowledgeBay {
                 .password("defaultPassword")    // Contraseña por defecto
                 .firstName("")
                 .lastName("")
-                .dateBirth(LocalDate.of(1900, 1, 1))
+                .dateBirth(LocalDate.of(1999, 1, 1))
                 .biography("[Tu biografía aquí]")
                 .build();
         
