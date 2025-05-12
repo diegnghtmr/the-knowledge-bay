@@ -78,6 +78,13 @@ public class TheKnowledgeBay {
         // Initialize moderator
         String password = passwordEncoder.encode(props.password());
         users.setModerator(props, password);
+        
+        // Asignar un ID al moderador (usando su email como ID)
+        Moderator mod = users.getModerator();
+        if (mod.getId() == null) {
+            mod.setId(mod.getEmail());
+            System.out.println("ID del moderador establecido a: " + mod.getId());
+        }
 
         // Initialize students
         List<Student> students = studentRepository.findAll();
@@ -115,13 +122,13 @@ public class TheKnowledgeBay {
         // Si no se encuentra, crear un nuevo estudiante
         System.out.println("Usuario no encontrado, creando nuevo estudiante con email: " + email);
         Student newStudent = Student.builder()
-                .id(generateNewStudentId())
+                .id(email) // Usar el email como ID
                 .email(email)
                 .username(email.split("@")[0])  // Usar la parte antes de @ como nombre de usuario
                 .password("defaultPassword")    // Contraseña por defecto
                 .firstName("")
                 .lastName("")
-                .dateBirth(LocalDate.of(1999, 1, 1))
+                .dateBirth(LocalDate.of(1900, 1, 1))
                 .biography("[Tu biografía aquí]")
                 .build();
         
@@ -134,18 +141,9 @@ public class TheKnowledgeBay {
      * Genera un nuevo ID único para estudiantes
      * @return el nuevo ID
      */
-    private Integer generateNewStudentId() {
-        // Encontrar el ID más alto y sumar 1
-        int maxId = 0;
-        DoublyLinkedNode<Student> current = users.getStudents().getHead();
-        while (current != null) {
-            Student s = current.getData();
-            if (s.getId() != null && s.getId() > maxId) {
-                maxId = s.getId();
-            }
-            current = current.getNext();
-        }
-        return maxId + 1;
+    private String generateNewStudentId() {
+        // Generar un ID único basado en timestamp
+        return "user_" + System.currentTimeMillis();
     }
 
     /**
@@ -154,44 +152,34 @@ public class TheKnowledgeBay {
      * @return the User or null if not found
      */
     public User getUserById(String userId) {
-        // Primero intentar buscar por ID numérico
-        try {
-            int id = Integer.parseInt(userId);
-            
-            // check moderator
-            Moderator mod = users.getModerator();
-            if (mod.getId() != null && mod.getId().equals(id)) {
-                return mod;
-            }
-            
-            // search students
-            DoublyLinkedNode<Student> current = users.getStudents().getHead();
-            while (current != null) {
-                Student s = current.getData();
-                if (s.getId() != null && s.getId().equals(id)) {
-                    if (s.getBiography() == null || s.getBiography().isEmpty()) {
-                        s.setBiography("[Tu biografía aquí]");
-                    }
-                    if (s.getDateBirth() == null) {
-                        s.setDateBirth(LocalDate.of(1900, 1, 1));
-                    }
-                    return s;
-                }
-                current = current.getNext();
-            }
-            return null;
-            
-        } catch (NumberFormatException e) {
-            // Si no es un ID numérico, intentar buscar por email
-            System.out.println("El ID no es numérico, buscando como email: " + userId);
-            
-            // Si parece ser un email (contiene @), buscar o crear usuario
-            if (userId.contains("@")) {
-                return findOrCreateUserByEmail(userId);
-            }
-            
-            return null;
+        // Buscar al moderador
+        Moderator mod = users.getModerator();
+        if (mod.getId() != null && mod.getId().equals(userId)) {
+            return mod;
         }
+        
+        // Buscar en estudiantes por ID directamente
+        DoublyLinkedNode<Student> current = users.getStudents().getHead();
+        while (current != null) {
+            Student s = current.getData();
+            if (s.getId() != null && s.getId().equals(userId)) {
+                if (s.getBiography() == null || s.getBiography().isEmpty()) {
+                    s.setBiography("[Tu biografía aquí]");
+                }
+                if (s.getDateBirth() == null) {
+                    s.setDateBirth(LocalDate.of(1900, 1, 1));
+                }
+                return s;
+            }
+            current = current.getNext();
+        }
+            
+        // Si parece ser un email (contiene @), buscar o crear usuario
+        if (userId.contains("@")) {
+            return findOrCreateUserByEmail(userId);
+        }
+        
+        return null;
     }
 
     /**
@@ -200,52 +188,44 @@ public class TheKnowledgeBay {
      * @param updated the User with updated values
      */
     public void updateUser(String userId, User updated) {
-        // Primero intentar actualizar por ID numérico
-        try {
-            int id = Integer.parseInt(userId);
-            
-            // update moderator
-            Moderator mod = users.getModerator();
-            if (mod.getId() != null && mod.getId().equals(id)) {
-                if (updated.getUsername() != null) mod.setUsername(updated.getUsername());
-                if (updated.getEmail() != null) mod.setEmail(updated.getEmail());
-                if (updated.getPassword() != null) mod.setPassword(updated.getPassword());
+        // Buscar al moderador
+        Moderator mod = users.getModerator();
+        if (mod.getId() != null && mod.getId().equals(userId)) {
+            if (updated.getUsername() != null) mod.setUsername(updated.getUsername());
+            if (updated.getEmail() != null) mod.setEmail(updated.getEmail());
+            if (updated.getPassword() != null) mod.setPassword(updated.getPassword());
+            return;
+        }
+        
+        // Buscar en estudiantes por ID directamente
+        DoublyLinkedNode<Student> current = users.getStudents().getHead();
+        while (current != null) {
+            Student s = current.getData();
+            if (s.getId() != null && s.getId().equals(userId)) {
+                updateStudentFields(s, updated);
                 return;
             }
-            
-            // search students
-            DoublyLinkedNode<Student> current = users.getStudents().getHead();
+            current = current.getNext();
+        }
+        
+        // Si es un email, buscar por email
+        if (userId.contains("@")) {
+            // Buscar por email
+            current = users.getStudents().getHead();
             while (current != null) {
                 Student s = current.getData();
-                if (s.getId() != null && s.getId().equals(id)) {
+                if (s.getEmail() != null && s.getEmail().equals(userId)) {
                     updateStudentFields(s, updated);
                     return;
                 }
                 current = current.getNext();
             }
             
-        } catch (NumberFormatException e) {
-            // Si no es un ID numérico, intentar actualizar por email
-            System.out.println("updateUser: El ID no es numérico, buscando como email: " + userId);
-            
-            if (userId.contains("@")) {
-                // Buscar por email
-                DoublyLinkedNode<Student> current = users.getStudents().getHead();
-                while (current != null) {
-                    Student s = current.getData();
-                    if (s.getEmail() != null && s.getEmail().equals(userId)) {
-                        updateStudentFields(s, updated);
-                        return;
-                    }
-                    current = current.getNext();
-                }
-                
-                // Si no existe, crear un nuevo estudiante con este email
-                System.out.println("updateUser: No se encontró el usuario para actualizar, creando uno nuevo");
-                User newUser = findOrCreateUserByEmail(userId);
-                if (newUser instanceof Student) {
-                    updateStudentFields((Student)newUser, updated);
-                }
+            // Si no existe, crear un nuevo estudiante con este email
+            System.out.println("updateUser: No se encontró el usuario para actualizar, creando uno nuevo");
+            User newUser = findOrCreateUserByEmail(userId);
+            if (newUser instanceof Student) {
+                updateStudentFields((Student)newUser, updated);
             }
         }
     }

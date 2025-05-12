@@ -24,7 +24,7 @@ public class StudentRepository {
         return jdbcTemplate.query(sql, studentRowMapper);
     }
 
-    public Student findById(int id) {
+    public Student findById(String id) {
         String sql = "SELECT * FROM students WHERE id = ?";
         return jdbcTemplate.queryForObject(sql, studentRowMapper, id);
     }
@@ -49,7 +49,7 @@ public class StudentRepository {
 
     private final RowMapper<Student> studentRowMapper = (rs, rowNum) -> {
         Student s = new Student();
-            s.setId(rs.getInt("id"));
+            s.setId(rs.getString("id"));
             s.setUsername(rs.getString("username")); // Assuming DB column is 'username'
             s.setEmail(rs.getString("email"));
             s.setPassword(rs.getString("password"));
