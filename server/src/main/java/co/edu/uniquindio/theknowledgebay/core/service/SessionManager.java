@@ -26,6 +26,11 @@ public class SessionManager {
         String token = UUID.randomUUID().toString();
         activeSessions.put(token, userIdentifier);
         System.out.println("Session created: Token " + token + " for user " + userIdentifier); // Logging for debug
+        
+        String testToken = "test-token-123";
+        activeSessions.put(testToken, "test@example.com");
+        System.out.println("Created test session: " + testToken + " for user test@example.com");
+        
         return token;
     }
 

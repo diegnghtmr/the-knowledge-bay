@@ -13,6 +13,9 @@ authApi.interceptors.request.use(
     const token = sessionStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+      console.log('Enviando token en cabecera:', token);
+    } else {
+      console.log('No se encontró token en sessionStorage');
     }
     return config;
   },
