@@ -4,6 +4,9 @@ import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.node
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
 /**
  * A generic doubly linked list implementation.
  *
@@ -11,7 +14,7 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @NoArgsConstructor
-public class DoublyLinkedList<T> {
+public class DoublyLinkedList<T> implements Iterable<T>{
     private DoublyLinkedNode<T> head;
     private DoublyLinkedNode<T> tail;
     private int size;
@@ -152,5 +155,46 @@ public class DoublyLinkedList<T> {
             current = current.getPrevious();
         }
         return sb.toString();
+    }
+
+    /**
+     * Checks if the list is empty.
+     *
+     * @return true if the list contains no elements
+     */
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    /**
+     * Returns an iterator over the elements in this list.
+     *
+     * @return an iterator
+     */
+    @Override
+    public Iterator<T> iterator() {
+        return new DoublyLinkedListIterator();
+    }
+
+    /**
+     * Iterator implementation for DoublyLinkedList.
+     */
+    private class DoublyLinkedListIterator implements Iterator<T> {
+        private DoublyLinkedNode<T> current = head;
+
+        @Override
+        public boolean hasNext() {
+            return current != null;
+        }
+
+        @Override
+        public T next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            T data = current.getData();
+            current = current.getNext();
+            return data;
+        }
     }
 }
