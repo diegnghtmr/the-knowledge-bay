@@ -48,11 +48,14 @@ const ChatWindow = ({ contact, onMessageSent }) => {
     try {
       setIsSending(true);
       
+      // Obtener el ID del usuario actual del sessionStorage
+      const currentUserId = sessionStorage.getItem('userId') || 'unknown_user';
+      
       // Crear un mensaje temporal optimista con un ID único temporal
       const tempId = `temp-${Date.now()}`;
       const optimisticMessage = {
         id: tempId,
-        senderId: 0, // Usuario actual
+        senderId: currentUserId, // ID real del usuario actual (email)
         receiverId: contact.id,
         text,
         timestamp: new Date(),
@@ -161,13 +164,21 @@ const ChatWindow = ({ contact, onMessageSent }) => {
                 </span>
               </div>
             )}
-            {uniqueMessages.map(message => (
-              <MessageBubble 
-                key={message.id} 
-                message={message} 
-                isCurrentUser={message.senderId === 0} // 0 es el ID del usuario actual en este caso
-              />
-            ))}
+            {uniqueMessages.map(message => {
+              // Obtener el ID del usuario actual del sessionStorage
+              const currentUserId = sessionStorage.getItem('userId') || 'unknown_user';
+              
+              // Comprobar si el mensaje es del usuario actual
+              const isCurrentUser = message.senderId === currentUserId;
+              
+              return (
+                <MessageBubble 
+                  key={message.id} 
+                  message={message} 
+                  isCurrentUser={isCurrentUser}
+                />
+              );
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
