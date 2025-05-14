@@ -7,6 +7,7 @@ import Register from "./components/auth/Register";
 import Landing from "./pages/landing/Landing.jsx";
 import ProfilePage from "./pages/profile/ProfilePage";
 import ChatPage from "./pages/chat/ChatPage";
+import BodyClassManager from "./components/layout/BodyClassManager";
 
 // Placeholder for authenticated content
 const AuthenticatedApp = () => {
@@ -42,29 +43,34 @@ function App() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <Routes>
-      {isAuthenticated ? (
-        <>
-          {/* If authenticated, show the main app view */}
-          <Route path="/" element={<AuthenticatedApp />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          {/* Redirect any other path to the main authenticated view */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </>
-      ) : (
-        <>
-          {/* If not authenticated, show public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/landing" element={<Landing />} />
-          {/* Default redirect for root path when not authenticated */}
-          <Route path="/" element={<Navigate to="/landing" replace />} />
-          {/* Redirect any other unknown path to landing */}
-          <Route path="*" element={<Navigate to="/landing" replace />} />
-        </>
-      )}
-    </Routes>
+    <>
+      {/* Componente que gestiona las clases del body según la ruta */}
+      <BodyClassManager />
+      
+      <Routes>
+        {isAuthenticated ? (
+          <>
+            {/* If authenticated, show the main app view */}
+            <Route path="/" element={<AuthenticatedApp />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            {/* Redirect any other path to the main authenticated view */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        ) : (
+          <>
+            {/* If not authenticated, show public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/landing" element={<Landing />} />
+            {/* Default redirect for root path when not authenticated */}
+            <Route path="/" element={<Navigate to="/landing" replace />} />
+            {/* Redirect any other unknown path to landing */}
+            <Route path="*" element={<Navigate to="/landing" replace />} />
+          </>
+        )}
+      </Routes>
+    </>
   );
 }
 

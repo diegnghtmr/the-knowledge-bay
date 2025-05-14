@@ -42,7 +42,11 @@
     }
 }
 
-/* En tu CSS global o Tailwind */
-body {
+/* Clases para controlar el overflow del body */
+.body-overflow-hidden {
     overflow: hidden;
+}
+
+.body-overflow-auto {
+    overflow: auto;
 }
