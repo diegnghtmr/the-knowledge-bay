@@ -36,17 +36,14 @@ public class ChatController {
      */
     @PostMapping("/send")
     public ResponseEntity<?> sendMessage(
-            @RequestHeader(value="Authorization", required=false) String token,
+            @RequestHeader("Authorization") String token,
             @RequestBody SendMessageRequestDTO requestDTO) {
         
         // Validate token and get current user
-        String currentUserEmail = null;
-        if (token != null) {
-            currentUserEmail = sessionManager.getCurrentUserId(token);
-            log.info("Token proporcionado: {}, usuario: {}", token, currentUserEmail);
-        } else {
-            log.warn("No se proporcionó token de autorización");
-            currentUserEmail = "test@example.com";
+        String currentUserEmail = sessionManager.getCurrentUserId(token);
+        if (currentUserEmail == null) {
+            log.warn("Unauthorized attempt to send message");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         // Send message
@@ -76,17 +73,14 @@ public class ChatController {
      */
     @GetMapping("/{contactId}/messages")
     public ResponseEntity<?> getMessages(
-            @RequestHeader(value="Authorization", required=false) String token,
+            @RequestHeader("Authorization") String token,
             @PathVariable String contactId) {
         
         // Validate token and get current user
-        String currentUserEmail = null;
-        if (token != null) {
-            currentUserEmail = sessionManager.getCurrentUserId(token);
-            log.info("Token proporcionado: {}, usuario: {}", token, currentUserEmail);
-        } else {
-            log.warn("No se proporcionó token de autorización");
-            currentUserEmail = "test@example.com";
+        String currentUserEmail = sessionManager.getCurrentUserId(token);
+        if (currentUserEmail == null) {
+            log.warn("Unauthorized attempt to get messages");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         DoublyLinkedList<Message> messages = chatService.getMessagesForChat(currentUserEmail, contactId);
@@ -115,15 +109,12 @@ public class ChatController {
      * @return List of contacts with last message information
      */
     @GetMapping("/contacts")
-    public ResponseEntity<?> getContacts(@RequestHeader(value="Authorization", required=false) String token) {
+    public ResponseEntity<?> getContacts(@RequestHeader("Authorization") String token) {
         // Validate token and get current user
-        String currentUserEmail = null;
-        if (token != null) {
-            currentUserEmail = sessionManager.getCurrentUserId(token);
-            log.info("Token proporcionado: {}, usuario: {}", token, currentUserEmail);
-        } else {
-            log.warn("No se proporcionó token de autorización");
-            currentUserEmail = "test@example.com";
+        String currentUserEmail = sessionManager.getCurrentUserId(token);
+        if (currentUserEmail == null) {
+            log.warn("Unauthorized attempt to get contacts");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         DoublyLinkedList<ChatContactDTO> contacts = chatService.getChatContactsWithLastMessage(currentUserEmail);

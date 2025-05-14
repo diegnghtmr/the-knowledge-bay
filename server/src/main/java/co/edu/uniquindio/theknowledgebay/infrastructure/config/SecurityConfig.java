@@ -35,7 +35,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/profile").permitAll()  // Permit GET profile
                         .requestMatchers(HttpMethod.PUT, "/api/profile").permitAll()  // Permit PUT profile
                         .requestMatchers("/api/profile/**").permitAll() // Permit profile API for frontend
-                        .requestMatchers("/api/chat/**").permitAll() // Temporalmente permitimos el acceso a chat sin autenticación
+                        .requestMatchers("/api/chat/**").permitAll() // Require authentication for chat endpoints
                         .anyRequest().authenticated() // Secure other endpoints
                 );
         return http.build();

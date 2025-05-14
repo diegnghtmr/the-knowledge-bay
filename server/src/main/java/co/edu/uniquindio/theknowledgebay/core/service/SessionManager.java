@@ -26,11 +26,6 @@ public class SessionManager {
         String token = UUID.randomUUID().toString();
         activeSessions.put(token, userIdentifier);
         System.out.println("Session created: Token " + token + " for user " + userIdentifier); // Logging for debug
-        
-        String testToken = "test-token-123";
-        activeSessions.put(testToken, "test@example.com");
-        System.out.println("Created test session: " + testToken + " for user test@example.com");
-        
         return token;
     }
 
@@ -77,7 +72,6 @@ public class SessionManager {
      */
     public String getCurrentUserId(String sessionToken) {
         if (sessionToken == null) {
-            System.out.println("Token es nulo");
             return null;
         }
         
@@ -87,15 +81,11 @@ public class SessionManager {
             token = sessionToken.substring(7);
         }
         
-        System.out.println("Validando token: " + token);
-        
         if (isTokenValid(token)) {
             String userId = getUserIdentifier(token);
-            System.out.println("Token válido. Usuario: " + userId);
             return userId;
         }
         
-        System.out.println("Token inválido");
         return null;
     }
 }
