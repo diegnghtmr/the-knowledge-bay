@@ -61,7 +61,7 @@ const Auth = ({ initialView = "login", isVisible = false, setData, onCoontinue }
 
        return (
         <section
-            className={`absolute top-[170%] inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${
+            className={`absolute top-[150%] inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${
                 isVisible
                     ? "bg-opacity-50 opacity-100 pointer-events-auto"
                     : "bg-opacity-0 opacity-0 pointer-events-none"

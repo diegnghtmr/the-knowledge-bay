@@ -80,7 +80,7 @@ const Landing = () => {
           <img
             src={beach}
             alt="beach"
-            className="w-[2000px] h-auto absolute top-[219vh]"
+            className="w-[2000px] h-auto absolute top-[200vh]"
           />
         </div>
         <header className="flex flex-col items-center justify-center mb-30">
