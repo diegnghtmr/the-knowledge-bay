@@ -4,6 +4,7 @@ import { useAuth } from "./context/AuthContext"; // Import useAuth
 
 import Landing from "./pages/Landing.jsx";
 import ProfilePage from "./pages/profile/ProfilePage";
+import UserProfileViewPage from "./pages/profile/UserProfileViewPage";
 import ChatPage from "./pages/chat/ChatPage";
 import BodyClassManager from "./components/layout/BodyClassManager";
 
@@ -33,6 +34,12 @@ const AuthenticatedApp = () => {
         >
           Mi Perfil
         </a>
+        <a
+          href="/user/123"
+          className="bg-coastal-sea text-deep-sea px-5 py-2 rounded hover:bg-open-sea transition-colors"
+        >
+          Perfil de Ejemplo
+        </a>
       </div>
     </div>
   );
@@ -52,6 +59,7 @@ function App() {
             {/* If authenticated, show the main app view */}
             <Route path="/" element={<AuthenticatedApp />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/user/:userId" element={<UserProfileViewPage />} />
             <Route path="/chat" element={<ChatPage />} />
             {/* Redirect any other path to the main authenticated view */}
             <Route path="*" element={<Navigate to="/" replace />} />

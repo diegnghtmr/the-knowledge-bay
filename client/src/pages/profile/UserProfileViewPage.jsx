@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import ProfileHeader from '../../components/profile/ProfileHeader';
 import ProfileStats from '../../components/profile/ProfileStats';
 import ProfileDetails from '../../components/profile/ProfileDetails';
@@ -8,18 +9,19 @@ import FollowingModal from '../../components/profile/modals/FollowingModal';
 import GroupsModal from '../../components/profile/modals/GroupsModal';
 import ContentModal from '../../components/profile/modals/ContentModal';
 import RequestsModal from '../../components/profile/modals/RequestsModal';
-import EditProfileModal from '../../components/profile/modals/EditProfileModal';
 import profileLogo from '../../assets/img/profileLogo.png';
-// Import profile API service
-import { getProfile, updateProfile } from '../../services/profileApi';
+// Import profile API services
+import { getProfileByUserId, getFollowStatus, followUser, unfollowUser } from '../../services/profileApi';
 
-const ProfilePage = () => {
+const UserProfileViewPage = () => {
+  const { userId } = useParams();
   const [activeModal, setActiveModal] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Datos mock para los modales
+  // Datos mock para los modales (en una implementación real vendrían de la API)
   const mockFollowers = [];
   const mockFollowing = [];
   const mockGroups = [];
@@ -27,45 +29,64 @@ const ProfilePage = () => {
   const mockRequests = [];
 
   useEffect(() => {
-    // Usamos el token que ya está en sessionStorage (del login)
+    // Cargar perfil del usuario y estado de seguimiento
     (async () => {
       try {
-        const response = await getProfile();
-        if (response.success) {
-          setUserData(response.data);
+        setLoading(true);
+        // Obtener datos del perfil
+        const profileResponse = await getProfileByUserId(userId);
+        
+        // Obtener estado de seguimiento
+        const followStatusResponse = await getFollowStatus(userId);
+        
+        if (profileResponse.success) {
+          setUserData(profileResponse.data);
+          
+          if (followStatusResponse.success) {
+            setIsFollowing(followStatusResponse.data.isFollowing);
+          }
         } else {
-          console.error('Error fetching profile:', response.message);
-          setError('No se pudo cargar el perfil: ' + response.message);
-          // Establecer datos de usuario predeterminados para evitar errores
-          setUserData({
-            firstName: '',
-            lastName: '',
-            username: 'usuario',
-            biography: '',
-            email: '',
-            dateBirth: '',
-            interests: []
-          });
+          console.error('Error fetching profile:', profileResponse.message);
+          setError('No se pudo cargar el perfil: ' + profileResponse.message);
         }
       } catch (err) {
-        console.error('Error fetching profile:', err.message);
-        setError('No se pudo cargar el perfil: ' + err.message);
-        // Establecer datos de usuario predeterminados para evitar errores
-        setUserData({
-          firstName: '',
-          lastName: '',
-          username: 'usuario',
-          biography: '',
-          email: '',
-          dateBirth: '',
-          interests: []
-        });
+        console.error('Error en la carga del perfil:', err.message);
+        setError('No se pudo cargar el perfil. Por favor, intenta de nuevo más tarde.');
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [userId]); // Se volverá a ejecutar si cambia el userId
+
+  const openModal = (modalName) => setActiveModal(modalName);
+  const closeModal = () => setActiveModal(null);
   
+  const handleFollowToggle = async () => {
+    try {
+      if (isFollowing) {
+        // Si ya lo sigue, dejar de seguir
+        const response = await unfollowUser(userId);
+        if (response.success) {
+          setIsFollowing(false);
+        }
+      } else {
+        // Si no lo sigue, seguir
+        const response = await followUser(userId);
+        if (response.success) {
+          setIsFollowing(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cambiar estado de seguimiento:', error);
+    }
+  };
+  
+  // Función de marcado de solicitudes completadas (en este caso será un Mock)
+  const markRequestAsCompleted = (requestId) => {
+    console.log(`Solicitud ${requestId} marcada como completada`);
+    // En una implementación real, esto no debería ser posible desde la vista de otro usuario
+  };
+
   if (loading) return <div>Cargando perfil...</div>;
   
   if (error) {
@@ -107,28 +128,10 @@ const ProfilePage = () => {
     );
   }
 
-  const openModal = (modalName) => setActiveModal(modalName);
-  const closeModal = () => setActiveModal(null);
-  const markRequestAsCompleted = (requestId) => {
-    console.log(`Solicitud ${requestId} marcada como completada`);
-  };
-  const saveProfileChanges = async (updatedData) => {
-    const response = await updateProfile(updatedData);
-    if (response.success) {
-      setUserData(response.data);
-      closeModal();
-    } else {
-      console.error('Error updating profile:', response.message);
-    }
-  };
-
   // Obtener datos limpios para el perfil
   const firstName = userData.firstName || '';
   const lastName = userData.lastName || '';
-  
-  // Comprobar si la biografía es el placeholder por defecto
-  const bio = userData.biography === '[Tu biografía aquí]' ? '' : (userData.biography || '');
-  
+  const bio = userData.biography || '';
   const email = userData.email || '';
   
   // Convertir el formato de fecha ISO a formato legible (DD/MM/YYYY)
@@ -153,6 +156,7 @@ const ProfilePage = () => {
   
   const birthday = formatDate(userData.dateBirth);
   const interests = userData.interests || [];
+  const stats = userData.stats || { following: 0, followers: 0, groups: 0, content: 0, requests: 0 };
 
   return (
     <div className="min-h-screen bg-white">
@@ -165,7 +169,7 @@ const ProfilePage = () => {
         />
 
         <ProfileStats
-          stats={{ following: 0, followers: 0, groups: 0, content: 0, requests: 0 }}
+          stats={stats}
           onStatClick={openModal}
         />
 
@@ -177,8 +181,9 @@ const ProfilePage = () => {
         />
 
         <ProfileActions 
-          isOwnProfile={true}
-          onEditProfile={() => openModal('edit')}
+          isOwnProfile={false}
+          isFollowing={isFollowing}
+          onFollowToggle={handleFollowToggle}
         />
 
         {/* Modales */}
@@ -191,22 +196,7 @@ const ProfilePage = () => {
             requests={mockRequests}
             onClose={closeModal}
             onMarkAsCompleted={markRequestAsCompleted}
-            canManageRequests={true}
-          />
-        )}
-        {activeModal === 'edit' && (
-          <EditProfileModal
-            userData={{
-              firstName,
-              lastName,
-              username: userData.username,
-              bio,
-              email,
-              birthday,
-              interests
-            }}
-            onClose={closeModal}
-            onSave={saveProfileChanges}
+            canManageRequests={false} // El usuario visitante no puede marcar solicitudes como completadas
           />
         )}
       </div>
@@ -214,4 +204,4 @@ const ProfilePage = () => {
   );
 };
 
-export default ProfilePage;
+export default UserProfileViewPage;

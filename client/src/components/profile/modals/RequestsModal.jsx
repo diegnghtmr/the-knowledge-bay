@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import ImprovedModalBase from './ImprovedModalBase';
 import { ClipboardDocumentListIcon, CheckIcon } from '@heroicons/react/24/solid';
 
-const RequestsModal = ({ requests: initialRequests, onClose, onMarkAsCompleted }) => {
+const RequestsModal = ({ requests: initialRequests, onClose, onMarkAsCompleted, canManageRequests }) => {
   // Manejar estado local para actualizar UI sin necesidad de refrescar desde el padre
   const [requests, setRequests] = useState(initialRequests);
 
@@ -14,6 +14,9 @@ const RequestsModal = ({ requests: initialRequests, onClose, onMarkAsCompleted }
   };
 
   const handleMarkAsCompleted = (requestId) => {
+    // Solo permitir marcar como completado si se tiene permiso
+    if (!canManageRequests) return;
+    
     // Actualizar estado local
     setRequests(requests.map(req => 
       req.id === requestId ? { ...req, isCompleted: true } : req
@@ -31,7 +34,7 @@ const RequestsModal = ({ requests: initialRequests, onClose, onMarkAsCompleted }
     >
       <div className="space-y-2">
         {requests.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">No tienes solicitudes pendientes.</p>
+          <p className="text-gray-500 text-center py-4">No hay solicitudes pendientes.</p>
         ) : (
           requests.map(request => (
             <div 
@@ -41,20 +44,22 @@ const RequestsModal = ({ requests: initialRequests, onClose, onMarkAsCompleted }
               }`}
             >
               <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => !request.isCompleted && handleMarkAsCompleted(request.id)}
-                  disabled={request.isCompleted}
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    request.isCompleted
-                      ? 'border-green-500 bg-green-500 text-white cursor-default'
-                      : 'border-gray-400 hover:border-[var(--coastal-sea)] cursor-pointer'
-                  }`}
-                  title={request.isCompleted ? "Completada" : "Marcar como completada"}
-                >
-                  {request.isCompleted && (
-                    <CheckIcon className="h-3 w-3" />
-                  )}
-                </button>
+                {canManageRequests && (
+                  <button
+                    onClick={() => !request.isCompleted && handleMarkAsCompleted(request.id)}
+                    disabled={request.isCompleted}
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      request.isCompleted
+                        ? 'border-green-500 bg-green-500 text-white cursor-default'
+                        : 'border-gray-400 hover:border-[var(--coastal-sea)] cursor-pointer'
+                    }`}
+                    title={request.isCompleted ? "Completada" : "Marcar como completada"}
+                  >
+                    {request.isCompleted && (
+                      <CheckIcon className="h-3 w-3" />
+                    )}
+                  </button>
+                )}
                 <span className={`text-gray-800 ${request.isCompleted ? 'line-through' : ''}`}>
                   {request.title}
                 </span>
@@ -83,7 +88,12 @@ RequestsModal.propTypes = {
     })
   ).isRequired,
   onClose: PropTypes.func.isRequired,
-  onMarkAsCompleted: PropTypes.func.isRequired
+  onMarkAsCompleted: PropTypes.func.isRequired,
+  canManageRequests: PropTypes.bool.isRequired
+};
+
+RequestsModal.defaultProps = {
+  canManageRequests: false
 };
 
 export default RequestsModal; 
