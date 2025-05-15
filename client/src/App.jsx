@@ -2,14 +2,11 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom"; // Removed BrowserRouter as it's in index.jsx
 import { useAuth } from "./context/AuthContext"; // Import useAuth
 
-import Login from "./components/auth/Login";
-import Register from "./components/auth/Register";
-import Landing from "./pages/landing/Landing.jsx";
+import Landing from "./pages/Landing.jsx";
 import ProfilePage from "./pages/profile/ProfilePage";
 import ChatPage from "./pages/chat/ChatPage";
 import BodyClassManager from "./components/layout/BodyClassManager";
 
-import Landing from "./pages/Landing.jsx";
 import Terms from "./pages/Terms.jsx";
 // Placeholder for authenticated content
 const AuthenticatedApp = () => {
