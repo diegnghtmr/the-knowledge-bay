@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import AuthComponent from "../components/auth/Auth.jsx";
+import SignupComponent from "../components/auth/Signup.jsx";
 // Assets
 import Logo from "../assets/img/logo.webp";
 import beach from "../assets/img/beach.webp";
@@ -27,6 +28,14 @@ const scrollToTopSmooth = (duration = 2000, multiplier = 1) => {
 };
 
 const Landing = () => {
+  const [data, setData] = useState({
+    username: '',
+    email: '',
+    password: '',
+  })
+
+  const [showSignup, setShowSignup] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   const [showAuth, setShowAuth] = useState(false);
@@ -38,29 +47,40 @@ const Landing = () => {
   };
 
   useEffect(() => {
-    if (location.pathname === "/register") {
-        handleAuthShow("register");
-        scrollToTopSmooth(2300, 1);
-    } else if (location.pathname === "/login") {
-        handleAuthShow("login");
-        scrollToTopSmooth(2300, 1);
-    } else {
-      window.scrollTo(0, document.body.scrollHeight);
-      setTimeout(() => {
+      if (location.pathname === "/register") {
+          window.scrollTo(0, document.body.scrollHeight);
+          handleAuthShow("register");
+          scrollToTopSmooth(0, 2);
+      } else if (location.pathname === "/login") {
+          window.scrollTo(0, document.body.scrollHeight);
+          handleAuthShow("login");
+          scrollToTopSmooth(0, 2);
+      } else if (location.pathname === "/register/steps") {
+          window.scrollTo(0, document.body.scrollHeight);
+          scrollToTopSmooth(0, 3);
+
+      } else {
+        window.scrollTo(0, document.body.scrollHeight);
+        setTimeout(() => {
         scrollToTopSmooth(2300);
-      }, 500);
-    }
-  }, []);
+      }, 500)}
+
+  }, [location.pathname]);
 
   return (
     <main className="flex flex-col justify-between bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)">
-      <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white"></section>
+      <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-white">
+      </section>
+      <SignupComponent data={data} state={showSignup}/>
+      <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white">
+      </section>
+      <AuthComponent isVisible={showAuth} initialView={authType} setData={setData} showSignup={setShowSignup} onCoontinue={scrollToTopSmooth}/>
       <article className="h-dvh flex flex-col gap-4 justify-center items-center">
         <div className="w-full">
           <img
             src={beach}
             alt="beach"
-            className="w-[2000px] h-auto absolute top-[100vh]"
+            className="w-[2000px] h-auto absolute top-[219vh]"
           />
         </div>
         <header className="flex flex-col items-center justify-center mb-30">
@@ -73,7 +93,7 @@ const Landing = () => {
         <nav className="z-10">
           <button
             onClick={() => {
-              scrollToTopSmooth(1500, 2);
+              scrollToTopSmooth(1500);
               setTimeout(() =>
               {
                 handleAuthShow("register");
@@ -86,7 +106,7 @@ const Landing = () => {
           </button>
           <button
             onClick={() => {
-              scrollToTopSmooth(1500, 2);
+              scrollToTopSmooth(1500);
               setTimeout(() => {
                 handleAuthShow("login");
                 navigate("/login");
@@ -97,7 +117,6 @@ const Landing = () => {
             Ya tengo cuenta
           </button>
         </nav>
-        <AuthComponent isVisible={showAuth} initialView={authType} />
       </article>
       <section className="h-dvh text-white flex flex-col items-center justify-center px-6 py-12 text-center relative">
         <svg

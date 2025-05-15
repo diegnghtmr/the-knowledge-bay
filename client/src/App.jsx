@@ -40,6 +40,7 @@ function App() {
           {/* Default redirect for root path when not authenticated */}
           <Route path="/" element={<Navigate to="/landing" replace />} />
             <Route path="/register" element={<Landing />} />
+            <Route path="/register/steps" element={<Landing />} />
             <Route path="/login" element={<Landing />} />
             <Route path="/terms" element={<Terms />}/>
           {/* Redirect any other unknown path to landing */}

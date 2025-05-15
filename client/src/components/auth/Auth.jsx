@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useAuth } from '../../context/AuthContext'; // Import useAuth
 import AuthWallSwitch from './AuthWallSwitch.jsx';
 
 // Assets
@@ -7,15 +6,13 @@ import loginImg from "../../assets/img/stayWithUs.webp";
 import registrationImg from "../../assets/img/joinNow.webp";
 import Wall from "./AuthWall.jsx";
 import AuthForm from "./AuthForm.jsx";
+import {useAuthHandler} from "../../hooks/useAuthHandler";
 import {useNavigate} from "react-router-dom";
 
 
-const Auth = ({ initialView = "login", isVisible = false }) => {
+const Auth = ({ initialView = "login", isVisible = false, setData, onCoontinue }) => {
     const navigate = useNavigate();
     const [activeForm, setActiveForm] = useState(initialView);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(''); // Add error state
-    const { login, register } = useAuth(); // Get login/register from context
     const isLogin = activeForm === "login";
 
     useEffect(() => {
@@ -23,52 +20,48 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
         setActiveForm(initialView);
     }, [initialView]);
 
-    const handleSubmit = async (e) => {
+
+    const {
+        handleLogin,
+        isLoading,
+        error,
+        setError,
+
+    } = useAuthHandler({
+        onLoginSuccess: (user) => {
+            console.log("Login success:", user);
+        }
+    });
+
+    const handlerSubmit = (e) => {
         e.preventDefault();
         setError(''); // Clear previous errors
-        setIsLoading(true);
+        const formData = new FormData(e.target); // Get form data
+        const credentials = Object.fromEntries(formData.entries()); // Convert form data to object
 
-        const formData = new FormData(e.target);
-        const credentials = Object.fromEntries(formData.entries());
+       if (isLogin) {
+           handleLogin({
+               email: credentials.email, password:credentials.password
+           });
 
-        let response;
-        try {
-            if (isLogin) {
-                console.log('Attempting login via Auth modal:', { email: credentials.email, password: '***' }); // Avoid logging password
-                response = await login({ email: credentials.email, password: credentials.password });
-            } else {
-                if (credentials['register-password'] !== credentials['confirm-password']) {
-                    setError("Passwords do not match.");
-                    setIsLoading(false); // Stop loading if passwords don't match
-                    return;
-                }
-                console.log('Attempting registration via Auth modal:', { username: credentials.username, email: credentials['register-email'], password: '***' }); // Avoid logging password
-                response = await register({
-                    username: credentials.username,
-                    email: credentials['register-email'],
-                    password: credentials['register-password']
-                });
-            }
+       } else {
+           navigate("/register/steps");
+           const data = {
+               username: credentials.username,
+               email: credentials['register-email'],
+               password: credentials['register-password'],
+               showSignup: true
+           };
 
-            console.log('Auth modal response:', response);
+               onCoontinue(1500);
 
-            if (!response.success) {
-                setError(response.message || (isLogin ? 'Login failed. Please check your credentials.' : 'Registration failed. Please try again.'));
-            } else {
-                setError(''); // Explicitly clear error on success
-            }
-        } catch (err) {
-            console.error("Unexpected error during auth:", err);
-            setError('An unexpected error occurred. Please try again later.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+           setData(data)
+           }
+       }
 
-
-    return (
+       return (
         <section
-            className={`fixed inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${
+            className={`absolute top-[170%] inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${
                 isVisible
                     ? "bg-opacity-50 opacity-100 pointer-events-auto"
                     : "bg-opacity-0 opacity-0 pointer-events-none"
@@ -89,7 +82,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                     )}
 
                     {/* Login */}
-                    <div className="box-border inset-0 grid grid-cols-2" id={"login"}>
+                    <div className="box-border inset-0 grid grid-cols-2">
 
                         <Wall type="login" image={loginImg} state={isLogin}/>
                         <article className={`
@@ -101,7 +94,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                         >
                             <AuthForm
                                 type={"login"}
-                                action={handleSubmit}
+                                action={handlerSubmit}
                                 state={isLogin}
                                 loadState={isLoading}
                             />
@@ -110,7 +103,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                     </div>
 
                     {/* Register */}
-                    <div className="absolute inset-0 grid grid-cols-2 gap-4" id={"register"}>
+                    <div className="absolute inset-0 grid grid-cols-2 gap-4">
                         <article className={`
                         relative
                         flex items-center justify-center
@@ -120,7 +113,7 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
                         >
                             <AuthForm
                                 type={"register"}
-                                action={handleSubmit}
+                                action={handlerSubmit}
                                 state={!isLogin}
                                 loadState={isLoading}
                             />
@@ -150,5 +143,14 @@ const Auth = ({ initialView = "login", isVisible = false }) => {
         </section>
     );
 };
+
+// const signUp = () => {
+//     setData ({
+//         username: credentials.username,
+//         email: credentials['register-email'],
+//         password: credentials['register-password'],
+//         showSignup: true,
+//         registerMethod: handleSubmit
+//     });
 
 export default Auth;
