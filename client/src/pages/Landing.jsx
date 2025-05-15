@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import AuthComponent from "../../components/auth/Auth";
+import {useLocation, useNavigate} from "react-router-dom";
+import AuthComponent from "../components/auth/Auth.jsx";
 // Assets
-import Logo from "../../assets/img/logo.webp";
-import beach from "../../assets/img/beach.webp";
+import Logo from "../assets/img/logo.webp";
+import beach from "../assets/img/beach.webp";
 
 const scrollToTopSmooth = (duration = 2000, multiplier = 1) => {
   const start = window.scrollY;
@@ -26,6 +27,8 @@ const scrollToTopSmooth = (duration = 2000, multiplier = 1) => {
 };
 
 const Landing = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showAuth, setShowAuth] = useState(false);
   const [authType, setAuthType] = useState("login");
 
@@ -33,13 +36,22 @@ const Landing = () => {
     setAuthType(type);
     setShowAuth(true);
   };
-  useEffect(() => {
-    window.scrollTo(0, document.body.scrollHeight);
 
-    setTimeout(() => {
-      scrollToTopSmooth(2300);
-    }, 500);
+  useEffect(() => {
+    if (location.pathname === "/register") {
+        handleAuthShow("register");
+        scrollToTopSmooth(2300, 1);
+    } else if (location.pathname === "/login") {
+        handleAuthShow("login");
+        scrollToTopSmooth(2300, 1);
+    } else {
+      window.scrollTo(0, document.body.scrollHeight);
+      setTimeout(() => {
+        scrollToTopSmooth(2300);
+      }, 500);
+    }
   }, []);
+
   return (
     <main className="flex flex-col justify-between bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)">
       <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white"></section>
@@ -62,7 +74,11 @@ const Landing = () => {
           <button
             onClick={() => {
               scrollToTopSmooth(1500, 2);
-              setTimeout(() => handleAuthShow("register"), 1500);
+              setTimeout(() =>
+              {
+                handleAuthShow("register");
+                navigate("/register");
+              }, 1500);
             }}
             className="bg-(--coastal-sea) hover:bg-(--sand) text-white hover:text-[var(--deep-sea)] font-workSans-bold py-3 px-6 rounded-2xl shadow-lg transition duration-300 mr-7"
           >
@@ -71,7 +87,10 @@ const Landing = () => {
           <button
             onClick={() => {
               scrollToTopSmooth(1500, 2);
-              setTimeout(() => handleAuthShow("login"), 1500);
+              setTimeout(() => {
+                handleAuthShow("login");
+                navigate("/login");
+              }, 1500);
             }}
             className="border border-(--sand) hover:bg-[var(--sand)] text-[var(--sand)] hover:text-[var(--deep-sea)] font-workSans-bold py-3 px-6 rounded-2xl transition duration-300"
           >

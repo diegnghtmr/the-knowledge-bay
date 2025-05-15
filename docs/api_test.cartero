@@ -1,0 +1,20 @@
+version = 1
+url = "http://localhost:8080/api/auth/register"
+method = "POST"
+
+[body]
+type = "raw"
+format = "octet-stream"
+body = '''
+{
+"username": "JorQUESOtelo223",
+"email": "buhLO@tsskb.com",
+"password": "1234"
+}'''
+
+[headers]
+Content-Type = "application/json"
+
+[variables]
+
+[inactive-params]

@@ -1,12 +1,12 @@
 -- Estudiantes
 CREATE TABLE IF NOT EXISTS students (
-                                        id TEXT PRIMARY KEY,
-                                        username TEXT NOT NULL,
+                                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                        username TEXT NOT NULL UNIQUE,
                                         email TEXT NOT NULL UNIQUE,
                                         password TEXT NOT NULL,
                                         first_name TEXT NOT NULL,
                                         last_name TEXT NOT NULL,
-                                        date_birth TEXT,
+                                        date_birth DATE NOT NULL,
                                         biography TEXT
 );
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS interests (
 CREATE TABLE IF NOT EXISTS comments (
                                         comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                         text TEXT NOT NULL,
-                                        author_id TEXT NOT NULL,
+                                        author_id INTEGER NOT NULL,
                                         date DATE NOT NULL,
                                         FOREIGN KEY (author_id) REFERENCES students(id)
 );
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS contents (
                                         content_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                         title TEXT NOT NULL,
                                         information TEXT NOT NULL,
-                                        author_id TEXT NOT NULL,
+                                        author_id INTEGER NOT NULL,
                                         like_count INTEGER DEFAULT 0,
                                         date DATE NOT NULL,
                                         FOREIGN KEY (author_id) REFERENCES students(id)
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS content_topics (
 -- Likes de estudiantes a contenidos
 CREATE TABLE IF NOT EXISTS content_likes (
                                              content_id INTEGER,
-                                             student_id TEXT,
+                                             student_id INTEGER,
                                              PRIMARY KEY (content_id, student_id),
                                              FOREIGN KEY (content_id) REFERENCES contents(content_id),
                                              FOREIGN KEY (student_id) REFERENCES students(id)
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS help_requests (
                                              request_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                              information TEXT NOT NULL,
                                              urgency TEXT NOT NULL,
-                                             student_id TEXT NOT NULL,
+                                             student_id INTEGER NOT NULL,
                                              is_completed INTEGER NOT NULL,
                                              request_date DATE NOT NULL,
                                              FOREIGN KEY (student_id) REFERENCES students(id)
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS study_groups (
 -- Miembros del grupo
 CREATE TABLE IF NOT EXISTS study_group_members (
                                                    group_id INTEGER,
-                                                   student_id TEXT,
+                                                   student_id INTEGER,
                                                    PRIMARY KEY (group_id, student_id),
                                                    FOREIGN KEY (group_id) REFERENCES study_groups(group_id),
                                                    FOREIGN KEY (student_id) REFERENCES students(id)
@@ -132,8 +132,8 @@ CREATE TABLE IF NOT EXISTS study_group_help_requests (
 -- Chats entre estudiantes
 CREATE TABLE IF NOT EXISTS chats (
                                      chat_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                     student_a_id TEXT NOT NULL,
-                                     student_b_id TEXT NOT NULL,
+                                     student_a_id INTEGER NOT NULL,
+                                     student_b_id INTEGER NOT NULL,
                                      FOREIGN KEY (student_a_id) REFERENCES students(id),
                                      FOREIGN KEY (student_b_id) REFERENCES students(id)
 );
@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS chats (
 CREATE TABLE IF NOT EXISTS messages (
                                         message_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                         text TEXT NOT NULL,
-                                        sender_id TEXT NOT NULL,
+                                        sender_id INTEGER NOT NULL,
                                         timestamp DATETIME NOT NULL,
                                         chat_id INTEGER NOT NULL,
                                         FOREIGN KEY (sender_id) REFERENCES students(id),

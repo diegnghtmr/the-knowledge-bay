@@ -38,7 +38,7 @@ public class AuthController {
 
         // Convert DTO to Student model using builder
         Student newStudent = Student.builder()
-                .username(registerDto.getName())
+                .username(registerDto.getUsername())
                 .email(registerDto.getEmail())
                 .password(registerDto.getPassword())
                 .firstName("") // Assuming firstName might be part of a more complete profile later
@@ -47,14 +47,14 @@ public class AuthController {
                 .biography("") // Assuming biography might be part of a more complete profile later
                 .build();
 
-        boolean registered = authService.registerStudent(newStudent);
+        String[] registered = authService.registerStudent(newStudent);
 
-        if (registered) {
-            return ResponseEntity.ok(new AuthResponseDTO(true, "Student registered successfully."));
+        if (registered[0].equals("true")) {
+            return ResponseEntity.ok(new AuthResponseDTO(true, registered[1]));
         } else {
             // Assuming failure is due to existing email based on service logic
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new AuthResponseDTO(false, "Email already exists."));
+                    .body(new AuthResponseDTO(false, registered[1]));
         }
     }
     @PostMapping("/login")

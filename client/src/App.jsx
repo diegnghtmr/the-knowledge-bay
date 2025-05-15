@@ -9,6 +9,8 @@ import ProfilePage from "./pages/profile/ProfilePage";
 import ChatPage from "./pages/chat/ChatPage";
 import BodyClassManager from "./components/layout/BodyClassManager";
 
+import Landing from "./pages/Landing.jsx";
+import Terms from "./pages/Terms.jsx";
 // Placeholder for authenticated content
 const AuthenticatedApp = () => {
   const { userRole, logout } = useAuth();
@@ -22,14 +24,14 @@ const AuthenticatedApp = () => {
         >
           Logout
         </button>
-        <a 
-          href="/chat" 
+        <a
+          href="/chat"
           className="bg-coastal-sea text-deep-sea px-5 py-2 rounded hover:bg-open-sea transition-colors"
         >
           Ir al Chat
         </a>
-        <a 
-          href="/profile" 
+        <a
+          href="/profile"
           className="bg-coastal-sea text-deep-sea px-5 py-2 rounded hover:bg-open-sea transition-colors"
         >
           Mi Perfil
@@ -46,7 +48,7 @@ function App() {
     <>
       {/* Componente que gestiona las clases del body según la ruta */}
       <BodyClassManager />
-      
+
       <Routes>
         {isAuthenticated ? (
           <>
@@ -60,10 +62,11 @@ function App() {
         ) : (
           <>
             {/* If not authenticated, show public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+              <Route path="/register" element={<Landing />} />
+              <Route path="/login" element={<Landing />} />
             <Route path="/landing" element={<Landing />} />
-            {/* Default redirect for root path when not authenticated */}
+              <Route path="/terms" element={<Terms />}/>
+              {/* Default redirect for root path when not authenticated */}
             <Route path="/" element={<Navigate to="/landing" replace />} />
             {/* Redirect any other unknown path to landing */}
             <Route path="*" element={<Navigate to="/landing" replace />} />
