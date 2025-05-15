@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS students (
                                         password TEXT NOT NULL,
                                         first_name TEXT NOT NULL,
                                         last_name TEXT NOT NULL,
-                                        date_birth DATE NOT NULL,
+                                        date_birth DATE,
                                         biography TEXT
 );
 

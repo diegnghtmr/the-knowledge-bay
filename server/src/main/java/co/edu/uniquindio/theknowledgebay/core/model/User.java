@@ -9,7 +9,7 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 public abstract class User {
     
-    private Integer id;
+    private String id;
     private String username;
     private String email;
     private String password;

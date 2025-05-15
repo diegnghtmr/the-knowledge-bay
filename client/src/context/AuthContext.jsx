@@ -26,13 +26,14 @@ export const AuthProvider = ({ children }) => {
   }, []); 
 
   const login = async (credentials) => {
-    console.log('AuthContext login called with credentials:', credentials);
     const response = await apiLogin(credentials); // Call the updated API
 
     if (response.success) {
       const { token: responseToken, role: responseRole } = response.data; // Destructure from data
       sessionStorage.setItem('token', responseToken);
       sessionStorage.setItem('role', responseRole);
+      // Guardar el email del usuario como userId
+      sessionStorage.setItem('userId', credentials.email);
       setToken(responseToken);
       setUserRole(responseRole);
       setIsAuthenticated(true);
@@ -63,6 +64,7 @@ export const AuthProvider = ({ children }) => {
       // Always clear session storage and reset state regardless of API call outcome
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('role');
+      sessionStorage.removeItem('userId');
       setToken(null);
       setUserRole(null);
       setIsAuthenticated(false);

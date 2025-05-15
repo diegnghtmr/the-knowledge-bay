@@ -5,3 +5,5 @@
 mvnw
 *.cmd
 *.sqlite
+**/.idea
+**/node_modules

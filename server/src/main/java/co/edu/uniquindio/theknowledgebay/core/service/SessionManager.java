@@ -64,4 +64,28 @@ public class SessionManager {
             }
         }
     }
+    /**
+     * Recupera el ID del usuario actual basado en su token de sesión.
+     *
+     * @param sessionToken El token de sesión del usuario actual
+     * @return El identificador del usuario asociado con la sesión, o null si la sesión no es válida
+     */
+    public String getCurrentUserId(String sessionToken) {
+        if (sessionToken == null) {
+            return null;
+        }
+        
+        // Extraer el token si está en formato Bearer
+        String token = sessionToken;
+        if (sessionToken.startsWith("Bearer ")) {
+            token = sessionToken.substring(7);
+        }
+        
+        if (isTokenValid(token)) {
+            String userId = getUserIdentifier(token);
+            return userId;
+        }
+        
+        return null;
+    }
 }

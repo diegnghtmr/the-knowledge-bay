@@ -42,14 +42,14 @@ public class StudentRepository {
                 student.getPassword(),
                 student.getFirstName(),
                 student.getLastName(),
-                student.getDateBirth().toString(),
+                student.getDateBirth() == null ? null : student.getDateBirth().toString(),
                 student.getBiography()
         );
     }
 
     private final RowMapper<Student> studentRowMapper = (rs, rowNum) -> {
         Student s = new Student();
-            s.setId(rs.getInt("id"));
+            s.setId(rs.getString("id"));
             s.setUsername(rs.getString("username"));
             s.setEmail(rs.getString("email"));
             s.setPassword(rs.getString("password"));
@@ -80,7 +80,7 @@ public class StudentRepository {
                 student.getPassword(),
                 student.getFirstName(),
                 student.getLastName(),
-                student.getDateBirth().toString(),
+                student.getDateBirth() == null ? null : student.getDateBirth().toString(),
                 student.getBiography(),
                 student.getId()
         );
