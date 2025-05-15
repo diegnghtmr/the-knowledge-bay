@@ -10,6 +10,14 @@ CREATE TABLE IF NOT EXISTS students (
                                         biography TEXT
 );
 
+CREATE TABLE IF NOT EXISTS students_interests (
+                                                student_id INTEGER,
+                                                interest_id INTEGER,
+                                                PRIMARY KEY (student_id, interest_id),
+                                                FOREIGN KEY (student_id) REFERENCES students(id),
+                                                FOREIGN KEY (interest_id) REFERENCES interests(id_interest)
+);
+
 -- Intereses
 CREATE TABLE IF NOT EXISTS interests (
                                          id_interest INTEGER PRIMARY KEY AUTOINCREMENT,
