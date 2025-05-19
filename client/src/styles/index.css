@@ -47,3 +47,10 @@
     --deep-sea: #1C1F21;
     --sand: #F2F3D9;
 }
+
+/* Agregar al tema de Tailwind para usar las clases directamente */
+@layer utilities {
+    .bg-cream-custom {
+        background-color: #FEFBF3;
+    }
+}
