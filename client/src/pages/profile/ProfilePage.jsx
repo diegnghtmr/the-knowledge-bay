@@ -9,6 +9,7 @@ import GroupsModal from '../../components/profile/modals/GroupsModal';
 import ContentModal from '../../components/profile/modals/ContentModal';
 import RequestsModal from '../../components/profile/modals/RequestsModal';
 import EditProfileModal from '../../components/profile/modals/EditProfileModal';
+import NavigationBar from '../../components/layout/NavigationBar';
 import profileLogo from '../../assets/img/profileLogo.png';
 // Import profile API service
 import { getProfile, updateProfile } from '../../services/profileApi';
@@ -156,6 +157,7 @@ const ProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <NavigationBar title="Mi Perfil" />
       <div className="container mx-auto px-4 py-8">
         <ProfileHeader
           firstName={firstName}

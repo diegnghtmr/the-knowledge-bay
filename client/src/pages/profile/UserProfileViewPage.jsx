@@ -9,6 +9,7 @@ import FollowingModal from '../../components/profile/modals/FollowingModal';
 import GroupsModal from '../../components/profile/modals/GroupsModal';
 import ContentModal from '../../components/profile/modals/ContentModal';
 import RequestsModal from '../../components/profile/modals/RequestsModal';
+import NavigationBar from '../../components/layout/NavigationBar';
 import profileLogo from '../../assets/img/profileLogo.png';
 // Import profile API services
 import { getProfileByUserId, getFollowStatus, followUser, unfollowUser } from '../../services/profileApi';
@@ -160,6 +161,7 @@ const UserProfileViewPage = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <NavigationBar title="Perfil de Usuario" />
       <div className="container mx-auto px-4 py-8">
         <ProfileHeader
           firstName={firstName}

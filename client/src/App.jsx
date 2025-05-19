@@ -96,6 +96,7 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/user/:userId" element={<UserProfileViewPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/users-dashboard" element={<UserDashboardPage />} />
             <Route path="/content-dashboard" element={<ContentDashboardPage />} />
             <Route path="/affinity-graph" element={<AffinityGraphPage />} />
