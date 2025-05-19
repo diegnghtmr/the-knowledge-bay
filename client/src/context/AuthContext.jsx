@@ -5,44 +5,85 @@ import { login as apiLogin, register as apiRegister, logout as apiLogout } from 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  // Inicializar con valores de sessionStorage, con student como fallback
   const [token, setToken] = useState(sessionStorage.getItem('token'));
-  const [userRole, setUserRole] = useState(sessionStorage.getItem('role'));
+  const [userRole, setUserRole] = useState(sessionStorage.getItem('role') || 'student');
   const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem('token'));
+
+  // Información de depuración para el contexto de autenticación
+  console.log("AuthContext - Initial userRole:", userRole);
+  console.log("AuthContext - Role from sessionStorage:", sessionStorage.getItem('role'));
 
   // Effect to sync state with sessionStorage on initial load
   useEffect(() => {
     const storedToken = sessionStorage.getItem('token');
     const storedRole = sessionStorage.getItem('role');
+    
+    console.log("AuthContext - useEffect storedRole:", storedRole);
+    
     if (storedToken) {
       setToken(storedToken);
-      setUserRole(storedRole);
+      // Garantizar que siempre haya un rol válido y normalizado
+      const originalRole = storedRole || 'student';
+      const normalizedRole = originalRole.toLowerCase();
+      
+      console.log("AuthContext - Original stored role:", originalRole);
+      console.log("AuthContext - Normalized role:", normalizedRole);
+      
+      setUserRole(normalizedRole);
+      // Asegurar que el rol esté también en sessionStorage y normalizado
+      if (!storedRole || storedRole !== normalizedRole) {
+        sessionStorage.setItem('role', normalizedRole);
+        console.log("AuthContext - Updated sessionStorage with normalized role");
+      }
       setIsAuthenticated(true);
+      
+      console.log("AuthContext - useEffect authenticated with role:", normalizedRole);
     } else {
       // Ensure state is clear if sessionStorage is empty
       setToken(null);
-      setUserRole(null);
+      setUserRole('student'); // Default role
       setIsAuthenticated(false);
+      
+      console.log("AuthContext - useEffect not authenticated, reset to student");
     }
-  }, []); 
+  }, []);
 
   const login = async (credentials) => {
-    const response = await apiLogin(credentials); // Call the updated API
+    try {
+      const response = await apiLogin(credentials); // Call the updated API
 
-    if (response.success) {
-      const { token: responseToken, role: responseRole } = response.data; // Destructure from data
-      sessionStorage.setItem('token', responseToken);
-      sessionStorage.setItem('role', responseRole);
-      // Guardar el email del usuario como userId
-      sessionStorage.setItem('userId', credentials.email);
-      setToken(responseToken);
-      setUserRole(responseRole);
-      setIsAuthenticated(true);
-      return { success: true, role: responseRole }; // Return success and role
-    } else {
-      // API call was successful but login failed (e.g., bad credentials)
-      setIsAuthenticated(false); // Ensure state reflects failed login
-      // Return the response which contains { success: false, message: '...' }
-      return response;
+      if (response.success) {
+        const { token: responseToken, role: responseRole } = response.data; // Destructure from data
+        
+        // Asegurar que haya un rol válido y normalizar a minúsculas
+        const originalRole = responseRole || 'student';
+        const normalizedRole = originalRole.toLowerCase();
+        
+        console.log("AuthContext - Login successful with original role:", originalRole);
+        console.log("AuthContext - Normalized role for consistency:", normalizedRole);
+        
+        // Guardar en sessionStorage
+        sessionStorage.setItem('token', responseToken);
+        sessionStorage.setItem('role', normalizedRole);
+        sessionStorage.setItem('userId', credentials.email);
+        
+        // Actualizar estado
+        setToken(responseToken);
+        setUserRole(normalizedRole);
+        setIsAuthenticated(true);
+        
+        return { success: true, role: normalizedRole }; // Return success and role
+      } else {
+        // API call was successful but login failed (e.g., bad credentials)
+        console.log("AuthContext - Login failed:", response.message);
+        setIsAuthenticated(false); // Ensure state reflects failed login
+        // Return the response which contains { success: false, message: '...' }
+        return response;
+      }
+    } catch (error) {
+      console.error("AuthContext - Login error:", error);
+      return { success: false, message: "Error de conexión al intentar iniciar sesión" };
     }
   };
 
@@ -66,7 +107,7 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.removeItem('role');
       sessionStorage.removeItem('userId');
       setToken(null);
-      setUserRole(null);
+      setUserRole('student'); // Reset to default role
       setIsAuthenticated(false);
     }
   };
@@ -77,7 +118,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     login,
     register,
-    logout,
+    logout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Home, Users, BookOpen, Network, HelpCircle, UserPlus, ChevronRight, ChevronLeft, User, MessageCircle } from 'lucide-react';
+import { LogOut, Home, Users, BookOpen, Network, HelpCircle, UserPlus, ChevronRight, ChevronLeft, User, MessageCircle, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 /**
@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
  */
 const NavigationBar = ({ title }) => {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, userRole } = useAuth();
   const navRef = useRef(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
@@ -17,52 +17,78 @@ const NavigationBar = ({ title }) => {
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   
-  // Configuración de las rutas de navegación
-  const navItems = [
+  // Debugging mejorado para seguimiento de roles
+  console.log("NavigationBar - Current user role:", userRole);
+  console.log("NavigationBar - Role type:", typeof userRole);
+  console.log("NavigationBar - Role from sessionStorage:", sessionStorage.getItem('role'));
+  
+  // Definir elementos específicos para cada rol
+  const studentItems = [
     { 
       path: '/profile', 
       label: 'Mi Perfil', 
       icon: <User size={18} />,
-      roles: ['admin', 'moderator', 'student', 'content_creator'] 
     },
     { 
       path: '/chat', 
       label: 'Chat', 
       icon: <MessageCircle size={18} />,
-      roles: ['admin', 'moderator', 'student', 'content_creator'] 
-    },
-    { 
-      path: '/users-dashboard', 
-      label: 'Gestión de Usuarios', 
-      icon: <Users size={18} />,
-      roles: ['admin', 'moderator'] 
-    },
-    { 
-      path: '/content-dashboard', 
-      label: 'Gestión de Contenidos', 
-      icon: <BookOpen size={18} />,
-      roles: ['admin', 'moderator', 'content_creator'] 
-    },
-    { 
-      path: '/affinity-graph', 
-      label: 'Grafo de Afinidad', 
-      icon: <Network size={18} />,
-      roles: ['admin', 'moderator', 'student'] 
     },
     { 
       path: '/help-request', 
       label: 'Solicitud de Ayuda', 
       icon: <HelpCircle size={18} />,
-      roles: ['admin', 'moderator', 'student'] 
     },
     { 
-      path: '/study-groups', 
-      label: 'Grupos de Estudio', 
-      icon: <UserPlus size={18} />,
-      roles: ['admin', 'moderator', 'student'] 
+      path: '/publish-content',
+      label: 'Publicar Contenido',
+      icon: <FileText size={18} />,
     },
   ];
+  
+  const moderatorItems = [
+    { 
+      path: '/users-dashboard', 
+      label: 'Gestión de Usuarios', 
+      icon: <Users size={18} />,
+    },
+    { 
+      path: '/content-dashboard', 
+      label: 'Gestión de Contenidos', 
+      icon: <BookOpen size={18} />,
+    },
+    { 
+      path: '/affinity-graph', 
+      label: 'Grafo de Afinidad', 
+      icon: <Network size={18} />,
+    },
+  ];
+  
+  // Seleccionar los elementos según el rol
+  const role = userRole || 'student';
+  let navItems = [];
+  
+  // Convertir a minúsculas para la comparación
+  const roleLowerCase = role.toLowerCase();
+  console.log("NavigationBar - Role normalized for comparison:", roleLowerCase);
+  
+  if (roleLowerCase === 'student') {
+    navItems = studentItems;
+    console.log("NavigationBar - Using student items");
+  } else if (roleLowerCase === 'moderator') {
+    navItems = moderatorItems;
+    console.log("NavigationBar - Using moderator items");
+  } else {
+    // Fallback a elementos de estudiante para cualquier otro rol
+    navItems = studentItems;
+    console.log("NavigationBar - Using fallback student items for unknown role:", role);
+  }
+  
+  console.log("NavigationBar - Selected items:", navItems.map(item => item.label));
 
+  // No es necesario filtrar más, ya que hemos seleccionado el conjunto correcto de elementos
+  const filteredNavItems = navItems;
+  
   // Detectar scroll horizontal para mostrar/ocultar indicadores de fade
   useEffect(() => {
     const handleScroll = () => {
@@ -221,7 +247,7 @@ const NavigationBar = ({ title }) => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseUp}
           >
-            {navItems.map((item, index) => (
+            {filteredNavItems.map((item, index) => (
               <Link 
                 key={item.path}
                 to={item.path}
@@ -244,7 +270,7 @@ const NavigationBar = ({ title }) => {
             <Link 
               to="/"
               style={{ 
-                transitionDelay: `${navItems.length * 50}ms`,
+                transitionDelay: `${filteredNavItems.length * 50}ms`,
               }}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-md transition-all duration-300 whitespace-nowrap flex-shrink-0 transform hover:scale-105 ${
                 location.pathname === '/' 
@@ -259,7 +285,7 @@ const NavigationBar = ({ title }) => {
             
             <button
               style={{ 
-                transitionDelay: `${(navItems.length + 1) * 50}ms`,
+                transitionDelay: `${(filteredNavItems.length + 1) * 50}ms`,
               }}
               onClick={(e) => {
                 if (isDragging) {

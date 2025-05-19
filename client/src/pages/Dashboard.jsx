@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import NavigationBar from '../components/layout/NavigationBar';
+import { useAuth } from '../context/AuthContext';
 
 // Componentes para los widgets del dashboard
 const DashboardWidget = ({ title, icon, description, linkTo, color }) => {
@@ -21,6 +22,7 @@ const DashboardWidget = ({ title, icon, description, linkTo, color }) => {
 const Dashboard = () => {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
+  const { userRole } = useAuth();
 
   useEffect(() => {
     // Obtener nombre del usuario desde el almacenamiento local o API
@@ -33,6 +35,80 @@ const Dashboard = () => {
   if (loading) {
     return <div>Cargando...</div>;
   }
+
+  // Definir widgets para diferentes roles
+  const moderatorWidgets = [
+    {
+      title: "Gestión de Usuarios",
+      icon: "👥",
+      description: "Explora usuarios, establece conexiones y amplía tu red académica",
+      linkTo: "/users-dashboard",
+      color: "bg-[var(--open-sea)]"
+    },
+    {
+      title: "Contenido",
+      icon: "📚",
+      description: "Administra tus documentos, recursos académicos y materiales",
+      linkTo: "/content-dashboard",
+      color: "bg-[var(--deep-sea)]"
+    },
+    {
+      title: "Grafo de Afinidad",
+      icon: "🔗",
+      description: "Visualiza conexiones entre usuarios y áreas de conocimiento",
+      linkTo: "/affinity-graph",
+      color: "bg-[var(--coastal-sea)]"
+    }
+  ];
+
+  const studentWidgets = [
+    {
+      title: "Mi Perfil",
+      icon: "👤",
+      description: "Gestiona tu información personal, intereses y conexiones",
+      linkTo: "/profile",
+      color: "bg-[var(--coastal-sea)]"
+    },
+    {
+      title: "Mensajes",
+      icon: "💬",
+      description: "Comunícate con otros usuarios y participa en conversaciones académicas",
+      linkTo: "/chat",
+      color: "bg-[var(--open-sea)]"
+    },
+    {
+      title: "Solicitar Ayuda",
+      icon: "🆘",
+      description: "Crea una solicitud para recibir apoyo académico de otros usuarios",
+      linkTo: "/help-request",
+      color: "bg-[var(--deep-sea)]"
+    },
+    {
+      title: "Publicar Contenido",
+      icon: "📝",
+      description: "Crea y comparte nuevo material académico con la comunidad.",
+      linkTo: "/publish-content",
+      color: "bg-[var(--coastal-sea)]"
+    }
+  ];
+
+  // Seleccionar widgets según el rol del usuario
+  console.log("Dashboard - User role for widgets selection:", userRole);
+  
+  // Convertir a minúsculas para la comparación
+  const roleLowerCase = userRole ? userRole.toLowerCase() : 'student';
+  console.log("Dashboard - Role normalized for comparison:", roleLowerCase);
+  
+  let selectedWidgets;
+  if (roleLowerCase === 'moderator') {
+    console.log("Dashboard - Using moderator widgets");
+    selectedWidgets = moderatorWidgets;
+  } else {
+    console.log("Dashboard - Using student widgets");
+    selectedWidgets = studentWidgets;
+  }
+  
+  console.log("Dashboard - Selected widgets:", selectedWidgets.map(w => w.title));
 
   return (
     <div className="min-h-screen bg-[var(--sand)]">
@@ -49,59 +125,16 @@ const Dashboard = () => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Widget del perfil */}
-          <DashboardWidget 
-            title="Mi Perfil" 
-            icon="👤" 
-            description="Gestiona tu información personal, intereses y conexiones" 
-            linkTo="/profile" 
-            color="bg-[var(--coastal-sea)]"
-          />
-          
-          {/* Widget de usuarios */}
-          <DashboardWidget 
-            title="Gestión de Usuarios" 
-            icon="👥" 
-            description="Explora usuarios, establece conexiones y amplía tu red académica" 
-            linkTo="/users-dashboard" 
-            color="bg-[var(--open-sea)]"
-          />
-          
-          {/* Widget de contenido */}
-          <DashboardWidget 
-            title="Contenido" 
-            icon="📚" 
-            description="Administra tus documentos, recursos académicos y materiales" 
-            linkTo="/content-dashboard" 
-            color="bg-[var(--deep-sea)]"
-          />
-          
-          {/* Widget de grafo de afinidad */}
-          <DashboardWidget 
-            title="Grafo de Afinidad" 
-            icon="🔗" 
-            description="Visualiza conexiones entre usuarios y áreas de conocimiento" 
-            linkTo="/affinity-graph" 
-            color="bg-[var(--coastal-sea)]"
-          />
-          
-          {/* Widget de chat */}
-          <DashboardWidget 
-            title="Mensajes" 
-            icon="💬" 
-            description="Comunícate con otros usuarios y participa en conversaciones académicas" 
-            linkTo="/chat" 
-            color="bg-[var(--open-sea)]"
-          />
-          
-          {/* Widget de solicitud de ayuda */}
-          <DashboardWidget 
-            title="Solicitar Ayuda" 
-            icon="🆘" 
-            description="Crea una solicitud para recibir apoyo académico de otros usuarios" 
-            linkTo="/help-request" 
-            color="bg-[var(--deep-sea)]"
-          />
+          {selectedWidgets.map((widget, index) => (
+            <DashboardWidget 
+              key={index}
+              title={widget.title} 
+              icon={widget.icon} 
+              description={widget.description} 
+              linkTo={widget.linkTo} 
+              color={widget.color}
+            />
+          ))}
         </div>
         
         <div className="mt-10">
