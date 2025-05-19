@@ -13,7 +13,6 @@ import HelpRequestPage from "./pages/HelpRequestPage";
 import PublishContentPage from "./pages/PublishContentPage";
 import BodyClassManager from "./components/layout/BodyClassManager";
 import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
 
 import Terms from "./pages/Terms.jsx";
 
@@ -46,9 +45,9 @@ const RoleRoute = ({ element, allowedRoles }) => {
     console.log("RoleRoute - Access granted");
     return element;
   } else {
-    // Redirigir al dashboard si el usuario no tiene acceso
-    console.log("RoleRoute - Access denied, redirecting to dashboard");
-    return <Navigate to="/dashboard" replace />;
+    // Redirigir a la página principal si el usuario no tiene acceso
+    console.log("RoleRoute - Access denied, redirecting to home");
+    return <Navigate to="/" replace />;
   }
 };
 
@@ -65,7 +64,8 @@ function App() {
           <>
             {/* Rutas para todos los usuarios autenticados */}
             <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            {/* Redireccionar /dashboard a la página principal */}
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/user/:userId" element={<UserProfileViewPage />} />
             <Route path="/chat" element={<ChatPage />} />
@@ -107,8 +107,8 @@ function App() {
             <Route path="/help-request" element={<HelpRequestPage />} />
             <Route path="/publish-content" element={<PublishContentPage />} />
             
-            {/* Redirect any other path to the dashboard */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Redirigir cualquier otra ruta a la página principal */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </>
         ) : (
           <>

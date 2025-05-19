@@ -100,10 +100,10 @@ const Home = () => {
   console.log("Home - Selected features:", selectedFeatures.map(f => f.title));
   
   return (
-    <div className="min-h-screen bg-[var(--sand)]">
+    <div className="flex flex-col min-h-screen bg-[var(--sand)]">
       <NavigationBar title="Inicio" />
       
-      <div className="container mx-auto py-8 px-4">
+      <div className="container mx-auto py-8 px-4 flex-grow">
         {/* Encabezado de bienvenida */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-[var(--deep-sea)] mb-3">
@@ -115,7 +115,7 @@ const Home = () => {
         </div>
         
         {/* Características principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {selectedFeatures.map((feature, index) => (
             <FeatureCard
               key={index}
@@ -127,24 +127,27 @@ const Home = () => {
           ))}
         </div>
         
-        {/* Acceso rápido al dashboard */}
-        <div className="flex justify-center">
-          <Link 
-            to="/dashboard" 
-            className="px-6 py-3 bg-[var(--coastal-sea)] text-white font-medium rounded-lg shadow hover:bg-opacity-90 transition-colors"
-          >
-            Ir al Dashboard
-          </Link>
-        </div>
-        
-        {/* Footer informativo */}
-        <div className="mt-16 text-center text-[var(--open-sea)] text-sm">
-          <p>The Knowledge Bay - Una red social académica.</p>
-          <p className="mt-1">
-            <Link to="/terms" className="underline">Términos y Condiciones</Link>
-          </p>
+        {/* Sección de actividad reciente (incorporada desde Dashboard) */}
+        <div className="mt-10">
+          <h2 className="text-xl font-semibold text-[var(--deep-sea)] mb-4">Actividad Reciente</h2>
+          <div className="bg-white rounded-lg shadow p-6">
+            <p className="text-[var(--open-sea)] text-center py-4">
+              No hay actividad reciente para mostrar.
+            </p>
+            {/* Aquí se mostrará la actividad reciente cuando se implemente */}
+          </div>
         </div>
       </div>
+      
+      {/* Footer informativo - Siempre al final de la página gracias a flexbox */}
+      <footer className="mt-auto w-full py-6 bg-[var(--deep-sea)] text-white">
+        <div className="container mx-auto text-center">
+          <p>The Knowledge Bay - Una red social académica.</p>
+          <p className="mt-1">
+            <Link to="/terms" className="underline hover:text-[var(--coastal-sea)] transition-colors">Términos y Condiciones</Link>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };

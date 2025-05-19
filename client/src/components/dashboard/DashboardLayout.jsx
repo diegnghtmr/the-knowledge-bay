@@ -51,10 +51,10 @@ const DashboardLayout = ({
           {children}
         </main>
 
-        {/* Botón para volver al dashboard principal */}
+        {/* Botón para volver a la página principal */}
         <div className="mt-6 flex justify-center">
           <Link
-            to="/dashboard"
+            to="/"
             className="inline-flex items-center text-[var(--coastal-sea)] hover:underline"
           >
             <svg 
@@ -71,7 +71,7 @@ const DashboardLayout = ({
                 d="M11 17l-5-5m0 0l5-5m-5 5h12" 
               />
             </svg>
-            Volver al Dashboard
+            Volver a Inicio
           </Link>
         </div>
       </div>
