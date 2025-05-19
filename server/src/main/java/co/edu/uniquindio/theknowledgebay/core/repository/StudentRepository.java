@@ -53,9 +53,17 @@ public class StudentRepository {
             s.setUsername(rs.getString("username"));
             s.setEmail(rs.getString("email"));
             s.setPassword(rs.getString("password"));
-            s.setFirstName(rs.getString("last_name"));
+            s.setFirstName(rs.getString("first_name"));
             s.setLastName(rs.getString("last_name"));
-            s.setDateBirth(LocalDate.parse(rs.getString("date_birth")));
+            
+            // Verificar si date_birth es nulo antes de intentar parsearlo
+            String dateBirthStr = rs.getString("date_birth");
+            if (dateBirthStr != null && !dateBirthStr.isEmpty()) {
+                s.setDateBirth(LocalDate.parse(dateBirthStr));
+            } else {
+                s.setDateBirth(null);
+            }
+            
             s.setBiography(rs.getString("biography"));
 
         return s;
