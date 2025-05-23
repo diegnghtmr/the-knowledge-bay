@@ -6,7 +6,9 @@ import co.edu.uniquindio.theknowledgebay.api.dto.LoginResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.RegisterStudentDTO;
 import co.edu.uniquindio.theknowledgebay.core.dto.AuthResultDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
+import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,17 +39,26 @@ public class AuthController {
         }
 
         // Convert DTO to Student model using builder
-        Student newStudent = Student.builder()
+        DoublyLinkedList<Interest> studentInterests = null;
+        if (registerDto.getInterests() != null && !registerDto.getInterests().isEmpty()) {
+            studentInterests = new DoublyLinkedList<>();
+            for (String interestName : registerDto.getInterests()) {
+                studentInterests.addLast(Interest.builder().name(interestName).build());
+            }
+        }
+
+        Student studentToRegister = Student.builder()
                 .username(registerDto.getUsername())
                 .email(registerDto.getEmail())
                 .password(registerDto.getPassword())
                 .firstName(registerDto.getFirstName())
                 .lastName(registerDto.getLastName())
-                .dateBirth(dateOfBirth) // Set the parsed dateOfBirth
+                .dateBirth(dateOfBirth)
                 .biography(registerDto.getBiography())
+                .interests(studentInterests)
                 .build();
 
-        String[] registered = authService.registerStudent(newStudent);
+        String[] registered = authService.registerStudent(studentToRegister);
 
         if (registered[0].equals("true")) {
             return ResponseEntity.ok(new AuthResponseDTO(true, registered[1]));

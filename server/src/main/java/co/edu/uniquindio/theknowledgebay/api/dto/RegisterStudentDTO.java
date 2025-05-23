@@ -3,6 +3,7 @@ package co.edu.uniquindio.theknowledgebay.api.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -15,6 +16,6 @@ public class RegisterStudentDTO {
     private String firstName;
     private String lastName;
     private String biography;
+    private List<String> interests;
     // Add other fields from Student if needed for registration, e.g., username, lastName
-    // For simplicity, starting with basic fields.
 }
