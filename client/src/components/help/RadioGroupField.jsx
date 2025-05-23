@@ -6,6 +6,7 @@ import FormField from './FormField';
  */
 const RadioGroupField = ({
   label,
+  icon, // Added icon prop
   name,
   options,
   value,
@@ -13,8 +14,9 @@ const RadioGroupField = ({
   className = ''
 }) => {
   return (
-    <FormField 
+    <FormField
       label={label}
+      icon={icon} // Pass icon prop to FormField
     >
       <div className={`flex items-center gap-6 pl-1 ${className}`}>
         {options.map((option) => (

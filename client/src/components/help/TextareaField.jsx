@@ -6,6 +6,7 @@ import FormField from './FormField';
  */
 const TextareaField = ({
   label,
+  icon, // Added icon prop
   value,
   onChange,
   onBlur,
@@ -17,9 +18,10 @@ const TextareaField = ({
   className = ''
 }) => {
   return (
-    <FormField 
-      label={label} 
-      error={error} 
+    <FormField
+      label={label}
+      icon={icon} // Pass icon prop to FormField
+      error={error}
       showError={showError}
     >
       <textarea

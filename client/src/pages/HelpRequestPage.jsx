@@ -1,16 +1,25 @@
 import React from "react";
 import HelpRequestForm from "../components/help/HelpRequestForm";
-import { HelpCircle } from "lucide-react";
+// HelpCircle might not be needed anymore if the title is simplified like in PublishContentPage
+// import { HelpCircle } from "lucide-react";
 import NavigationBar from "../components/layout/NavigationBar";
+import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 /**
  * Página del formulario de solicitud de ayuda
  */
 const HelpRequestPage = () => {
+  const { user } = useAuth(); // Get the logged-in user
+
   // Manejar guardar solicitud
   const handleSave = (formData) => {
-    console.log("Datos guardados:", formData);
-    alert("Solicitud guardada correctamente");
+    const dataToSave = {
+      ...formData,
+      student: user ? user.email : 'unknown_student@example.com', // Add student email
+      completed: false, // Set completed to false
+    };
+    console.log("Datos guardados:", dataToSave);
+    alert("Solicitud guardada correctamente (con datos de estudiante y estado 'no completado' por defecto)");
   };
 
   // Manejar cancelar
@@ -20,19 +29,15 @@ const HelpRequestPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream-custom">
+    <div className="min-h-screen bg-[var(--sand)]">
       <NavigationBar title="Solicitud de Ayuda" />
-
-      <main className="container mx-auto max-w-7xl py-6 overflow-x-hidden">
-        <div className="w-full mb-6">
-          <div className="flex items-center gap-3">
-            <HelpCircle className="text-[var(--coastal-sea)] w-8 h-8" />
-            <h2 className="font-righteous text-2xl text-[var(--deep-sea)]">Solicitud de Ayuda</h2>
-          </div>
-          <p className="text-[var(--open-sea)]/80 mt-2">Completa el formulario para solicitar asistencia académica</p>
+      <main className="container mx-auto max-w-3xl py-8 px-4">
+        <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--deep-sea)] mb-6 text-center">
+            Solicita Asistencia Académica
+          </h1>
+          <HelpRequestForm onSave={handleSave} onCancel={handleCancel} />
         </div>
-        
-        <HelpRequestForm onSave={handleSave} onCancel={handleCancel} />
       </main>
     </div>
   );
