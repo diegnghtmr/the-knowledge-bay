@@ -41,10 +41,10 @@ public class AuthController {
                 .username(registerDto.getUsername())
                 .email(registerDto.getEmail())
                 .password(registerDto.getPassword())
-                .firstName("") // Assuming firstName might be part of a more complete profile later
-                .lastName("")  // Assuming lastName might be part of a more complete profile later
+                .firstName(registerDto.getFirstName())
+                .lastName(registerDto.getLastName())
                 .dateBirth(dateOfBirth) // Set the parsed dateOfBirth
-                .biography("") // Assuming biography might be part of a more complete profile later
+                .biography(registerDto.getBiography())
                 .build();
 
         String[] registered = authService.registerStudent(newStudent);
