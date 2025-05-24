@@ -27,9 +27,9 @@ const lineData = [
 ];
 
 const clusters = [
-  { id: 1, topic: "STEM Avanzado", students: "Ana, Luis, Sofía", interests: "Ciencias, Matemáticas" },
-  { id: 2, topic: "Literatura", students: "Carlos, Diana", interests: "Poesía, Novela" },
-  { id: 3, topic: "Historia y Arte", students: "Miguel, Elena, Pedro", interests: "Arte Moderno, Historia Contemporánea" },
+  { id: 1, topic: "STEM Avanzado", students: "Ana, Luis, Sofía" },
+  { id: 2, topic: "Literatura", students: "Carlos, Diana" },
+  { id: 3, topic: "Historia y Arte", students: "Miguel, Elena, Pedro" },
 ];
 
 /**
@@ -120,7 +120,6 @@ export default function DashboardAnalytics() {
                   <th className="py-3 px-4 font-workSans-medium text-[var(--open-sea)]">ID</th>
                   <th className="py-3 px-4 font-workSans-medium text-[var(--open-sea)]">Tema</th>
                   <th className="py-3 px-4 font-workSans-medium text-[var(--open-sea)]">Estudiantes</th>
-                  <th className="py-3 px-4 font-workSans-medium text-[var(--open-sea)]">Intereses</th>
                 </tr>
               </thead>
               <tbody>
@@ -129,7 +128,6 @@ export default function DashboardAnalytics() {
                     <td className="py-3 px-4 text-[var(--deep-sea)] font-workSans-medium">#{cluster.id}</td>
                     <td className="py-3 px-4 text-[var(--deep-sea)]">{cluster.topic}</td>
                     <td className="py-3 px-4 text-[var(--deep-sea)]">{cluster.students}</td>
-                    <td className="py-3 px-4 text-[var(--open-sea)]/80">{cluster.interests}</td>
                   </tr>
                 ))}
               </tbody>
