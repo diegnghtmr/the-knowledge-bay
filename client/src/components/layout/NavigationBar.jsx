@@ -54,8 +54,18 @@ const NavigationBar = ({ title }) => {
     },
     { 
       path: '/content-dashboard', 
-      label: 'Gestión de Contenidos', 
+      label: 'Gestión de Contenido', 
       icon: <BookOpen size={18} />,
+    },
+    { 
+      path: '/admin/help-requests', 
+      label: 'Gestión de Solicitudes', 
+      icon: <HelpCircle size={18} />,
+    },
+    { 
+      path: '/admin/interests', 
+      label: 'Gestión de Intereses', 
+      icon: <Tag size={18} />,
     },
     { 
       path: '/affinity-graph', 
@@ -66,16 +76,6 @@ const NavigationBar = ({ title }) => {
       path: '/admin/analytics', 
       label: 'Panel Analítico', 
       icon: <BarChart2 size={18} />,
-    },
-    { 
-      path: '/admin/interests', 
-      label: 'Gestión de Intereses', 
-      icon: <Tag size={18} />,
-    },
-    { 
-      path: '/admin/help-requests', 
-      label: 'Solicitudes de Ayuda', 
-      icon: <Headphones size={18} />,
     },
     { 
       path: '/admin/stats', 
