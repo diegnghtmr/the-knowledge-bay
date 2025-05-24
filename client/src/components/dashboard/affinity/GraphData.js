@@ -4,10 +4,10 @@
 export const initialNodes = [
   { id: '1', label: 'Ana', group: 0 },
   { id: '2', label: 'Luis', group: 1 },
-  { id: '3', label: 'Marta', group: 1 },
-  { id: '4', label: 'Diego', group: 0 },
-  { id: '5', label: 'Sofía', group: 2 },
-  { id: '6', label: 'Juan', group: 2 }
+  { id: '3', label: 'Marta', group: 2 },
+  { id: '4', label: 'Diego', group: 3 },
+  { id: '5', label: 'Sofía', group: 1 },
+  { id: '6', label: 'Juan', group: 0 }
 ];
 
 // Datos iniciales de enlaces
@@ -26,8 +26,13 @@ export const graphData = {
   links: initialLinks
 };
 
-// Paleta de colores para los grupos
-export const palette = ['#0d9488', '#2563eb', '#1d4ed8', '#9333ea'];
+// Paleta de colores para el grafo
+export const palette = [
+  '#800000', // Granate
+  '#4682B4', // Azul acero
+  '#8e44ad', // Púrpura oscuro
+  '#16a085'  // Verde azulado oscuro
+];
 
 // Función para seleccionar color según el grupo
 export const colorScale = (g) => palette[g % palette.length];

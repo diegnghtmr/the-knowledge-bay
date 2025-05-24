@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { forceManyBody } from 'd3-force';
-import { colorScale } from './GraphData';
+import { colorScale, palette } from './GraphData';
 
 /**
  * Componente que renderiza el grafo principal con soporte para vista ego-céntrica
@@ -34,13 +34,13 @@ const MainGraph = ({
   // Función para dibujar los nodos
   const nodeCanvasObject = (node, ctx) => {
     // Radio proporcional al nombre del nodo
-    const r = 10 + node.label.length * 0.5;
+    const r = 12 + node.label.length * 0.5;
     
     // Dibujamos un círculo para el nodo
     ctx.beginPath();
     ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
 
-    // Color según vista ego
+    // Color según vista ego o según el grupo
     let fill = colorScale(node.group);
     if (showEgo && egoNode) {
       if (node.id === egoNode) {
@@ -56,12 +56,12 @@ const MainGraph = ({
     
     // Añadir contorno para mejor visibilidad
     ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 1;
     ctx.stroke();
 
     // Etiqueta del nodo con fondo para mejor legibilidad
     const label = node.label;
-    const fontSize = 12;
+    const fontSize = 13;
     ctx.font = `bold ${fontSize}px sans-serif`;
     
     // Calculamos el ancho del texto para el fondo
@@ -69,7 +69,7 @@ const MainGraph = ({
     const bgPadding = 4;
     
     // Dibujamos un fondo para el texto
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.fillRect(
       node.x - textWidth/2 - bgPadding,
       node.y + r + 2,
@@ -86,9 +86,9 @@ const MainGraph = ({
 
   // Función para determinar el ancho de los enlaces
   const linkWidth = (l) => {
-    if (!showEgo || !egoNode) return 1.5; // Ligeramente más anchos por defecto
+    if (!showEgo || !egoNode) return 2; // Ligeramente más anchos por defecto
     const [src, tgt] = [l.source.id || l.source, l.target.id || l.target];
-    return src === egoNode || tgt === egoNode ? 3 : 0.3;
+    return src === egoNode || tgt === egoNode ? 3 : 0.5;
   };
 
   // Función para determinar el color de los enlaces
@@ -107,9 +107,9 @@ const MainGraph = ({
       linkColor={linkColor}
       linkDirectionalArrowLength={6}
       linkDirectionalArrowColor={linkColor}
-      linkDistance={120}
+      linkDistance={150}
       width={width}
-      height={360}
+      height={400}
       onNodeClick={onNodeClick}
       style={{ display: 'block' }}
       backgroundColor="#ffffff"
