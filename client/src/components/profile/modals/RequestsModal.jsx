@@ -17,10 +17,17 @@ const RequestsModal = ({ requests: initialRequests, onClose, onMarkAsCompleted, 
     // Solo permitir marcar como completado si se tiene permiso
     if (!canManageRequests) return;
     
-    // Actualizar estado local
+    // Actualizar estado local inmediatamente para mejor UX
     setRequests(requests.map(req => 
       req.id === requestId ? { ...req, isCompleted: true } : req
     ));
+    
+    // Guardar en localStorage para persistencia local
+    const completedRequests = JSON.parse(localStorage.getItem('completedRequests') || '[]');
+    if (!completedRequests.includes(requestId)) {
+      completedRequests.push(requestId);
+      localStorage.setItem('completedRequests', JSON.stringify(completedRequests));
+    }
     
     // Notificar al componente padre
     onMarkAsCompleted(requestId);

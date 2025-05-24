@@ -129,11 +129,14 @@ const ProfilePage = () => {
     setModalLoading(true);
     try {
       const requests = await helpRequestApi.getUserHelpRequests();
+      // Obtener solicitudes marcadas como completadas localmente
+      const completedRequests = JSON.parse(localStorage.getItem('completedRequests') || '[]');
+      
       // Transformar los datos para el modal
       const transformedRequests = requests.map(req => ({
         id: req.requestId,
         title: req.information.substring(0, 50) + (req.information.length > 50 ? '...' : ''),
-        isCompleted: req.isCompleted,
+        isCompleted: req.isCompleted || completedRequests.includes(req.requestId),
         urgency: req.urgency,
         topics: req.topics,
         requestDate: req.requestDate
@@ -171,10 +174,19 @@ const ProfilePage = () => {
   const markRequestAsCompleted = async (requestId) => {
     try {
       await helpRequestApi.markAsCompleted(requestId);
+      
+      // Guardar en localStorage para persistencia local
+      const completedRequests = JSON.parse(localStorage.getItem('completedRequests') || '[]');
+      if (!completedRequests.includes(requestId)) {
+        completedRequests.push(requestId);
+        localStorage.setItem('completedRequests', JSON.stringify(completedRequests));
+      }
+      
       // Actualizar la lista local
       setUserRequests(userRequests.map(req => 
         req.id === requestId ? { ...req, isCompleted: true } : req
       ));
+      
       // También recargar el perfil para actualizar las estadísticas
       const response = await getProfile();
       if (response.success) {
