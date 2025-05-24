@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Home, Users, BookOpen, Network, HelpCircle, UserPlus, ChevronRight, ChevronLeft, User, MessageCircle, FileText } from 'lucide-react';
+import { LogOut, Home, Users, BookOpen, Network, HelpCircle, UserPlus, ChevronRight, ChevronLeft, User, MessageCircle, FileText, BarChart2, Tag, Headphones, PieChart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 /**
@@ -61,6 +61,26 @@ const NavigationBar = ({ title }) => {
       path: '/affinity-graph', 
       label: 'Grafo de Afinidad', 
       icon: <Network size={18} />,
+    },
+    { 
+      path: '/admin/analytics', 
+      label: 'Panel Analítico', 
+      icon: <BarChart2 size={18} />,
+    },
+    { 
+      path: '/admin/interests', 
+      label: 'Gestión de Intereses', 
+      icon: <Tag size={18} />,
+    },
+    { 
+      path: '/admin/help-requests', 
+      label: 'Solicitudes de Ayuda', 
+      icon: <Headphones size={18} />,
+    },
+    { 
+      path: '/admin/stats', 
+      label: 'Estadísticas', 
+      icon: <PieChart size={18} />,
     },
   ];
   

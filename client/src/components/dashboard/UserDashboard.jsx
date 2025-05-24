@@ -1,16 +1,19 @@
 import React, { useState } from "react";
 import { Search, Plus, Eye, Pencil, Lock, Trash2, Star, Users2, Network, BarChart2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 /**
  * Componente de tarjeta para reportes
  */
-const ReportCard = ({ icon, title }) => (
-  <div className="flex items-center gap-3 border border-[var(--coastal-sea)]/30 hover:border-[var(--coastal-sea)] p-4 transition-colors cursor-pointer select-none rounded-md shadow-sm bg-white hover:bg-[var(--sand)]/30">
-    <div className="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--coastal-sea)]/10 text-[var(--coastal-sea)]">
-      {icon}
+const ReportCard = ({ icon, title, link }) => (
+  <Link to={link} className="block">
+    <div className="flex items-center gap-3 border border-[var(--coastal-sea)]/30 hover:border-[var(--coastal-sea)] p-4 transition-colors cursor-pointer select-none rounded-md shadow-sm bg-white hover:bg-[var(--sand)]/30">
+      <div className="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--coastal-sea)]/10 text-[var(--coastal-sea)]">
+        {icon}
+      </div>
+      <div className="p-0 font-workSans-bold text-sm text-[var(--deep-sea)]">{title}</div>
     </div>
-    <div className="p-0 font-workSans-bold text-sm text-[var(--deep-sea)]">{title}</div>
-  </div>
+  </Link>
 );
 
 /**
@@ -132,10 +135,40 @@ const UserDashboard = () => {
         <aside>
           <h2 className="font-workSans-bold text-lg mb-4 text-[var(--open-sea)]">Reportes y Análisis</h2>
           <div className="space-y-4">
-            <ReportCard icon={<Star size={22} />} title="Contenidos más valorados" />
-            <ReportCard icon={<Users2 size={22} />} title="Estudiantes con más conexiones" />
-            <ReportCard icon={<Network size={22} />} title="Detectar clusters" />
-            <ReportCard icon={<BarChart2 size={22} />} title="Niveles de participación" />
+            <ReportCard 
+              icon={<Star size={22} />} 
+              title="Contenidos más valorados" 
+              link="/admin/stats"
+            />
+            <ReportCard 
+              icon={<Users2 size={22} />} 
+              title="Estudiantes con más conexiones" 
+              link="/admin/stats"
+            />
+            <ReportCard 
+              icon={<Network size={22} />} 
+              title="Detectar clusters" 
+              link="/admin/analytics"
+            />
+            <ReportCard 
+              icon={<BarChart2 size={22} />} 
+              title="Niveles de participación" 
+              link="/admin/analytics"
+            />
+          </div>
+
+          <h2 className="font-workSans-bold text-lg mb-4 mt-8 text-[var(--open-sea)]">Gestión Avanzada</h2>
+          <div className="space-y-4">
+            <ReportCard 
+              icon={<Plus size={22} />} 
+              title="Gestión de Intereses" 
+              link="/admin/interests"
+            />
+            <ReportCard 
+              icon={<Search size={22} />} 
+              title="Solicitudes de Ayuda" 
+              link="/admin/help-requests"
+            />
           </div>
         </aside>
       </div>

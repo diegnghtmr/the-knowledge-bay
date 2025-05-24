@@ -14,6 +14,12 @@ import PublishContentPage from "./pages/PublishContentPage";
 import BodyClassManager from "./components/layout/BodyClassManager";
 import Home from "./pages/Home";
 
+// Admin pages
+import DashboardAnalyticsPage from "./pages/admin/DashboardAnalyticsPage";
+import InterestManagementPage from "./pages/admin/InterestManagementPage";
+import HelpRequestsPage from "./pages/admin/HelpRequestsPage";
+import AdminDashboardStatsPage from "./pages/admin/AdminDashboardStatsPage";
+
 import Terms from "./pages/Terms.jsx";
 
 // Componente personalizado para rutas protegidas por rol
@@ -98,6 +104,47 @@ function App() {
               element={
                 <RoleRoute 
                   element={<AffinityGraphPage />} 
+                  allowedRoles={['moderator']} 
+                />
+              } 
+            />
+
+            {/* Nuevas rutas de administrador */}
+            <Route 
+              path="/admin/analytics" 
+              element={
+                <RoleRoute 
+                  element={<DashboardAnalyticsPage />} 
+                  allowedRoles={['moderator']} 
+                />
+              } 
+            />
+            
+            <Route 
+              path="/admin/interests" 
+              element={
+                <RoleRoute 
+                  element={<InterestManagementPage />} 
+                  allowedRoles={['moderator']} 
+                />
+              } 
+            />
+            
+            <Route 
+              path="/admin/help-requests" 
+              element={
+                <RoleRoute 
+                  element={<HelpRequestsPage />} 
+                  allowedRoles={['moderator']} 
+                />
+              } 
+            />
+            
+            <Route 
+              path="/admin/stats" 
+              element={
+                <RoleRoute 
+                  element={<AdminDashboardStatsPage />} 
                   allowedRoles={['moderator']} 
                 />
               } 
