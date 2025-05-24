@@ -109,6 +109,30 @@ const NavigationBar = ({ title }) => {
   // No es necesario filtrar más, ya que hemos seleccionado el conjunto correcto de elementos
   const filteredNavItems = navItems;
   
+  // Guardar la posición de scroll entre renderizados
+  useEffect(() => {
+    // Recuperar la posición de scroll guardada al cargar
+    const savedScrollPosition = sessionStorage.getItem('navScrollPosition');
+    if (savedScrollPosition && navRef.current) {
+      navRef.current.scrollLeft = parseInt(savedScrollPosition, 10);
+    }
+    
+    // Función para guardar la posición de scroll actual
+    const saveScrollPosition = () => {
+      if (navRef.current) {
+        sessionStorage.setItem('navScrollPosition', navRef.current.scrollLeft.toString());
+      }
+    };
+    
+    // Guardar al desmontar o cuando cambie la posición
+    window.addEventListener('beforeunload', saveScrollPosition);
+    
+    return () => {
+      saveScrollPosition();
+      window.removeEventListener('beforeunload', saveScrollPosition);
+    };
+  }, []);
+  
   // Detectar scroll horizontal para mostrar/ocultar indicadores de fade
   useEffect(() => {
     const handleScroll = () => {
@@ -117,6 +141,9 @@ const NavigationBar = ({ title }) => {
       const { scrollLeft, scrollWidth, clientWidth } = navRef.current;
       setShowLeftFade(scrollLeft > 10);
       setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+      
+      // Guardar la posición de scroll en cada cambio
+      sessionStorage.setItem('navScrollPosition', scrollLeft.toString());
     };
 
     const navElement = navRef.current;
@@ -280,7 +307,16 @@ const NavigationBar = ({ title }) => {
                     : 'bg-[var(--coastal-sea)] text-white hover:bg-opacity-90'
                 }`}
                 // Evitar que se active el link mientras se está arrastrando
-                onClick={(e) => isDragging && e.preventDefault()}
+                onClick={(e) => {
+                  if (isDragging) {
+                    e.preventDefault();
+                    return;
+                  }
+                  // Guardar la posición actual de scroll antes de navegar
+                  if (navRef.current) {
+                    sessionStorage.setItem('navScrollPosition', navRef.current.scrollLeft.toString());
+                  }
+                }}
               >
                 {item.icon}
                 <span className="hidden sm:inline">{item.label}</span>
@@ -297,7 +333,16 @@ const NavigationBar = ({ title }) => {
                   ? 'bg-white text-[var(--open-sea)] font-workSans-bold shadow-md' 
                   : 'bg-[var(--coastal-sea)] text-white hover:bg-opacity-90'
               }`}
-              onClick={(e) => isDragging && e.preventDefault()}
+              onClick={(e) => {
+                if (isDragging) {
+                  e.preventDefault();
+                  return;
+                }
+                // Guardar la posición actual de scroll antes de navegar
+                if (navRef.current) {
+                  sessionStorage.setItem('navScrollPosition', navRef.current.scrollLeft.toString());
+                }
+              }}
             >
               <Home size={18} />
               <span className="hidden sm:inline">Inicio</span>
