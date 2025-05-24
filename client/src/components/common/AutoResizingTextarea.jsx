@@ -1,25 +1,35 @@
 import React, { useEffect, useRef } from 'react';
-import PropTypes from 'prop-types';
+import FormField from '../help/FormField';
 
+/**
+ * Campo de área de texto que se auto-redimensiona según el contenido
+ * Compatible con el sistema de formularios existente
+ */
 const AutoResizingTextarea = ({
+  label,
+  icon,
   value,
   onChange,
   onBlur,
-  error,
   placeholder,
-  label,
+  error,
+  showError,
+  inputRef,
   id,
   name,
   required = false,
-  minHeight = '100px',
-  maxHeight = '500px',
+  minHeight = '80px',
+  maxHeight = '400px',
   className = ''
 }) => {
   const textareaRef = useRef(null);
+  
+  // Usar la ref proporcionada o la interna
+  const finalRef = inputRef || textareaRef;
 
-  // Esta función ajusta la altura del textarea basada en su contenido
+  // Función para ajustar la altura del textarea basada en su contenido
   const adjustHeight = () => {
-    const textarea = textareaRef.current;
+    const textarea = finalRef.current;
     if (!textarea) return;
 
     // Resetear la altura para calcular correctamente
@@ -67,11 +77,49 @@ const AutoResizingTextarea = ({
     adjustHeight();
   }, []);
 
+  // Manejar input con auto-resize
   const handleInput = (e) => {
-    onChange(e);
-    adjustHeight();
+    if (onChange) onChange(e);
+    // Pequeño delay para asegurar que el DOM se actualice antes de ajustar
+    setTimeout(adjustHeight, 0);
   };
 
+  // Versión compatible con FormField (para help request)
+  if (label && icon !== undefined) {
+    return (
+      <FormField
+        label={label}
+        icon={icon}
+        error={error}
+        showError={showError}
+        className={className}
+      >
+        <textarea
+          ref={finalRef}
+          id={id}
+          name={name || id}
+          value={value}
+          onChange={handleInput}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          required={required}
+          className={`w-full border rounded-md p-2 focus:outline-none focus:ring-2 ${
+            error && showError 
+              ? 'border-red-500 ring-red-200' 
+              : 'border-[var(--coastal-sea)]/20 focus:ring-[var(--coastal-sea)]/50'
+          }`}
+          style={{
+            minHeight,
+            maxHeight,
+            resize: 'none',
+            overflowY: 'hidden'
+          }}
+        />
+      </FormField>
+    );
+  }
+
+  // Versión standalone (para content publication)
   return (
     <div className="space-y-1">
       {label && (
@@ -81,7 +129,7 @@ const AutoResizingTextarea = ({
         </label>
       )}
       <textarea
-        ref={textareaRef}
+        ref={finalRef}
         id={id}
         name={name || id}
         value={value}
@@ -100,21 +148,6 @@ const AutoResizingTextarea = ({
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
-};
-
-AutoResizingTextarea.propTypes = {
-  value: PropTypes.string.isRequired,
-  onChange: PropTypes.func.isRequired,
-  onBlur: PropTypes.func,
-  error: PropTypes.string,
-  placeholder: PropTypes.string,
-  label: PropTypes.string,
-  id: PropTypes.string.isRequired,
-  name: PropTypes.string,
-  required: PropTypes.bool,
-  minHeight: PropTypes.string,
-  maxHeight: PropTypes.string,
-  className: PropTypes.string
 };
 
 export default AutoResizingTextarea; 

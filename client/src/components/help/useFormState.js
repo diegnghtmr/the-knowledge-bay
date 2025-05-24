@@ -22,8 +22,17 @@ const useFormState = (initialValues, requiredFields = [], validateForm = null) =
   const errors = {};
   requiredFields.forEach(field => {
     const value = formValues[field];
-    if (value === undefined || value === null || value === '') {
-      errors[field] = 'Obligatorio';
+    
+    // Para arrays (como topics), verificar si está vacío
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        errors[field] = 'Debe agregar al menos un elemento';
+      }
+    } else {
+      // Para otros tipos de campos
+      if (value === undefined || value === null || value === '') {
+        errors[field] = 'Obligatorio';
+      }
     }
   });
 

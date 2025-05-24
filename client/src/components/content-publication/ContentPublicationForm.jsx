@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import useFormState from './FormState';
 import TextField from '../help/TextField';
-import AutoResizingTextarea from './AutoResizingTextarea';
+import AutoResizingTextarea from '../common/AutoResizingTextarea';
 import SelectField from '../help/SelectField';
 import FormButtons from '../help/FormButtons';
 import InterestSelector from './InterestSelector';

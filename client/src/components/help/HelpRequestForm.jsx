@@ -1,12 +1,10 @@
 import React from 'react';
-import TextField from './TextField';
-import TextareaField from './TextareaField';
 import SelectField from './SelectField';
-import DateField from './DateField';
-import RadioGroupField from './RadioGroupField';
+import InterestSelector from './InterestSelector';
+import AutoResizingTextarea from '../common/AutoResizingTextarea';
 import FormButtons from './FormButtons';
 import useFormState from './useFormState';
-import { BookOpen, AlertCircle, Calendar } from 'lucide-react'; // Removed User, CheckCircle
+import { BookOpen, AlertCircle } from 'lucide-react';
 
 /**
  * Formulario de solicitud de ayuda
@@ -15,16 +13,14 @@ import { BookOpen, AlertCircle, Calendar } from 'lucide-react'; // Removed User,
 const HelpRequestForm = ({ onSave, onCancel }) => {
   // Valores iniciales del formulario
   const initialValues = {
-    topic: '',
-    info: '',
-    urgency: '',
-    date: '',
-    // student: '', // Removed student
-    // completed: false // Removed completed
+    topics: [], // Array de temas de interés seleccionados
+    information: '', // Descripción del problema
+    urgency: '' // Nivel de urgencia
+    // Removidos: date, student, completed (se manejan en el backend)
   };
   
   // Campos requeridos para validación
-  const requiredFields = ['topic', 'info', 'urgency', 'date']; // Removed student
+  const requiredFields = ['topics', 'information', 'urgency'];
   
   // Hook para manejar el estado del formulario
   const { 
@@ -38,19 +34,13 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
     handleSubmit 
   } = useFormState(initialValues, requiredFields);
 
-  // Opciones para el selector de urgencia
+  // Opciones para el selector de urgencia (alineadas con el backend)
   const urgencyOptions = [
-    { value: 'baja', label: 'Baja' },
-    { value: 'media', label: 'Media' },
-    { value: 'alta', label: 'Alta' },
-    { value: 'crítica', label: 'Crítica' }
+    { value: 'LOW', label: 'Baja' },
+    { value: 'MEDIUM', label: 'Media' },
+    { value: 'HIGH', label: 'Alta' },
+    { value: 'CRITICAL', label: 'Crítica' }
   ];
-  
-  // Opciones para los botones de radio de "Completado" - Removed
-  // const completedOptions = [
-  //   { value: 'yes', label: 'Sí', checked: true, accentClass: 'accent-[var(--coastal-sea)]' },
-  //   { value: 'no', label: 'No', checked: false, accentClass: 'accent-red-600' }
-  // ];
 
   // Manejar el envío del formulario
   const handleFormSubmit = (e) => {
@@ -58,84 +48,62 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
   };
 
   return (
-    // Removed the outer div with border/shadow, as it's handled by the page component
     <form onSubmit={handleFormSubmit} className="space-y-6 p-2" noValidate>
-      <TextField
-        id="topic" // It's good practice to add id for accessibility
-        label="Tema"
+      
+      {/* Selector de temas de interés */}
+      <InterestSelector
+        id="topics"
+        label="Temas de Interés"
         icon={<BookOpen className="text-[var(--coastal-sea)]" size={20} />}
-        value={formValues.topic}
-        onChange={handleChange('topic')}
-        onBlur={handleBlur('topic')}
-        placeholder="Ej. Ayuda con tarea de Matemáticas"
-        error={errors.topic}
-        showError={shouldShowError('topic')}
-        inputRef={refs.topic}
-        // className prop removed to use default TextField styling
-        required // Assuming this field is required based on original structure
+        value={formValues.topics}
+        onChange={handleChange('topics')}
+        onBlur={handleBlur('topics')}
+        placeholder="Buscar temas de interés relacionados con tu solicitud..."
+        error={errors.topics}
+        showError={shouldShowError('topics')}
+        inputRef={refs.topics}
+        required
       />
 
-      <TextareaField
-        id="info"
+      {/* Campo de información (descripción del problema) - Auto-resizing */}
+      <AutoResizingTextarea
+        id="information"
         label="Información"
         icon={<AlertCircle className="text-[var(--coastal-sea)]" size={20} />}
-        value={formValues.info}
-        onChange={handleChange('info')}
-        onBlur={handleBlur('info')}
-        placeholder="Describe brevemente el problema…"
-        error={errors.info}
-        showError={shouldShowError('info')}
-        inputRef={refs.info}
-        rows={3}
-        // className prop removed
-        required // Assuming this field is required
+        value={formValues.information}
+        onChange={handleChange('information')}
+        onBlur={handleBlur('information')}
+        placeholder="Describe brevemente el problema o la ayuda que necesitas..."
+        error={errors.information}
+        showError={shouldShowError('information')}
+        inputRef={refs.information}
+        minHeight="100px"
+        maxHeight="300px"
+        required
       />
 
-      {/* Dos columnas para Urgencia y Fecha */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6"> {/* Increased gap to match typical form spacing */}
-        <SelectField
-          id="urgency"
-          label="Urgencia"
-          icon={<AlertCircle className="text-[var(--coastal-sea)]" size={20} />}
-          value={formValues.urgency}
-          onChange={handleChange('urgency')}
-          onBlur={handleBlur('urgency')}
-          options={urgencyOptions}
-          placeholder="Seleccionar nivel…"
-          error={errors.urgency}
-          showError={shouldShowError('urgency')}
-          inputRef={refs.urgency}
-          // className prop removed
-          required // Assuming this field is required
-        />
+      {/* Campo de urgencia */}
+      <SelectField
+        id="urgency"
+        label="Nivel de Urgencia"
+        icon={<AlertCircle className="text-[var(--coastal-sea)]" size={20} />}
+        value={formValues.urgency}
+        onChange={handleChange('urgency')}
+        onBlur={handleBlur('urgency')}
+        options={urgencyOptions}
+        placeholder="Seleccionar nivel de urgencia..."
+        error={errors.urgency}
+        showError={shouldShowError('urgency')}
+        inputRef={refs.urgency}
+        required
+      />
 
-        <DateField
-          id="date"
-          label="Fecha"
-          icon={<Calendar className="text-[var(--coastal-sea)]" size={20} />}
-          value={formValues.date}
-          onChange={handleChange('date')}
-          onBlur={handleBlur('date')}
-          error={errors.date}
-          showError={shouldShowError('date')}
-          inputRef={refs.date}
-          // className prop removed
-          required // Assuming this field is required
-        />
-      </div>
-
-      {/* TextField for student removed */}
-      {/* RadioGroupField for completed removed */}
-
-      {/* Línea divisoria - can be kept if desired, or removed if ContentPublicationForm doesn't have one */}
-      {/* <div className="border-t border-[var(--coastal-sea)]/10 pt-4 mt-4"></div> */}
-
+      {/* Botones del formulario */}
       <FormButtons
-        submitText="Guardar Solicitud" // Changed from submitLabel
-        cancelText="Cancelar"         // Added cancelText for consistency
+        submitText="Crear Solicitud de Ayuda"
+        cancelText="Cancelar"
         onCancel={onCancel}
-        isSubmitting={!isValid} // Or use a dedicated isSubmitting state if available from useFormState
-        // Removed custom classNames to use default FormButton styles
+        isSubmitting={!isValid}
       />
     </form>
   );
