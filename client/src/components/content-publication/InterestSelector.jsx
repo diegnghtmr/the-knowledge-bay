@@ -128,9 +128,11 @@ const InterestSelector = ({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+        </label>
+      )}
       
       {/* Mostrar el tema seleccionado */}
       {selectedTopic ? (

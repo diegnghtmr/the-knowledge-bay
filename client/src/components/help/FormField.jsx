@@ -10,6 +10,7 @@ const FormField = ({
   error,
   showError,
   children,
+  required = false,
   className = ''
 }) => {
   return (
@@ -19,6 +20,7 @@ const FormField = ({
           {icon && <span className="flex-shrink-0">{icon}</span>} {/* Render icon if provided */}
           <label className="block text-sm font-workSans-bold text-[var(--open-sea)]">
             {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
           </label>
         </div>
       )}

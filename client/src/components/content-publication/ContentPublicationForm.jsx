@@ -265,6 +265,7 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
           <Type className="text-[var(--coastal-sea)]" size={20} />
           <label className="block text-sm font-workSans-bold text-[var(--open-sea)]">
             Tipo de Contenido
+            <span className="text-red-500 ml-1">*</span>
           </label>
         </div>
         <select
@@ -289,28 +290,44 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
         {errors.contentType && <p className="text-red-600 text-xs mt-1">{errors.contentType}</p>}
       </div>
 
-      <InterestSelector 
-        selectedInterests={selectedInterests}
-        onInterestsChange={handleInterestsChange}
-        label="Temas / Etiquetas"
-      />
-      {errors.topics && <p className="mt-1 text-xs text-red-600">{errors.topics}</p>}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 mb-1">
+          <Tags className="text-[var(--coastal-sea)]" size={20} />
+          <label className="block text-sm font-workSans-bold text-[var(--open-sea)]">
+            Temas / Etiquetas
+            <span className="text-red-500 ml-1">*</span>
+          </label>
+        </div>
+        <InterestSelector 
+          selectedInterests={selectedInterests}
+          onInterestsChange={handleInterestsChange}
+        />
+        {errors.topics && <p className="mt-1 text-xs text-red-600">{errors.topics}</p>}
+      </div>
 
       {/* Campo de cuerpo de contenido - siempre aparece con placeholder dinámico */}
       {currentConfig.showBodyField && (
-        <AutoResizingTextarea
-          id="body"
-          name="body"
-          label="Descripción del Contenido"
-          value={values.body}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          error={errors.body}
-          placeholder={currentConfig.placeholder}
-          minHeight={currentConfig.minHeight}
-          maxHeight={currentConfig.maxHeight}
-          required
-        />
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 mb-1">
+            <MessageSquare className="text-[var(--coastal-sea)]" size={20} />
+            <label className="block text-sm font-workSans-bold text-[var(--open-sea)]">
+              Descripción del Contenido
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+          </div>
+          <AutoResizingTextarea
+            id="body"
+            name="body"
+            value={values.body}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={errors.body}
+            placeholder={currentConfig.placeholder}
+            minHeight={currentConfig.minHeight}
+            maxHeight={currentConfig.maxHeight}
+          />
+          {errors.body && <p className="mt-1 text-xs text-red-600">{errors.body}</p>}
+        </div>
       )}
 
       {/* Campo específico para ENLACE */}
@@ -348,10 +365,13 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
       {/* Campo específico para ARCHIVO */}
       {currentConfig.specialFieldType === 'file' && (
         <div className="space-y-1">
-          <label htmlFor="file" className="block text-sm font-medium text-gray-700">
-            Adjuntar Archivo
-            <span className="text-red-500 ml-1">*</span>
-          </label>
+          <div className="flex items-center gap-2 mb-1">
+            <FileUp className="text-[var(--coastal-sea)]" size={20} />
+            <label htmlFor="file" className="block text-sm font-workSans-bold text-[var(--open-sea)]">
+              Adjuntar Archivo
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+          </div>
           <div className="mt-1 flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus-within:ring-1 focus-within:ring-[var(--coastal-sea)] focus-within:border-[var(--coastal-sea)]">
             <FileUp className="text-[var(--coastal-sea)]" size={20} />
             <input

@@ -15,6 +15,7 @@ const TextField = ({
   showError,
   inputRef,
   type = 'text',
+  required = false,
   className = '',
   ...restProps // Capturar todas las demás props (id, name, required, etc.)
 }) => {
@@ -24,6 +25,7 @@ const TextField = ({
       icon={icon} // Pass icon prop to FormField
       error={error}
       showError={showError}
+      required={required}
     >
       <input
         ref={inputRef}

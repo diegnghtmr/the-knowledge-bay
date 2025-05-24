@@ -55,6 +55,7 @@ const InterestSelector = ({
   error,
   showError,
   inputRef,
+  required = false,
   className = ''
 }) => {
   const [searchInterest, setSearchInterest] = useState('');
@@ -131,6 +132,7 @@ const InterestSelector = ({
       icon={icon}
       error={error}
       showError={showError}
+      required={required}
       className={className}
     >
       {/* Temas seleccionados */}

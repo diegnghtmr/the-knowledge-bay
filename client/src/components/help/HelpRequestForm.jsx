@@ -74,7 +74,7 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
         error={errors.topics}
         showError={shouldShowError('topics')}
         inputRef={refs.topics}
-        required
+        required={true}
       />
 
       {/* Campo de información (descripción del problema) - Auto-resizing */}
@@ -91,7 +91,7 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
         inputRef={refs.information}
         minHeight="100px"
         maxHeight="300px"
-        required
+        required={true}
       />
 
       {/* Campo de urgencia */}
@@ -107,7 +107,7 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
         error={errors.urgency}
         showError={shouldShowError('urgency')}
         inputRef={refs.urgency}
-        required
+        required={true}
       />
 
       {/* Botones del formulario */}
