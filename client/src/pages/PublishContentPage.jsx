@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import NavigationBar from '../components/layout/NavigationBar';
 import ContentPublicationForm from '../components/content-publication/ContentPublicationForm';
 import { useAuth } from '../context/AuthContext'; // Para obtener datos del autor si es necesario
 
 const PublishContentPage = () => {
   const { user } = useAuth(); // Ejemplo: obtener el usuario para asociarlo como autor
+  const navigate = useNavigate();
 
   const handlePublish = (data) => {
     console.log('Contenido a publicar:', data);
@@ -24,13 +26,14 @@ const PublishContentPage = () => {
     // formData.append('authorId', user.id); // Ejemplo de cómo se podría añadir el autor
 
     alert('Contenido enviado (simulación). Revisa la consola.');
-    // Redirigir o limpiar formulario después de publicar
+    // Redirigir a la página de inicio después de publicar
+    navigate('/');
   };
 
   const handleCancel = () => {
     console.log('Publicación cancelada');
-    // Redirigir a la página anterior o al dashboard
-    window.history.back(); 
+    // Navegar a la página de inicio en lugar de volver al historial
+    navigate('/');
   };
 
   return (

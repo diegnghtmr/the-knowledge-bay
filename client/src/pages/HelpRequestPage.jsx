@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from 'react-router-dom';
 import HelpRequestForm from "../components/help/HelpRequestForm";
 // HelpCircle might not be needed anymore if the title is simplified like in PublishContentPage
 // import { HelpCircle } from "lucide-react";
@@ -10,6 +11,7 @@ import { useAuth } from "../context/AuthContext"; // Import useAuth
  */
 const HelpRequestPage = () => {
   const { user } = useAuth(); // Get the logged-in user
+  const navigate = useNavigate();
 
   // Manejar guardar solicitud
   const handleSave = (formData) => {
@@ -20,12 +22,15 @@ const HelpRequestPage = () => {
     };
     console.log("Datos guardados:", dataToSave);
     alert("Solicitud guardada correctamente (con datos de estudiante y estado 'no completado' por defecto)");
+    // Navegar a la página de inicio después de guardar
+    navigate('/');
   };
 
   // Manejar cancelar
   const handleCancel = () => {
     console.log("Operación cancelada");
-    alert("Operación cancelada");
+    // Navegar a la página de inicio al cancelar
+    navigate('/');
   };
 
   return (

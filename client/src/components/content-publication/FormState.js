@@ -41,6 +41,14 @@ const useFormState = (initialValues, validateForm, onSubmitFn) => {
     });
   };
 
+  // Establecer todos los valores del formulario (útil para reset)
+  const setAllValues = (newValues) => {
+    setValues(newValues);
+    // También limpiar errores y touched al resetear
+    setErrors({});
+    setTouched({});
+  };
+
   // Manejar pérdida de foco
   const handleBlur = (e) => {
     const { name } = e.target;
@@ -85,6 +93,7 @@ const useFormState = (initialValues, validateForm, onSubmitFn) => {
     handleBlur,
     handleSubmit,
     setFieldValue,
+    setAllValues,
   };
 };
 

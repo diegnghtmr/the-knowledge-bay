@@ -31,7 +31,8 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
     handleChange, 
     handleBlur, 
     shouldShowError,
-    handleSubmit 
+    handleSubmit,
+    setFormValues 
   } = useFormState(initialValues, requiredFields);
 
   // Opciones para el selector de urgencia (alineadas con el backend)
@@ -45,6 +46,17 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
   // Manejar el envío del formulario
   const handleFormSubmit = (e) => {
     handleSubmit(e, onSave);
+  };
+
+  // Manejar la cancelación del formulario
+  const handleCancel = () => {
+    // Restaurar todos los campos a sus valores iniciales
+    setFormValues(initialValues);
+    
+    // Llamar la función onCancel si fue proporcionada
+    if (onCancel) {
+      onCancel();
+    }
   };
 
   return (
@@ -102,7 +114,7 @@ const HelpRequestForm = ({ onSave, onCancel }) => {
       <FormButtons
         submitText="Crear Solicitud de Ayuda"
         cancelText="Cancelar"
-        onCancel={onCancel}
+        onCancel={handleCancel}
         isSubmitting={!isValid}
       />
     </form>

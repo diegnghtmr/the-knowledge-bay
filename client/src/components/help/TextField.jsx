@@ -15,7 +15,8 @@ const TextField = ({
   showError,
   inputRef,
   type = 'text',
-  className = ''
+  className = '',
+  ...restProps // Capturar todas las demás props (id, name, required, etc.)
 }) => {
   return (
     <FormField
@@ -36,6 +37,7 @@ const TextField = ({
         value={value}
         onChange={onChange}
         onBlur={onBlur}
+        {...restProps} // Pasar todas las props adicionales al input
       />
     </FormField>
   );
