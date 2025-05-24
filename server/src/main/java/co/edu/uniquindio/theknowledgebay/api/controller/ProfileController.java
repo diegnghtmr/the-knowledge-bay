@@ -48,6 +48,11 @@ public class ProfileController {
         String defaultName = "Información no disponible";
         LocalDate defaultDate = LocalDate.of(1900,1,1);
         String defaultBio = "[Tu biografía aquí]";
+        
+        // Calculate user statistics
+        int userContentCount = theKnowledgeBay.getContentCountByUserId(currentUserId);
+        int userRequestsCount = theKnowledgeBay.getHelpRequestCountByUserId(currentUserId);
+        
         ProfileResponseDTO response = ProfileResponseDTO.builder()
                 .id(currentUserId)
                 .username(user.getUsername())
@@ -56,6 +61,11 @@ public class ProfileController {
                 .lastName(user instanceof Student && ((Student) user).getLastName() != null ? ((Student) user).getLastName() : defaultName)
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
+                .following(0) // TODO: implement following logic
+                .followers(0) // TODO: implement followers logic  
+                .groups(0)    // TODO: implement groups logic
+                .content(userContentCount)
+                .requests(userRequestsCount)
                 .interests(user instanceof Student && ((Student) user).getInterests() != null ? ((Student) user).getInterests() : Arrays.asList())
                 .build();
                 
@@ -145,6 +155,10 @@ public class ProfileController {
         List<String> userInterests = (user instanceof Student) ? ((Student) user).getInterests() : Arrays.asList();
         System.out.println("PUT /api/profile - Intereses: " + userInterests);
         
+        // Calculate user statistics
+        int userContentCount = theKnowledgeBay.getContentCountByUserId(currentUserId);
+        int userRequestsCount = theKnowledgeBay.getHelpRequestCountByUserId(currentUserId);
+        
         ProfileResponseDTO response = ProfileResponseDTO.builder()
                 .id(currentUserId)
                 .username(user.getUsername())
@@ -153,6 +167,11 @@ public class ProfileController {
                 .lastName(user instanceof Student && ((Student) user).getLastName() != null ? ((Student) user).getLastName() : defaultName)
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
+                .following(0) // TODO: implement following logic
+                .followers(0) // TODO: implement followers logic  
+                .groups(0)    // TODO: implement groups logic
+                .content(userContentCount)
+                .requests(userRequestsCount)
                 .interests(userInterests)
                 .build();
                 

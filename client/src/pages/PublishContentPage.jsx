@@ -1,38 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavigationBar from '../components/layout/NavigationBar';
 import ContentPublicationForm from '../components/content-publication/ContentPublicationForm';
-import { useAuth } from '../context/AuthContext'; // Para obtener datos del autor si es necesario
+import { useAuth } from '../context/AuthContext';
+import { contentApi } from '../services/contentApi';
 
 const PublishContentPage = () => {
-  const { user } = useAuth(); // Ejemplo: obtener el usuario para asociarlo como autor
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handlePublish = (data) => {
-    console.log('Contenido a publicar:', data);
-    // Aquí iría la lógica para enviar los datos al backend
-    // Por ejemplo, construir un FormData si hay un archivo
-    const formData = new FormData();
-    formData.append('title', data.title);
-    formData.append('contentType', data.contentType);
-    formData.append('body', data.body);
-    formData.append('topics', JSON.stringify(data.topics)); // Enviar como JSON string o procesar en backend
-    if (data.file) {
-      formData.append('file', data.file);
-    }
-    if (data.contentType === 'video') {
-      formData.append('videoUrl', data.videoUrl);
-    }
-    // formData.append('authorId', user.id); // Ejemplo de cómo se podría añadir el autor
+  const handlePublish = async (data) => {
+    setIsSubmitting(true);
+    
+    try {
+      console.log('Contenido a publicar:', data);
+      
+      const contentData = {
+        title: data.title,
+        contentType: data.contentType,
+        body: data.body,
+        topics: data.topics,
+        linkUrl: data.linkUrl || null,
+        videoUrl: data.videoUrl || null,
+      };
 
-    alert('Contenido enviado (simulación). Revisa la consola.');
-    // Redirigir a la página de inicio después de publicar
-    navigate('/');
+      console.log("Enviando datos de contenido:", contentData);
+      
+      const response = await contentApi.createContent(contentData, data.file);
+      
+      console.log("Respuesta del servidor:", response);
+      
+      if (response.success) {
+        alert("Contenido publicado exitosamente");
+        navigate('/');
+      } else {
+        alert(response.message || "Error al publicar el contenido");
+      }
+    } catch (error) {
+      console.error("Error al publicar contenido:", error);
+      alert("Error al publicar el contenido: " + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
     console.log('Publicación cancelada');
-    // Navegar a la página de inicio en lugar de volver al historial
     navigate('/');
   };
 
@@ -46,7 +60,8 @@ const PublishContentPage = () => {
           </h1>
           <ContentPublicationForm 
             onPublish={handlePublish} 
-            onCancel={handleCancel} 
+            onCancel={handleCancel}
+            isSubmitting={isSubmitting}
           />
         </div>
       </main>

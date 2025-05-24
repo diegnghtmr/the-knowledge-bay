@@ -1,35 +1,52 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import HelpRequestForm from "../components/help/HelpRequestForm";
-// HelpCircle might not be needed anymore if the title is simplified like in PublishContentPage
-// import { HelpCircle } from "lucide-react";
 import NavigationBar from "../components/layout/NavigationBar";
-import { useAuth } from "../context/AuthContext"; // Import useAuth
+import { useAuth } from "../context/AuthContext";
+import { helpRequestApi } from "../services/helpRequestApi";
 
 /**
  * Página del formulario de solicitud de ayuda
  */
 const HelpRequestPage = () => {
-  const { user } = useAuth(); // Get the logged-in user
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Manejar guardar solicitud
-  const handleSave = (formData) => {
-    const dataToSave = {
-      ...formData,
-      student: user ? user.email : 'unknown_student@example.com', // Add student email
-      completed: false, // Set completed to false
-    };
-    console.log("Datos guardados:", dataToSave);
-    alert("Solicitud guardada correctamente (con datos de estudiante y estado 'no completado' por defecto)");
-    // Navegar a la página de inicio después de guardar
-    navigate('/');
+  const handleSave = async (formData) => {
+    setIsSubmitting(true);
+    
+    try {
+      const helpRequestData = {
+        topics: formData.topics,
+        information: formData.information,
+        urgency: formData.urgency
+      };
+
+      console.log("Enviando datos de solicitud:", helpRequestData);
+      
+      const response = await helpRequestApi.createHelpRequest(helpRequestData);
+      
+      console.log("Respuesta del servidor:", response);
+      
+      if (response.success) {
+        alert("Solicitud de ayuda creada exitosamente");
+        navigate('/');
+      } else {
+        alert(response.message || "Error al crear la solicitud de ayuda");
+      }
+    } catch (error) {
+      console.error("Error al crear solicitud:", error);
+      alert("Error al crear la solicitud de ayuda: " + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Manejar cancelar
   const handleCancel = () => {
     console.log("Operación cancelada");
-    // Navegar a la página de inicio al cancelar
     navigate('/');
   };
 
@@ -41,7 +58,11 @@ const HelpRequestPage = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--deep-sea)] mb-6 text-center">
             Solicita Asistencia Académica
           </h1>
-          <HelpRequestForm onSave={handleSave} onCancel={handleCancel} />
+          <HelpRequestForm 
+            onSave={handleSave} 
+            onCancel={handleCancel}
+            isSubmitting={isSubmitting}
+          />
         </div>
       </main>
     </div>

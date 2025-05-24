@@ -83,4 +83,14 @@ public class PriorityQueue<T extends Comparable<T>> {
         head = null;
         size = 0;
     }
+
+    public T dequeue() {
+        if (isEmpty()) {
+            throw new RuntimeException("PriorityQueue is empty");
+        }
+        T data = head.getData();
+        head = head.getNext();
+        size--;
+        return data;
+    }
 }

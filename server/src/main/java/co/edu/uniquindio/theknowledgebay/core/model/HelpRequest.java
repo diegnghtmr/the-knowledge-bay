@@ -1,7 +1,7 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
-import co.edu.uniquindio.theknowledgebay.model.enums.Urgency;
+import co.edu.uniquindio.theknowledgebay.core.model.enums.Urgency;
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +24,7 @@ public class HelpRequest implements Comparable<HelpRequest> {
     private DoublyLinkedList<Comment> comments;
 
     public void markAsCompleted() {
-        // Stub method: implementation not provided
+        this.isCompleted = true;
     }
 
     public void addComment(Comment c) {

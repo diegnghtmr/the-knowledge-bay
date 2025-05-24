@@ -167,7 +167,13 @@ const ProfilePage = () => {
         />
 
         <ProfileStats
-          stats={{ following: 0, followers: 0, groups: 0, content: 0, requests: 0 }}
+          stats={{ 
+            following: userData.following || 0, 
+            followers: userData.followers || 0, 
+            groups: userData.groups || 0, 
+            content: userData.content || 0, 
+            requests: userData.requests || 0 
+          }}
           onStatClick={openModal}
         />
 

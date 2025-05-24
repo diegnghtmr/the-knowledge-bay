@@ -111,4 +111,48 @@ public class BinarySearchTree<T extends Comparable<T>> {
             inOrderRec(node.getRight(), sb);
         }
     }
+
+    /**
+     * Checks if the BST is empty.
+     *
+     * @return true if the tree is empty, false otherwise.
+     */
+    public boolean isEmpty() {
+        return root == null;
+    }
+
+    /**
+     * Searches for a specific element in the BST and returns it.
+     *
+     * @param data the element to search for.
+     * @return the element if found, null otherwise.
+     */
+    public T search(T data) {
+        return searchRec(root, data);
+    }
+
+    private T searchRec(BSTNode<T> node, T data) {
+        if (node == null) return null;
+        int cmp = data.compareTo(node.getData());
+        if (cmp < 0) return searchRec(node.getLeft(), data);
+        else if (cmp > 0) return searchRec(node.getRight(), data);
+        else return node.getData();
+    }
+
+    /**
+     * Performs an in-order traversal and adds all elements to the provided list.
+     *
+     * @param list the list to add elements to.
+     */
+    public void inOrderTraversal(co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList<T> list) {
+        inOrderTraversalRec(root, list);
+    }
+
+    private void inOrderTraversalRec(BSTNode<T> node, co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList<T> list) {
+        if (node != null) {
+            inOrderTraversalRec(node.getLeft(), list);
+            list.addLast(node.getData());
+            inOrderTraversalRec(node.getRight(), list);
+        }
+    }
 }
