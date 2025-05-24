@@ -106,6 +106,61 @@ public class HelpRequestController {
         }
     }
 
+    @GetMapping("/my-requests")
+    public ResponseEntity<List<HelpRequestResponseDTO>> getMyHelpRequests(
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        if (currentUserId == null) {
+            // Default to user id "1" if no valid token (development stub)
+            currentUserId = "1";
+        }
+
+        try {
+            DoublyLinkedList<HelpRequest> allRequests = theKnowledgeBay.getAllHelpRequests();
+            List<HelpRequestResponseDTO> response = new ArrayList<>();
+
+            if (allRequests != null) {
+                for (int i = 0; i < allRequests.getSize(); i++) {
+                    HelpRequest helpRequest = allRequests.get(i);
+                    
+                    // Solo incluir solicitudes del usuario actual
+                    if (helpRequest.getStudent() != null && 
+                        helpRequest.getStudent().getId() != null &&
+                        helpRequest.getStudent().getId().equals(currentUserId)) {
+                        
+                        // Convert Interest objects to strings
+                        List<String> topicNames = new ArrayList<>();
+                        if (helpRequest.getTopics() != null) {
+                            for (int j = 0; j < helpRequest.getTopics().getSize(); j++) {
+                                topicNames.add(helpRequest.getTopics().get(j).getName());
+                            }
+                        }
+
+                        HelpRequestResponseDTO dto = HelpRequestResponseDTO.builder()
+                                .requestId(helpRequest.getRequestId())
+                                .topics(topicNames)
+                                .information(helpRequest.getInformation())
+                                .urgency(helpRequest.getUrgency().toString())
+                                .studentUsername(helpRequest.getStudent().getUsername())
+                                .studentId(helpRequest.getStudent().getId())
+                                .isCompleted(helpRequest.isCompleted())
+                                .requestDate(helpRequest.getRequestDate())
+                                .commentCount(helpRequest.getComments() != null ? helpRequest.getComments().getSize() : 0)
+                                .build();
+                        
+                        response.add(dto);
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping
     public ResponseEntity<List<HelpRequestResponseDTO>> getAllHelpRequests() {
         try {

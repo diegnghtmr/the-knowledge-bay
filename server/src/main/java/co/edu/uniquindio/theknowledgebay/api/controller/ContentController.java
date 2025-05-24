@@ -104,6 +104,95 @@ public class ContentController {
         }
     }
 
+    @GetMapping("/my-content")
+    public ResponseEntity<List<ContentResponseDTO>> getMyContent(
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        if (currentUserId == null) {
+            // Default to user id "1" if no valid token (development stub)
+            currentUserId = "1";
+        }
+
+        try {
+            DoublyLinkedList<Content> allContent = theKnowledgeBay.getAllContent();
+            List<ContentResponseDTO> response = new ArrayList<>();
+
+            if (allContent != null) {
+                for (int i = 0; i < allContent.getSize(); i++) {
+                    Content content = allContent.get(i);
+                    
+                    // Solo incluir contenido del usuario actual
+                    if (content.getAuthor() != null && 
+                        content.getAuthor().getId() != null &&
+                        content.getAuthor().getId().equals(currentUserId)) {
+                        
+                        // Convert Interest objects to strings
+                        List<String> topicNames = new ArrayList<>();
+                        if (content.getTopics() != null) {
+                            for (int j = 0; j < content.getTopics().getSize(); j++) {
+                                topicNames.add(content.getTopics().get(j).getName());
+                            }
+                        }
+
+                        // Check if current user has liked this content
+                        boolean hasLiked = false;
+                        if (content.getLikedBy() != null) {
+                            for (int k = 0; k < content.getLikedBy().getSize(); k++) {
+                                if (content.getLikedBy().get(k).getId().equals(currentUserId)) {
+                                    hasLiked = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Extract URLs and file names from information
+                        String linkUrl = null;
+                        String videoUrl = null;
+                        String fileName = null;
+                        
+                        if (content.getInformation() != null) {
+                            String[] lines = content.getInformation().split("\n");
+                            for (String line : lines) {
+                                if (line.startsWith("Enlace: ")) {
+                                    linkUrl = line.substring(8);
+                                } else if (line.startsWith("Video: ")) {
+                                    videoUrl = line.substring(7);
+                                } else if (line.startsWith("Archivo adjunto: ")) {
+                                    fileName = line.substring(17);
+                                }
+                            }
+                        }
+
+                        ContentResponseDTO dto = ContentResponseDTO.builder()
+                                .contentId(content.getContentId())
+                                .topics(topicNames)
+                                .title(content.getTitle())
+                                .contentType(content.getContentType().toString())
+                                .information(content.getInformation())
+                                .authorUsername(content.getAuthor().getUsername())
+                                .authorId(content.getAuthor().getId())
+                                .likeCount(content.getLikeCount())
+                                .hasLiked(hasLiked)
+                                .commentCount(content.getComments() != null ? content.getComments().getSize() : 0)
+                                .date(content.getDate())
+                                .linkUrl(linkUrl)
+                                .videoUrl(videoUrl)
+                                .fileName(fileName)
+                                .build();
+                        
+                        response.add(dto);
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping
     public ResponseEntity<List<ContentResponseDTO>> getAllContent(
             @RequestHeader(value = "Authorization", required = false) String token) {

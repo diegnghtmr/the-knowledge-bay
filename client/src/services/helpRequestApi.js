@@ -81,7 +81,7 @@ export const helpRequestApi = {
   // Marcar una solicitud de ayuda como completada
   markAsCompleted: async (id) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/help-requests/${id}/complete`, {
         method: 'PUT',
         headers: {
@@ -99,6 +99,30 @@ export const helpRequestApi = {
       return data;
     } catch (error) {
       console.error('Error marking help request as completed:', error);
+      throw error;
+    }
+  },
+
+  // Obtener solicitudes de ayuda del usuario actual
+  getUserHelpRequests: async () => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/help-requests/my-requests`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al obtener las solicitudes de ayuda del usuario');
+      }
+
+      const userRequests = await response.json();
+      return userRequests;
+    } catch (error) {
+      console.error('Error fetching user help requests:', error);
       throw error;
     }
   },

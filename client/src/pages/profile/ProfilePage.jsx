@@ -13,6 +13,8 @@ import NavigationBar from '../../components/layout/NavigationBar';
 import profileLogo from '../../assets/img/profileLogo.png';
 // Import profile API service
 import { getProfile, updateProfile } from '../../services/profileApi';
+import { helpRequestApi } from '../../services/helpRequestApi';
+import { contentApi } from '../../services/contentApi';
 
 const ProfilePage = () => {
   const [activeModal, setActiveModal] = useState(null);
@@ -20,12 +22,15 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Datos mock para los modales
+  // Estados para datos de modales
+  const [userRequests, setUserRequests] = useState([]);
+  const [userContent, setUserContent] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+
+  // Datos mock para modales no implementados
   const mockFollowers = [];
   const mockFollowing = [];
   const mockGroups = [];
-  const mockContent = [];
-  const mockRequests = [];
 
   useEffect(() => {
     // Usamos el token que ya está en sessionStorage (del login)
@@ -108,10 +113,77 @@ const ProfilePage = () => {
     );
   }
 
-  const openModal = (modalName) => setActiveModal(modalName);
+  const openModal = async (modalName) => {
+    setActiveModal(modalName);
+    
+    if (modalName === 'requests') {
+      await loadUserRequests();
+    } else if (modalName === 'content') {
+      await loadUserContent();
+    }
+  };
+  
   const closeModal = () => setActiveModal(null);
-  const markRequestAsCompleted = (requestId) => {
-    console.log(`Solicitud ${requestId} marcada como completada`);
+  
+  const loadUserRequests = async () => {
+    setModalLoading(true);
+    try {
+      const requests = await helpRequestApi.getUserHelpRequests();
+      // Transformar los datos para el modal
+      const transformedRequests = requests.map(req => ({
+        id: req.requestId,
+        title: req.information.substring(0, 50) + (req.information.length > 50 ? '...' : ''),
+        isCompleted: req.isCompleted,
+        urgency: req.urgency,
+        topics: req.topics,
+        requestDate: req.requestDate
+      }));
+      setUserRequests(transformedRequests);
+    } catch (error) {
+      console.error('Error loading user requests:', error);
+      setUserRequests([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const loadUserContent = async () => {
+    setModalLoading(true);
+    try {
+      const content = await contentApi.getUserContent();
+      // Transformar los datos para el modal
+      const transformedContent = content.map(item => ({
+        id: item.contentId,
+        title: item.title,
+        contentType: item.contentType,
+        date: item.date,
+        likeCount: item.likeCount
+      }));
+      setUserContent(transformedContent);
+    } catch (error) {
+      console.error('Error loading user content:', error);
+      setUserContent([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  
+  const markRequestAsCompleted = async (requestId) => {
+    try {
+      await helpRequestApi.markAsCompleted(requestId);
+      // Actualizar la lista local
+      setUserRequests(userRequests.map(req => 
+        req.id === requestId ? { ...req, isCompleted: true } : req
+      ));
+      // También recargar el perfil para actualizar las estadísticas
+      const response = await getProfile();
+      if (response.success) {
+        setUserData(response.data);
+      }
+    } catch (error) {
+      console.error('Error marking request as completed:', error);
+      alert('Error al marcar la solicitud como completada');
+    }
   };
   const saveProfileChanges = async (updatedData) => {
     const response = await updateProfile(updatedData);
@@ -193,14 +265,28 @@ const ProfilePage = () => {
         {activeModal === 'followers' && <FollowersModal followers={mockFollowers} onClose={closeModal} />}
         {activeModal === 'following' && <FollowingModal following={mockFollowing} onClose={closeModal} />}
         {activeModal === 'groups' && <GroupsModal groups={mockGroups} onClose={closeModal} />}
-        {activeModal === 'content' && <ContentModal content={mockContent} onClose={closeModal} />}
+        {activeModal === 'content' && (
+          <div>
+            {modalLoading ? (
+              <div className="text-center p-8">Cargando contenido...</div>
+            ) : (
+              <ContentModal content={userContent} onClose={closeModal} />
+            )}
+          </div>
+        )}
         {activeModal === 'requests' && (
-          <RequestsModal
-            requests={mockRequests}
-            onClose={closeModal}
-            onMarkAsCompleted={markRequestAsCompleted}
-            canManageRequests={true}
-          />
+          <div>
+            {modalLoading ? (
+              <div className="text-center p-8">Cargando solicitudes...</div>
+            ) : (
+              <RequestsModal
+                requests={userRequests}
+                onClose={closeModal}
+                onMarkAsCompleted={markRequestAsCompleted}
+                canManageRequests={true}
+              />
+            )}
+          </div>
         )}
         {activeModal === 'edit' && (
           <EditProfileModal

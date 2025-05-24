@@ -138,4 +138,28 @@ export const contentApi = {
       throw error;
     }
   },
+
+  // Obtener contenido del usuario actual
+  getUserContent: async () => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/content/my-content`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al obtener el contenido del usuario');
+      }
+
+      const userContent = await response.json();
+      return userContent;
+    } catch (error) {
+      console.error('Error fetching user content:', error);
+      throw error;
+    }
+  },
 };
