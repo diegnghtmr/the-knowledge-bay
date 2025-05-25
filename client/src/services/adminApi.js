@@ -123,6 +123,27 @@ export const deleteHelpRequest = async (requestId) => {
   }
 };
 
+// Actualizar solicitud de ayuda (admin)
+export const updateHelpRequestAdmin = async (requestId, requestData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/help-requests/${requestId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(errorBody.message || `Error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating help request:', error);
+    throw error;
+  }
+};
+
 // === INTEREST MANAGEMENT APIs ===
 
 // Obtener todos los intereses
@@ -355,6 +376,48 @@ export const getCommunityDetection = async () => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching community detection:', error);
+    throw error;
+  }
+};
+
+// Actualizar usuario (admin)
+export const updateUserAdmin = async (userId, userData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(userData)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(errorBody.message || `Error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw error;
+  }
+};
+
+// Actualizar contenido (admin)
+export const updateContentAdmin = async (contentId, contentData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/content/${contentId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(contentData)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(errorBody.message || `Error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating content:', error);
     throw error;
   }
 };

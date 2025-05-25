@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, HelpCircle, CheckCircle, Clock, Trash2, AlertTriangle } from 'lucide-react';
+import { User, Calendar, HelpCircle, CheckCircle, Clock, Trash2, AlertTriangle, Edit3, Check, X as CancelIcon } from 'lucide-react';
 import Table from '../common/Table';
 import TableActions from '../common/TableActions';
 import StatusBadge from '../common/StatusBadge';
-import { getAllHelpRequestsAdmin, deleteHelpRequest } from '../../services/adminApi';
+import { getAllHelpRequestsAdmin, deleteHelpRequest, updateHelpRequestAdmin } from '../../services/adminApi';
 
 const HelpRequestsTable = () => {
   const [requests, setRequests] = useState([]);
@@ -15,41 +15,37 @@ const HelpRequestsTable = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Cargar solicitudes desde la API
-  useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await getAllHelpRequestsAdmin();
-        setRequests(data);
-        setFiltered(data);
-      } catch (err) {
-        setError('Error al cargar las solicitudes de ayuda');
-        console.error('Error fetching help requests:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getAllHelpRequestsAdmin();
+      setRequests(data);
+      setFiltered(data);
+    } catch (err) {
+      setError('Error al cargar las solicitudes de ayuda');
+      console.error('Error fetching help requests:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchRequests();
   }, []);
 
-  // Filtrar solicitudes cuando cambian los criterios de búsqueda
   useEffect(() => {
     const term = searchTerm.toLowerCase();
     let result = [...requests];
     
-    // Filtrar por término de búsqueda
     if (term) {
       result = result.filter(req => 
-        req.topics.some(topic => topic.toLowerCase().includes(term)) ||
-        req.information.toLowerCase().includes(term) ||
-        req.studentUsername.toLowerCase().includes(term)
+        (req.topics && req.topics.some(topic => topic.toLowerCase().includes(term))) ||
+        (req.information && req.information.toLowerCase().includes(term)) ||
+        (req.studentUsername && req.studentUsername.toLowerCase().includes(term))
       );
     }
     
-    // Filtrar por estado (completado/pendiente)
     if (!showCompleted) {
       result = result.filter(req => !req.isCompleted);
     }
@@ -57,46 +53,64 @@ const HelpRequestsTable = () => {
     setFiltered(result);
   }, [searchTerm, showCompleted, requests]);
 
-  // Iniciar edición de una solicitud
   const startEdit = (req) => {
-    setEditingId(req.id);
-    setForm({ ...req });
+    setEditingId(req.requestId);
+    setForm({ 
+      ...req,
+      urgency: req.urgency ? req.urgency.toUpperCase() : '' 
+    });
   };
 
-  // Cancelar edición
   const cancelEdit = () => {
     setEditingId(null);
   };
 
-  // Confirmar edición
-  const confirmEdit = () => {
-    const updatedRequests = requests.map(req => 
-      req.id === editingId ? { ...form } : req
-    );
-    setRequests(updatedRequests);
-    setEditingId(null);
+  const confirmEdit = async () => {
+    try {
+      setIsLoading(true);
+      const requestToUpdate = { ...form };
+      delete requestToUpdate.topics;
+      delete requestToUpdate.studentUsername;
+      delete requestToUpdate.studentId;
+      delete requestToUpdate.requestDate;
+      if (requestToUpdate.requestDate && typeof requestToUpdate.requestDate === 'string' && requestToUpdate.requestDate.includes('T')) {
+        requestToUpdate.requestDate = requestToUpdate.requestDate.split('T')[0];
+      } else if (requestToUpdate.requestDate instanceof Date) {
+        requestToUpdate.requestDate = requestToUpdate.requestDate.toISOString().split('T')[0];
+      }
+
+      await updateHelpRequestAdmin(editingId, requestToUpdate);
+      const updatedRequests = requests.map(req =>
+        req.requestId === editingId ? { ...requests.find(r => r.requestId === editingId), ...form } : req
+      );
+      setRequests(updatedRequests);
+      setEditingId(null);
+    } catch (err) {
+      setError('Error al actualizar la solicitud: ' + (err.message || 'Error desconocido'));
+      console.error('Error updating help request:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Eliminar solicitud
   const removeRequest = async (id) => {
     if (window.confirm('¿Está seguro que desea eliminar esta solicitud?')) {
       try {
         await deleteHelpRequest(id);
-        setRequests(requests.filter(req => req.requestId !== id));
-      } catch (error) {
+        setRequests(prevRequests => prevRequests.filter(req => req.requestId !== id));
+      } catch (err) {
         alert('Error al eliminar la solicitud de ayuda');
-        console.error('Error deleting help request:', error);
+        console.error('Error deleting help request:', err);
       }
     }
   };
 
-  // Manejar cambios en el formulario de edición
   const handleChange = (field, value) => {
-    setForm({ ...form, [field]: value });
+    setForm(prevForm => ({ ...prevForm, [field]: value }));
   };
 
-  // Obtener badge de urgencia según el valor
   const getUrgencyVariant = (urgency) => {
+    if (!urgency) return 'default';
     switch (urgency.toLowerCase()) {
       case 'high': return 'danger';
       case 'medium': return 'warning';
@@ -105,7 +119,6 @@ const HelpRequestsTable = () => {
     }
   };
 
-  // Definición de columnas para la tabla
   const columns = [
     { key: 'topics', label: 'Temas' },
     { key: 'information', label: 'Información', className: 'max-w-xs' },
@@ -116,22 +129,15 @@ const HelpRequestsTable = () => {
     { key: 'actions', label: 'Acciones', className: 'text-center' }
   ];
 
-  // Renderizar celdas según la columna
-  const renderCell = (row, column, index) => {
+  const renderCell = (row, column) => {
     const { key } = column;
     const isRowEditing = editingId === row.requestId;
 
     switch (key) {
       case 'topics':
-        return isRowEditing ? (
-          <input
-            value={Array.isArray(form.topics) ? form.topics.join(', ') : form.topics}
-            onChange={(e) => handleChange('topics', e.target.value.split(', '))}
-            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
-          />
-        ) : (
+        return (
           <div className="flex flex-wrap gap-1">
-            {row.topics.map((topic, i) => (
+            {(row.topics || []).map((topic, i) => (
               <span key={i} className="inline-flex items-center rounded-full bg-[var(--sand)]/50 px-2 py-0.5 text-xs font-medium text-[var(--deep-sea)]">
                 {topic}
               </span>
@@ -141,10 +147,11 @@ const HelpRequestsTable = () => {
       
       case 'information':
         return isRowEditing ? (
-          <input
-            value={form.information}
+          <textarea
+            value={form.information || ''}
             onChange={(e) => handleChange('information', e.target.value)}
-            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
+            rows={3}
+            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)] text-xs"
           />
         ) : (
           <div className="truncate" title={row.information}>
@@ -155,7 +162,7 @@ const HelpRequestsTable = () => {
       case 'urgency':
         return isRowEditing ? (
           <select
-            value={form.urgency}
+            value={form.urgency || ''}
             onChange={(e) => handleChange('urgency', e.target.value)}
             className="rounded-md border border-[var(--coastal-sea)]/30 bg-white px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           >
@@ -171,13 +178,7 @@ const HelpRequestsTable = () => {
         );
       
       case 'student':
-        return isRowEditing ? (
-          <input
-            value={form.studentUsername}
-            onChange={(e) => handleChange('studentUsername', e.target.value)}
-            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
-          />
-        ) : (
+        return (
           <div className="flex items-center gap-2">
             <User size={14} className="text-[var(--coastal-sea)]" />
             @{row.studentUsername}
@@ -187,12 +188,12 @@ const HelpRequestsTable = () => {
       case 'isCompleted':
         return isRowEditing ? (
           <select
-            value={form.isCompleted ? "Sí" : "No"}
-            onChange={(e) => handleChange('isCompleted', e.target.value === "Sí")}
+            value={form.isCompleted ? 'true' : 'false'}
+            onChange={(e) => handleChange('isCompleted', e.target.value === 'true')}
             className="rounded-md border border-[var(--coastal-sea)]/30 bg-white px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           >
-            <option>No</option>
-            <option>Sí</option>
+            <option value="false">Pendiente</option>
+            <option value="true">Completado</option>
           </select>
         ) : (
           <StatusBadge 
@@ -203,17 +204,10 @@ const HelpRequestsTable = () => {
         );
       
       case 'requestDate':
-        return isRowEditing ? (
-          <input
-            type="date"
-            value={form.requestDate}
-            onChange={(e) => handleChange('requestDate', e.target.value)}
-            className="rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
-          />
-        ) : (
+        return (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <Calendar size={14} className="text-[var(--coastal-sea)]" />
-            {new Date(row.requestDate).toLocaleDateString()}
+            {row.requestDate ? new Date(row.requestDate).toLocaleDateString() : 'N/A'}
           </div>
         );
       
@@ -238,7 +232,7 @@ const HelpRequestsTable = () => {
       <div className="text-center py-8">
         <div className="text-red-600 mb-4">{error}</div>
         <button 
-          onClick={() => window.location.reload()} 
+          onClick={() => { setError(null); fetchRequests(); }}
           className="px-4 py-2 bg-[var(--coastal-sea)] text-white rounded-md hover:bg-opacity-90"
         >
           Intentar de nuevo
@@ -248,37 +242,31 @@ const HelpRequestsTable = () => {
   }
   
   return (
-    <div>
-      <div className="mb-6 flex flex-col md:flex-row gap-4">
-        {/* Buscador */}
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Buscar por temas, información o estudiante..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full py-2 px-4 rounded-md border border-[var(--coastal-sea)]/20 focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)]/50 focus:border-transparent"
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-white rounded-lg shadow border border-[var(--coastal-sea)]/10">
+        <input
+          type="text"
+          placeholder="Buscar por tema, info o estudiante..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:w-auto flex-grow rounded-md border border-[var(--coastal-sea)]/30 px-3 py-2 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
+        />
+        <div className="flex items-center gap-2">
+          <input 
+            type="checkbox" 
+            id="showCompletedToggle"
+            checked={showCompleted}
+            onChange={(e) => setShowCompleted(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-[var(--coastal-sea)] focus:ring-[var(--coastal-sea)]"
           />
-        </div>
-        
-        {/* Filtro de completados */}
-        <div className="flex items-center">
-          <label className="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showCompleted}
-              onChange={(e) => setShowCompleted(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--coastal-sea)]/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--coastal-sea)]"></div>
-            <span className="ms-3 text-sm font-medium text-[var(--deep-sea)]">Mostrar completados</span>
+          <label htmlFor="showCompletedToggle" className="text-sm text-[var(--deep-sea)]">
+            Mostrar completadas
           </label>
         </div>
       </div>
-      
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-[var(--sand)]/30 rounded-lg p-4 flex items-center gap-3">
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg p-4 shadow border border-[var(--coastal-sea)]/10 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-[var(--coastal-sea)]/10 flex items-center justify-center text-[var(--coastal-sea)]">
             <HelpCircle size={20} />
           </div>
@@ -288,8 +276,8 @@ const HelpRequestsTable = () => {
           </div>
         </div>
         
-        <div className="bg-[var(--sand)]/30 rounded-lg p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[var(--coastal-sea)]/10 flex items-center justify-center text-green-600">
+        <div className="bg-white rounded-lg p-4 shadow border border-[var(--coastal-sea)]/10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-600">
             <CheckCircle size={20} />
           </div>
           <div>
@@ -300,8 +288,8 @@ const HelpRequestsTable = () => {
           </div>
         </div>
         
-        <div className="bg-[var(--sand)]/30 rounded-lg p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[var(--coastal-sea)]/10 flex items-center justify-center text-yellow-600">
+        <div className="bg-white rounded-lg p-4 shadow border border-[var(--coastal-sea)]/10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-600">
             <Clock size={20} />
           </div>
           <div>
@@ -313,7 +301,6 @@ const HelpRequestsTable = () => {
         </div>
       </div>
       
-      {/* Tabla */}
       <Table
         columns={columns}
         data={filtered}
@@ -323,7 +310,7 @@ const HelpRequestsTable = () => {
           title: "No se encontraron solicitudes",
           message: "Prueba con diferentes términos de búsqueda o filtros"
         }}
-        rowClassName={(row) => row.isCompleted ? 'hover:bg-[var(--sand)]/20 transition-colors bg-green-50/30' : 'hover:bg-[var(--sand)]/20 transition-colors'}
+        rowClassName={(row) => row.isCompleted ? 'hover:bg-green-50/50 bg-green-50/30' : 'hover:bg-[var(--sand)]/20'}
       />
     </div>
   );

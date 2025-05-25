@@ -118,6 +118,41 @@ public class AdminController {
         }
     }
 
+    @PutMapping("/users/{userId}")
+    public ResponseEntity<AuthResponseDTO> updateUser(
+            @PathVariable String userId,
+            @RequestBody ProfileResponseDTO updatedUser,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        // For development, allow access without authentication
+        if (currentUserId == null) {
+            currentUserId = "admin"; // Default admin user for development
+        }
+
+        // For development, skip moderator verification
+        User user = theKnowledgeBay.getUserById(currentUserId);
+        if (user == null) {
+            System.out.println("Admin access granted for development purposes");
+        } else if (!(user instanceof Moderator)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AuthResponseDTO(false, "Access denied. Only moderators can update users."));
+        }
+        
+        try {
+            boolean success = theKnowledgeBay.updateStudent(userId, updatedUser);
+            if (success) {
+                return ResponseEntity.ok(new AuthResponseDTO(true, "User updated successfully."));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new AuthResponseDTO(false, "User not found or update failed."));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AuthResponseDTO(false, "Error updating user: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/content")
     public ResponseEntity<List<ContentResponseDTO>> getAllContentAdmin(
             @RequestHeader(value = "Authorization", required = false) String token) {
@@ -251,6 +286,39 @@ public class AdminController {
         }
     }
 
+    @PutMapping("/content/{contentId}")
+    public ResponseEntity<AuthResponseDTO> updateContent(
+            @PathVariable int contentId,
+            @RequestBody ContentResponseDTO updatedContent,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        if (currentUserId == null) {
+            currentUserId = "admin"; // Default for development
+        }
+
+        User user = theKnowledgeBay.getUserById(currentUserId);
+        if (user == null) {
+            System.out.println("Admin access for development");
+        } else if (!(user instanceof Moderator)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AuthResponseDTO(false, "Access denied. Only moderators can update content."));
+        }
+
+        try {
+            boolean success = theKnowledgeBay.updateContent(contentId, updatedContent);
+            if (success) {
+                return ResponseEntity.ok(new AuthResponseDTO(true, "Content updated successfully."));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new AuthResponseDTO(false, "Content not found or update failed."));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AuthResponseDTO(false, "Error updating content: " + e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/content/{id}")
     public ResponseEntity<AuthResponseDTO> deleteContent(
             @PathVariable int id,
@@ -281,6 +349,39 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/help-requests/{requestId}")
+    public ResponseEntity<AuthResponseDTO> updateHelpRequest(
+            @PathVariable int requestId,
+            @RequestBody HelpRequestResponseDTO updatedHelpRequest,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        if (currentUserId == null) {
+            currentUserId = "admin"; // Default for development
+        }
+
+        User user = theKnowledgeBay.getUserById(currentUserId);
+        if (user == null) {
+            System.out.println("Admin access for development");
+        } else if (!(user instanceof Moderator)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AuthResponseDTO(false, "Access denied. Only moderators can update help requests."));
+        }
+
+        try {
+            boolean success = theKnowledgeBay.updateHelpRequest(requestId, updatedHelpRequest);
+            if (success) {
+                return ResponseEntity.ok(new AuthResponseDTO(true, "Help request updated successfully."));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new AuthResponseDTO(false, "Help request not found or update failed."));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AuthResponseDTO(false, "Error updating help request: " + e.getMessage()));
         }
     }
 

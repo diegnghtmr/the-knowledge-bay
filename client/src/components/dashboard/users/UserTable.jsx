@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Star, Mail, Calendar } from 'lucide-react';
 import Table from '../../common/Table';
 import TableActions from '../../common/TableActions';
-import { getAllUsersAdmin } from '../../../services/adminApi';
+import { getAllUsersAdmin, updateUserAdmin } from '../../../services/adminApi';
 
 const UserTable = () => {
   const [users, setUsers] = useState([]);
@@ -63,12 +63,31 @@ const UserTable = () => {
   };
 
   // Confirmar edición
-  const confirmEdit = () => {
-    const updatedUsers = users.map(user => 
-      user.id === editingId ? { ...form } : user
-    );
-    setUsers(updatedUsers);
-    setEditingId(null);
+  const confirmEdit = async () => {
+    try {
+      setIsLoading(true);
+      const userToUpdate = { ...form };
+      // Interests and Email are not editable, so we remove them from the payload
+      delete userToUpdate.interests;
+      delete userToUpdate.email; // Ensure email is not sent for update
+      // Ensure dateBirth is in YYYY-MM-DD format if it exists
+      if (userToUpdate.dateBirth && userToUpdate.dateBirth.includes('T')) {
+        userToUpdate.dateBirth = userToUpdate.dateBirth.split('T')[0];
+      }
+      
+      await updateUserAdmin(editingId, userToUpdate);
+      const updatedUsers = users.map(user => 
+        user.id === editingId ? { ...users.find(u => u.id === editingId), ...form } : user
+      );
+      setUsers(updatedUsers);
+      setFiltered(updatedUsers); // Also update filtered data
+      setEditingId(null);
+    } catch (err) {
+      setError('Error al actualizar el usuario: ' + (err.message || 'Error desconocido'));
+      console.error('Error updating user:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Eliminar usuario
@@ -138,8 +157,10 @@ const UserTable = () => {
         return isRowEditing ? (
           <input
             value={form.email}
-            onChange={(e) => handleChange('email', e.target.value)}
-            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
+            readOnly // Make email field read-only
+            disabled // Also disable it to prevent focus/interaction
+            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 bg-gray-100 cursor-not-allowed focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
+            title="El correo electrónico no se puede editar aquí."
           />
         ) : (
           <div className="flex items-center gap-2">
@@ -166,9 +187,11 @@ const UserTable = () => {
       case 'interests':
         return isRowEditing ? (
           <input
-            value={form.interests.join(', ')}
-            onChange={(e) => handleChange('interests', e.target.value.split(', '))}
-            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
+            value={Array.isArray(form.interests) ? form.interests.join(', ') : (form.interests || '')}
+            readOnly
+            disabled
+            className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 bg-gray-100 cursor-not-allowed focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
+            title="Los intereses no se pueden editar aquí."
           />
         ) : (
           <div className="flex flex-wrap gap-1">

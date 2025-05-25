@@ -64,6 +64,14 @@ public class BinarySearchTree<T extends Comparable<T>> {
         root = removeRec(root, data);
     }
 
+    public boolean removeAndCheck(T data) {
+        if (contains(data)) {
+            remove(data);
+            return true;
+        }
+        return false;
+    }
+
     private BSTNode<T> removeRec(BSTNode<T> node, T data) {
         if (node == null) return null;
         int cmp = data.compareTo(node.getData());

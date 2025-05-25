@@ -1,5 +1,10 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
+import co.edu.uniquindio.theknowledgebay.api.dto.ContentResponseDTO;
+import co.edu.uniquindio.theknowledgebay.api.dto.HelpRequestResponseDTO;
+import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
+import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
+import co.edu.uniquindio.theknowledgebay.core.model.enums.Urgency;
 import co.edu.uniquindio.theknowledgebay.core.factory.UserFactory;
 import co.edu.uniquindio.theknowledgebay.core.repository.StudentRepository;
 import co.edu.uniquindio.theknowledgebay.infrastructure.config.ModeratorProperties;
@@ -165,6 +170,56 @@ public class TheKnowledgeBay {
         return found;
     }
 
+    public boolean updateHelpRequest(int requestId, HelpRequestResponseDTO updatedDto) {
+        if (helpRequestQueue == null || helpRequestQueue.isEmpty()) {
+            return false;
+        }
+
+        HelpRequest existingRequest = null;
+        PriorityQueue<HelpRequest> tempQueue = new PriorityQueue<>();
+
+        // Find the request and store others temporarily
+        while (!helpRequestQueue.isEmpty()) {
+            HelpRequest current = helpRequestQueue.dequeue();
+            if (current.getRequestId() == requestId) {
+                existingRequest = current;
+            } else {
+                tempQueue.insert(current);
+            }
+        }
+
+        // Restore non-matching requests to the main queue
+        while (!tempQueue.isEmpty()) {
+            helpRequestQueue.insert(tempQueue.dequeue());
+        }
+
+        if (existingRequest == null) {
+            return false; // Request not found
+        }
+
+        // Update the existing request object (interests/topics are not directly updatable here)
+        // The DTO might not contain all fields, so only update what's provided
+        if (updatedDto.getInformation() != null) {
+            existingRequest.setInformation(updatedDto.getInformation());
+        }
+        if (updatedDto.getUrgency() != null) {
+            try {
+                existingRequest.setUrgency(Urgency.valueOf(updatedDto.getUrgency().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                // Handle invalid urgency string, perhaps log or revert
+                System.err.println("Invalid urgency value provided: " + updatedDto.getUrgency());
+            }
+        }
+        existingRequest.setCompleted(updatedDto.isCompleted());
+        // Student and Request Date are generally not changed by admin edit.
+        // Topics are also not part of HelpRequestResponseDTO for direct update.
+
+        // Re-insert the updated request into the priority queue
+        // This ensures its position is correct if urgency (priority) changed.
+        helpRequestQueue.insert(existingRequest);
+        return true;
+    }
+
     // Content operations
     public boolean addContent(Content content) {
         try {
@@ -204,6 +259,49 @@ public class TheKnowledgeBay {
         // Create a dummy content with the ID for searching
         Content searchContent = Content.builder().contentId(id).build();
         return contentTree.search(searchContent);
+    }
+
+    public boolean updateContent(int contentId, ContentResponseDTO updatedContentDTO) {
+        if (contentTree == null) {
+            return false; // No content to update
+        }
+
+        // Create a dummy content object with the ID to find the existing content
+        Content contentToFind = Content.builder().contentId(contentId).build();
+        Content existingContent = contentTree.search(contentToFind);
+
+        if (existingContent == null) {
+            return false; // Content not found
+        }
+
+        // Create a new Content object with updated information
+        // We keep the original author and date, as these typically don't change on admin edit
+        Content updatedContent = Content.builder()
+                .contentId(existingContent.getContentId()) // Keep original ID
+                .title(updatedContentDTO.getTitle() != null ? updatedContentDTO.getTitle() : existingContent.getTitle())
+                .contentType(updatedContentDTO.getContentType() != null ? ContentType.valueOf(updatedContentDTO.getContentType().toUpperCase()) : existingContent.getContentType())
+                .information(updatedContentDTO.getInformation() != null ? updatedContentDTO.getInformation() : existingContent.getInformation())
+                .author(existingContent.getAuthor()) // Keep original author
+                .likedBy(existingContent.getLikedBy()) // Keep original likes
+                .likeCount(existingContent.getLikeCount()) // Keep original like count
+                .comments(existingContent.getComments()) // Keep original comments
+                .date(existingContent.getDate()) // Keep original date
+                .build();
+        
+        // Topics are not directly editable in this DTO, so we keep existing ones
+        // If topic editing is needed, the DTO and this logic would need adjustment
+        updatedContent.setTopics(existingContent.getTopics());
+
+        // Remove the old content and insert the updated one
+        // This is safer for BSTs if the updated fields affect comparison
+        boolean removed = contentTree.removeAndCheck(existingContent);
+        if (removed) {
+            contentTree.insert(updatedContent);
+            return true;
+        } else {
+            // This case should ideally not happen if search found the content
+            return false; 
+        }
     }
 
     public boolean likeContent(int contentId, String userId) {
@@ -487,6 +585,40 @@ public class TheKnowledgeBay {
         return null;
     }
 
+    public boolean updateStudent(String userId, ProfileResponseDTO updatedUser) {
+        Student studentToUpdate = (Student) getUserById(userId);
+
+        if (studentToUpdate == null) {
+            return false; // User not found
+        }
+
+        // Update basic fields from ProfileResponseDTO
+        if (updatedUser.getUsername() != null) {
+            studentToUpdate.setUsername(updatedUser.getUsername());
+        }
+        if (updatedUser.getEmail() != null) {
+            studentToUpdate.setEmail(updatedUser.getEmail());
+        }
+        if (updatedUser.getFirstName() != null) {
+            studentToUpdate.setFirstName(updatedUser.getFirstName());
+        }
+        if (updatedUser.getLastName() != null) {
+            studentToUpdate.setLastName(updatedUser.getLastName());
+        }
+        if (updatedUser.getDateBirth() != null) {
+            studentToUpdate.setDateBirth(updatedUser.getDateBirth());
+        }
+        if (updatedUser.getBiography() != null) {
+            studentToUpdate.setBiography(updatedUser.getBiography());
+        }
+
+        // For now, we'll assume the in-memory UserFactory's list is the source of truth
+        // and changes to the studentToUpdate object are reflected.
+        // If using a persistent database, uncomment and implement:
+        studentRepository.update(studentToUpdate);
+
+        return true; // Successfully updated
+    }
 
     public void updateUser(String userId, User updated, List<String> interestNames) {
         // Buscar al moderador
