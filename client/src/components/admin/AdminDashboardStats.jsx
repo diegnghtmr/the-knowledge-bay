@@ -9,7 +9,7 @@ import LoadingSpinner from "../common/LoadingSpinner";
 /**
  * Tarjeta de indicador clave de rendimiento
  */
-const KPIBox = ({ label, value, icon, increase }) => (
+const KPIBox = ({ label, value, icon }) => (
   <div className="flex flex-col justify-between rounded-2xl border border-[var(--coastal-sea)]/30 bg-white p-4 shadow-sm hover:shadow-md transition-shadow duration-300 md:p-6">
     <div className="flex items-center justify-between mb-2">
       <span className="text-sm font-workSans-medium text-[var(--open-sea)]">{label}</span>
@@ -17,9 +17,6 @@ const KPIBox = ({ label, value, icon, increase }) => (
     </div>
     <div className="flex items-end justify-between">
       <span className="text-2xl font-righteous text-[var(--deep-sea)] md:text-3xl">{value}</span>
-      {increase && (
-        <span className="text-xs font-workSans-medium text-green-600">{increase}</span>
-      )}
     </div>
   </div>
 );
@@ -98,29 +95,25 @@ export default function AdminDashboardStats() {
       id: 1, 
       label: "Total Usuarios", 
       value: stats?.kpis?.totalUsers || 0, 
-      icon: <Users size={20} />, 
-      increase: "+12% ↑" 
+      icon: <Users size={20} />
     },
     { 
       id: 2, 
       label: "Total Contenidos", 
       value: stats?.kpis?.totalContent || 0, 
-      icon: <FileText size={20} />, 
-      increase: "+8% ↑" 
+      icon: <FileText size={20} />
     },
     { 
       id: 3, 
       label: "Total Solicitudes", 
       value: stats?.kpis?.totalHelpRequests || 0, 
-      icon: <HelpCircle size={20} />, 
-      increase: "+15% ↑" 
+      icon: <HelpCircle size={20} />
     },
     { 
       id: 4, 
       label: "Total Grupos", 
       value: stats?.kpis?.totalGroups || 0, 
-      icon: <Users2 size={20} />, 
-      increase: "+5% ↑" 
+      icon: <Users2 size={20} />
     },
   ];
 
@@ -136,7 +129,7 @@ export default function AdminDashboardStats() {
       {/* KPI Grid */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <KPIBox key={kpi.id} label={kpi.label} value={kpi.value} icon={kpi.icon} increase={kpi.increase} />
+          <KPIBox key={kpi.id} label={kpi.label} value={kpi.value} icon={kpi.icon} />
         ))}
       </div>
 
