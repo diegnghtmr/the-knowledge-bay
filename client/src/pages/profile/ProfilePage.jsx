@@ -50,7 +50,13 @@ const ProfilePage = () => {
             biography: '',
             email: '',
             dateBirth: '',
-            interests: []
+            interests: [],
+            following: 0,
+            followers: 0,
+            groups: 0,
+            contentCount: 0,
+            helpRequestCount: 0,
+            isFollowing: false // Default for own profile
           });
         }
       } catch (err) {
@@ -64,7 +70,13 @@ const ProfilePage = () => {
           biography: '',
           email: '',
           dateBirth: '',
-          interests: []
+          interests: [],
+          following: 0,
+          followers: 0,
+          groups: 0,
+          contentCount: 0,
+          helpRequestCount: 0,
+          isFollowing: false // Default for own profile
         });
       } finally {
         setLoading(false);
@@ -255,8 +267,8 @@ const ProfilePage = () => {
             following: userData.following || 0, 
             followers: userData.followers || 0, 
             groups: userData.groups || 0, 
-            content: userData.content || 0, 
-            requests: userData.requests || 0 
+            content: userData.contentCount || 0, 
+            requests: userData.helpRequestCount || 0 
           }}
           onStatClick={openModal}
         />
