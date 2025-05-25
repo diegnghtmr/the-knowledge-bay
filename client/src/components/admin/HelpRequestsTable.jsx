@@ -47,7 +47,7 @@ const HelpRequestsTable = () => {
     }
     
     if (!showCompleted) {
-      result = result.filter(req => !req.isCompleted);
+      result = result.filter(req => !req.completed);
     }
     
     setFiltered(result);
@@ -57,6 +57,7 @@ const HelpRequestsTable = () => {
     setEditingId(req.requestId);
     setForm({ 
       ...req,
+      isCompleted: !!req.completed,
       urgency: req.urgency ? req.urgency.toUpperCase() : '' 
     });
   };
@@ -79,9 +80,15 @@ const HelpRequestsTable = () => {
         requestToUpdate.requestDate = requestToUpdate.requestDate.toISOString().split('T')[0];
       }
 
-      await updateHelpRequestAdmin(editingId, requestToUpdate);
+      const payload = {
+        information: requestToUpdate.information,
+        urgency: requestToUpdate.urgency,
+        isCompleted: form.isCompleted
+      };
+
+      await updateHelpRequestAdmin(editingId, payload);
       const updatedRequests = requests.map(req =>
-        req.requestId === editingId ? { ...requests.find(r => r.requestId === editingId), ...form } : req
+        req.requestId === editingId ? { ...requests.find(r => r.requestId === editingId), ...form, completed: form.isCompleted } : req
       );
       setRequests(updatedRequests);
       setEditingId(null);
@@ -106,7 +113,11 @@ const HelpRequestsTable = () => {
   };
 
   const handleChange = (field, value) => {
-    setForm(prevForm => ({ ...prevForm, [field]: value }));
+    if (field === 'isCompleted' && typeof value === 'string') {
+        setForm(prevForm => ({ ...prevForm, [field]: value === 'true' }));
+    } else {
+        setForm(prevForm => ({ ...prevForm, [field]: value }));
+    }
   };
 
   const getUrgencyVariant = (urgency) => {
@@ -197,9 +208,9 @@ const HelpRequestsTable = () => {
           </select>
         ) : (
           <StatusBadge 
-            text={row.isCompleted ? "Completado" : "Pendiente"}
-            variant={row.isCompleted ? "success" : "warning"}
-            icon={row.isCompleted ? <CheckCircle size={12} /> : <Clock size={12} />}
+            text={row.completed ? "Completado" : "Pendiente"}
+            variant={row.completed ? "success" : "warning"}
+            icon={row.completed ? <CheckCircle size={12} /> : <Clock size={12} />}
           />
         );
       
@@ -283,7 +294,7 @@ const HelpRequestsTable = () => {
           <div>
             <p className="text-sm text-[var(--open-sea)]/80">Completadas</p>
             <p className="text-xl font-workSans-semibold text-[var(--deep-sea)]">
-              {requests.filter(r => r.isCompleted).length}
+              {requests.filter(r => r.completed).length}
             </p>
           </div>
         </div>
@@ -295,7 +306,7 @@ const HelpRequestsTable = () => {
           <div>
             <p className="text-sm text-[var(--open-sea)]/80">Pendientes</p>
             <p className="text-xl font-workSans-semibold text-[var(--deep-sea)]">
-              {requests.filter(r => !r.isCompleted).length}
+              {requests.filter(r => !r.completed).length}
             </p>
           </div>
         </div>
@@ -310,7 +321,7 @@ const HelpRequestsTable = () => {
           title: "No se encontraron solicitudes",
           message: "Prueba con diferentes términos de búsqueda o filtros"
         }}
-        rowClassName={(row) => row.isCompleted ? 'hover:bg-green-50/50 bg-green-50/30' : 'hover:bg-[var(--sand)]/20'}
+        rowClassName={(row) => row.completed ? 'hover:bg-[var(--sand)]/20 transition-colors bg-green-50/30' : 'hover:bg-[var(--sand)]/20 transition-colors'}
       />
     </div>
   );
