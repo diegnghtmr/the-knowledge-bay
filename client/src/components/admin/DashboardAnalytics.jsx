@@ -10,7 +10,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { BarChart2, TrendingUp, Network } from "lucide-react";
+import { BarChart2, TrendingUp, Network, RefreshCw } from "lucide-react";
 import { getAnalyticsDashboard } from "../../services/adminApi";
 
 /**
@@ -32,7 +32,10 @@ export default function DashboardAnalytics() {
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
+      console.log("Loading analytics data...");
       const data = await getAnalyticsDashboard();
+      console.log("Analytics data received:", data);
+      
       setAnalyticsData({
         topicActivity: data.topicActivity || [],
         participationLevels: data.participationLevels || [],
@@ -40,27 +43,37 @@ export default function DashboardAnalytics() {
       });
       setError("");
     } catch (error) {
-      setError("Error al cargar los datos analíticos");
+      setError(`Error al cargar los datos analíticos: ${error.message}`);
       console.error("Error loading analytics data:", error);
-      // Set fallback data in case of error
-      setAnalyticsData({
-        topicActivity: [
-          { topic: "Matemáticas", contents: 12 },
-          { topic: "Ciencias", contents: 9 },
-          { topic: "Historia", contents: 15 },
-        ],
-        participationLevels: [
-          { week: "Sem 1", activity: 20 },
-          { week: "Sem 2", activity: 35 },
-          { week: "Sem 3", activity: 40 },
-          { week: "Sem 4", activity: 60 },
-        ],
-        communityClusters: [
-          { id: 1, topic: "STEM Avanzado", students: "Ana, Luis, Sofía" },
-          { id: 2, topic: "Literatura", students: "Carlos, Diana" },
-          { id: 3, topic: "Historia y Arte", students: "Miguel, Elena, Pedro" },
-        ]
-      });
+      
+      // Only use fallback if we can't reach the server at all
+      if (error.message.includes('fetch')) {
+        setAnalyticsData({
+          topicActivity: [
+            { topic: "Matemáticas", contents: 12 },
+            { topic: "Ciencias", contents: 9 },
+            { topic: "Historia", contents: 15 },
+          ],
+          participationLevels: [
+            { week: "Sem 1", activity: 20 },
+            { week: "Sem 2", activity: 35 },
+            { week: "Sem 3", activity: 40 },
+            { week: "Sem 4", activity: 60 },
+          ],
+          communityClusters: [
+            { id: 1, topic: "STEM Avanzado", students: "Ana, Luis, Sofía" },
+            { id: 2, topic: "Literatura", students: "Carlos, Diana" },
+            { id: 3, topic: "Historia y Arte", students: "Miguel, Elena, Pedro" },
+          ]
+        });
+      } else {
+        // Server responded but with empty/error data - use empty arrays
+        setAnalyticsData({
+          topicActivity: [],
+          participationLevels: [],
+          communityClusters: []
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -68,11 +81,21 @@ export default function DashboardAnalytics() {
 
   return (
     <div className="min-h-screen bg-cream-custom p-8 font-workSans">
-      <div className="mb-6">
-        <h1 className="text-2xl font-righteous text-[var(--deep-sea)]">Panel Analítico</h1>
-        <p className="text-sm text-[var(--open-sea)]/80 mt-1">
-          Visión general de la actividad y las comunidades de estudiantes
-        </p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-righteous text-[var(--deep-sea)]">Panel Analítico</h1>
+          <p className="text-sm text-[var(--open-sea)]/80 mt-1">
+            Visión general de la actividad y las comunidades de estudiantes
+          </p>
+        </div>
+        <button
+          onClick={loadAnalyticsData}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--coastal-sea)] text-white rounded-md hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Cargando...' : 'Actualizar'}
+        </button>
       </div>
 
       {error && (
