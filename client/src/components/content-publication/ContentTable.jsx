@@ -2,30 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, User, ThumbsUp } from 'lucide-react';
 import Table from '../common/Table';
 import TableActions from '../common/TableActions';
-
-// Datos de ejemplo (en un caso real vendrían de una API)
-const initialContents = [
-  { id: 1, title: "Matemáticas Avanzadas", information: "Material de estudio para cálculo multivariable y ecuaciones diferenciales", authorUsername: "juan_perez", date: "2023-11-20", likes: 28 },
-  { id: 2, title: "Álgebra Lineal", information: "Guía completa de álgebra lineal con ejemplos prácticos", authorUsername: "ana_lopez", date: "2023-10-15", likes: 19 },
-  { id: 3, title: "Programación en Python", information: "Introducción a la programación con Python para principiantes", authorUsername: "carlos_gomez", date: "2023-09-05", likes: 52 },
-  { id: 4, title: "Comprensión Lectora", information: "Técnicas para mejorar la comprensión de textos académicos", authorUsername: "maria_rodriguez", date: "2023-11-10", likes: 15 },
-  { id: 5, title: "Química Orgánica", information: "Fundamentos de química orgánica y reacciones químicas", authorUsername: "roberto_sanchez", date: "2023-08-20", likes: 38 }
-];
+import { getAllContentAdmin, deleteContent } from '../../services/adminApi';
 
 const ContentTable = () => {
-  const [contents, setContents] = useState(initialContents);
-  const [filtered, setFiltered] = useState(initialContents);
+  const [contents, setContents] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Simulación de carga inicial
+  // Cargar contenido desde la API
   useEffect(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    const fetchContent = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await getAllContentAdmin();
+        setContents(data);
+        setFiltered(data);
+      } catch (err) {
+        setError('Error al cargar los contenidos');
+        console.error('Error fetching content:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchContent();
   }, []);
 
   // Filtrar contenidos cuando cambian los criterios de búsqueda
@@ -47,7 +52,7 @@ const ContentTable = () => {
 
   // Iniciar edición de un contenido
   const startEdit = (content) => {
-    setEditingId(content.id);
+    setEditingId(content.contentId || content.id);
     setForm({ ...content });
   };
 
@@ -59,16 +64,22 @@ const ContentTable = () => {
   // Confirmar edición
   const confirmEdit = () => {
     const updatedContents = contents.map(content => 
-      content.id === editingId ? { ...form } : content
+      (content.contentId || content.id) === editingId ? { ...form } : content
     );
     setContents(updatedContents);
     setEditingId(null);
   };
 
   // Eliminar contenido
-  const removeContent = (id) => {
+  const removeContent = async (id) => {
     if (window.confirm('¿Está seguro que desea eliminar este contenido?')) {
-      setContents(contents.filter(content => content.id !== id));
+      try {
+        await deleteContent(id);
+        setContents(contents.filter(content => content.contentId !== id));
+      } catch (error) {
+        alert('Error al eliminar el contenido');
+        console.error('Error deleting content:', error);
+      }
     }
   };
 
@@ -89,7 +100,7 @@ const ContentTable = () => {
   // Renderizar celdas según la columna
   const renderCell = (row, column, index) => {
     const { key } = column;
-    const isRowEditing = editingId === row.id;
+    const isRowEditing = editingId === (row.contentId || row.id);
 
     switch (key) {
       case 'title':
@@ -142,7 +153,7 @@ const ContentTable = () => {
         ) : (
           <div className="flex items-center gap-2">
             <ThumbsUp size={14} className="text-[var(--coastal-sea)]" />
-            <span>{row.likes}</span>
+            <span>{row.likeCount || row.likes || 0}</span>
           </div>
         );
       
@@ -157,7 +168,7 @@ const ContentTable = () => {
         ) : (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <Calendar size={14} className="text-[var(--coastal-sea)]" />
-            {row.date}
+            {row.date ? new Date(row.date).toLocaleDateString() : 'Sin fecha'}
           </div>
         );
       
@@ -166,7 +177,7 @@ const ContentTable = () => {
           <TableActions 
             isEditing={isRowEditing}
             onEdit={() => startEdit(row)}
-            onDelete={() => removeContent(row.id)}
+            onDelete={() => removeContent(row.contentId || row.id)}
             onConfirm={confirmEdit}
             onCancel={cancelEdit}
           />
@@ -177,6 +188,20 @@ const ContentTable = () => {
     }
   };
   
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-[var(--coastal-sea)] text-white rounded-md hover:bg-opacity-90"
+        >
+          Intentar de nuevo
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
