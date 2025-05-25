@@ -369,25 +369,6 @@ public class AdminController {
     }
 
     private List<Map<String, Object>> getMostConnectedUsers() {
-        List<Map<String, Object>> result = new ArrayList<>();
-        DoublyLinkedNode<Student> current = theKnowledgeBay.getUsers().getStudents().getHead();
-        
-        // For now, return a simple list with mock connection data
-        // TODO: Implement actual connection tracking
-        int rank = 1;
-        while (current != null && rank <= 5) {
-            Student student = current.getData();
-            Map<String, Object> item = new HashMap<>();
-            item.put("id", student.getId());
-            item.put("username", student.getUsername());
-            item.put("email", student.getEmail());
-            item.put("connections", 42 - (rank * 4)); // Mock data
-            result.add(item);
-            
-            current = current.getNext();
-            rank++;
-        }
-        
-        return result;
+        return theKnowledgeBay.getMostConnectedUsers();
     }
 }

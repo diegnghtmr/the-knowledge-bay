@@ -947,15 +947,70 @@ public class TheKnowledgeBay {
 
     public List<Map<String, Object>> getParticipationLevelsData() {
         List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Integer> weeklyActivity = new HashMap<>();
         
-        // For now, return mock data based on activity patterns
-        // In a real implementation, this would track user activity over time
-        result.add(Map.of("week", "Sem 1", "activity", calculateWeeklyActivity(1)));
-        result.add(Map.of("week", "Sem 2", "activity", calculateWeeklyActivity(2)));
-        result.add(Map.of("week", "Sem 3", "activity", calculateWeeklyActivity(3)));
-        result.add(Map.of("week", "Sem 4", "activity", calculateWeeklyActivity(4)));
+        System.out.println("Calculating participation levels by week...");
+        
+        // Calculate activity for the last 4 weeks
+        LocalDate now = LocalDate.now();
+        
+        // Initialize weeks
+        for (int i = 3; i >= 0; i--) {
+            LocalDate weekStart = now.minusWeeks(i);
+            String weekLabel = "Sem " + (4 - i);
+            weeklyActivity.put(weekLabel, 0);
+        }
+        
+        // Count content by week
+        if (contentTree != null && !contentTree.isEmpty()) {
+            DoublyLinkedList<Content> allContent = getAllContent();
+            for (int i = 0; i < allContent.getSize(); i++) {
+                Content content = allContent.get(i);
+                if (content.getDate() != null) {
+                    String weekLabel = getWeekLabel(content.getDate(), now);
+                    if (weekLabel != null && weeklyActivity.containsKey(weekLabel)) {
+                        weeklyActivity.put(weekLabel, weeklyActivity.get(weekLabel) + 1);
+                    }
+                }
+            }
+        }
+        
+        // Count help requests by week
+        if (helpRequestQueue != null && !helpRequestQueue.isEmpty()) {
+            DoublyLinkedList<HelpRequest> allRequests = getAllHelpRequests();
+            for (int i = 0; i < allRequests.getSize(); i++) {
+                HelpRequest request = allRequests.get(i);
+                if (request.getRequestDate() != null) {
+                    String weekLabel = getWeekLabel(request.getRequestDate(), now);
+                    if (weekLabel != null && weeklyActivity.containsKey(weekLabel)) {
+                        weeklyActivity.put(weekLabel, weeklyActivity.get(weekLabel) + 1);
+                    }
+                }
+            }
+        }
+        
+        // Convert to result format
+        for (int i = 1; i <= 4; i++) {
+            String weekLabel = "Sem " + i;
+            Map<String, Object> weekData = new HashMap<>();
+            weekData.put("week", weekLabel);
+            weekData.put("activity", weeklyActivity.get(weekLabel));
+            result.add(weekData);
+            System.out.println(weekLabel + ": " + weeklyActivity.get(weekLabel) + " activities");
+        }
         
         return result;
+    }
+    
+    private String getWeekLabel(LocalDate activityDate, LocalDate now) {
+        if (activityDate == null) return null;
+        
+        long weeksAgo = java.time.temporal.ChronoUnit.WEEKS.between(activityDate, now);
+        
+        if (weeksAgo >= 0 && weeksAgo <= 3) {
+            return "Sem " + (4 - (int)weeksAgo);
+        }
+        return null;
     }
 
     private int calculateWeeklyActivity(int week) {
@@ -1048,6 +1103,63 @@ public class TheKnowledgeBay {
         }
         
         System.out.println("Community detection result: " + result.size() + " communities");
+        return result;
+    }
+
+    public List<Map<String, Object>> getMostConnectedUsers() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Integer> userConnections = new HashMap<>();
+        
+        System.out.println("Calculating most connected users from affinity graph...");
+        
+        if (affinityGraph == null) {
+            initializeAffinityGraph();
+        }
+        
+        // Count connections for each user in the affinity graph
+        GraphVertex<String> vertex = affinityGraph.getVertices();
+        while (vertex != null) {
+            String userId = vertex.getData();
+            int connectionCount = 0;
+            
+            // Count edges for this user
+            Edge<String> edge = vertex.getEdgeList();
+            while (edge != null) {
+                connectionCount++;
+                edge = edge.getNextEdge();
+            }
+            
+            userConnections.put(userId, connectionCount);
+            vertex = vertex.getNextVertex();
+        }
+        
+        // Convert to list and sort by connection count
+        List<Map.Entry<String, Integer>> sortedUsers = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : userConnections.entrySet()) {
+            sortedUsers.add(entry);
+        }
+        sortedUsers.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        
+        // Get top 5 most connected users
+        int limit = Math.min(5, sortedUsers.size());
+        for (int i = 0; i < limit; i++) {
+            Map.Entry<String, Integer> entry = sortedUsers.get(i);
+            String userId = entry.getKey();
+            int connections = entry.getValue();
+            
+            User user = getUserById(userId);
+            if (user != null) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", userId);
+                item.put("username", user.getUsername() != null ? user.getUsername() : userId);
+                item.put("email", user.getEmail());
+                item.put("connections", connections);
+                result.add(item);
+                System.out.println("User " + user.getUsername() + " has " + connections + " connections");
+            }
+        }
+        
+        System.out.println("Most connected users result: " + result.size() + " users");
         return result;
     }
 
