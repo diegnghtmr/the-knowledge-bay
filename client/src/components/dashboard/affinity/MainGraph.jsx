@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { forceManyBody } from 'd3-force';
+import { forceManyBody, forceCollide } from 'd3-force';
 import { colorScale, palette } from './GraphData';
 
 /**
@@ -19,7 +19,11 @@ const MainGraph = ({
   // Configurar las fuerzas de repulsión entre nodos
   useEffect(() => {
     if (graphRef.current) {
-      graphRef.current.d3Force('charge', forceManyBody().strength(-250));
+      // Aumentar la fuerza de repulsión para mayor separación
+      graphRef.current.d3Force('charge', forceManyBody().strength(-350));
+      
+      // Añadir una fuerza de repulsión adicional para evitar solapamientos
+      graphRef.current.d3Force('collision', forceCollide().radius(30));
       
       // Centrar el grafo inicialmente
       setTimeout(() => {
@@ -61,41 +65,134 @@ const MainGraph = ({
 
     // Etiqueta del nodo con fondo para mejor legibilidad
     const label = node.label;
-    const fontSize = 13;
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    const fontSize = 14;
+    ctx.font = `bold ${fontSize}px 'Segoe UI', Roboto, sans-serif`;
     
     // Calculamos el ancho del texto para el fondo
     const textWidth = ctx.measureText(label).width;
-    const bgPadding = 4;
+    const bgPadding = 6;
+    const bgHeight = fontSize + bgPadding * 1.5;
+    const bgY = node.y + r + 4;
+    const bgX = node.x - textWidth/2 - bgPadding;
+    const cornerRadius = 4;
     
-    // Dibujamos un fondo para el texto
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.fillRect(
-      node.x - textWidth/2 - bgPadding,
-      node.y + r + 2,
-      textWidth + bgPadding*2,
-      fontSize + bgPadding
-    );
+    // Añadir sombra sutil
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
     
-    // Dibujamos el texto
+    // Dibujamos un fondo redondeado para el texto
+    ctx.beginPath();
+    ctx.moveTo(bgX + cornerRadius, bgY);
+    ctx.lineTo(bgX + textWidth + bgPadding * 2 - cornerRadius, bgY);
+    ctx.quadraticCurveTo(bgX + textWidth + bgPadding * 2, bgY, bgX + textWidth + bgPadding * 2, bgY + cornerRadius);
+    ctx.lineTo(bgX + textWidth + bgPadding * 2, bgY + bgHeight - cornerRadius);
+    ctx.quadraticCurveTo(bgX + textWidth + bgPadding * 2, bgY + bgHeight, bgX + textWidth + bgPadding * 2 - cornerRadius, bgY + bgHeight);
+    ctx.lineTo(bgX + cornerRadius, bgY + bgHeight);
+    ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - cornerRadius);
+    ctx.lineTo(bgX, bgY + cornerRadius);
+    ctx.quadraticCurveTo(bgX, bgY, bgX + cornerRadius, bgY);
+    ctx.closePath();
+    
+    // Color de fondo según el grupo pero más claro
+    const nodeColor = colorScale(node.group);
+    // Crear una versión más clara del color de fondo
+    ctx.fillStyle = `${nodeColor}15`; // 15 es la opacidad en hexadecimal (aprox. 10%)
+    ctx.fill();
+    
+    // Borde sutil que coincide con el color del nodo
+    ctx.strokeStyle = nodeColor;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Limpiar sombra para el texto
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // Dibujamos el texto con mejor contraste
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = '#334155';
-    ctx.fillText(label, node.x, node.y + r + 4);
+    ctx.textBaseline = 'middle';
+    
+    // Usar un color que contraste bien con el fondo
+    ctx.fillStyle = '#1e293b'; // Slate-900, color oscuro para buen contraste
+    ctx.fillText(label, node.x, bgY + bgHeight/2);
+    
+    // Si este es el nodo seleccionado en modo ego, añadir un indicador
+    if (showEgo && node.id === egoNode) {
+      const indicatorSize = 6;
+      ctx.fillStyle = '#f97316'; // Color naranja para el indicador
+      ctx.beginPath();
+      ctx.arc(bgX + textWidth + bgPadding * 2 - indicatorSize, bgY + indicatorSize, indicatorSize/2, 0, 2 * Math.PI);
+      ctx.fill();
+    }
   };
 
-  // Función para determinar el ancho de los enlaces
-  const linkWidth = (l) => {
-    if (!showEgo || !egoNode) return 2; // Ligeramente más anchos por defecto
-    const [src, tgt] = [l.source.id || l.source, l.target.id || l.target];
-    return src === egoNode || tgt === egoNode ? 3 : 0.5;
-  };
-
-  // Función para determinar el color de los enlaces
-  const linkColor = (l) => {
-    if (!showEgo || !egoNode) return '#94a3b8';
-    const [src, tgt] = [l.source.id || l.source, l.target.id || l.target];
-    return src === egoNode || tgt === egoNode ? '#0ea5e9' : '#cbd5e1';
+  // Función personalizada para dibujar enlaces
+  const linkCanvasObject = (link, ctx, globalScale) => {
+    // Extraer posiciones de origen y destino
+    const start = link.source;
+    const end = link.target;
+    
+    const sourceX = start.x || 0;
+    const sourceY = start.y || 0;
+    const targetX = end.x || 0;
+    const targetY = end.y || 0;
+    
+    // Definir ancho de línea según modo
+    let lineWidth = 2.5;
+    if (showEgo && egoNode) {
+      const [src, tgt] = [link.source.id || link.source, link.target.id || link.target];
+      lineWidth = (src === egoNode || tgt === egoNode) ? 3.5 : 1.5;
+    }
+    
+    // Calcular color de la línea
+    let strokeColor = '#64748b'; // Color base sobrio
+    if (showEgo && egoNode) {
+      const [src, tgt] = [link.source.id || link.source, link.target.id || link.target];
+      strokeColor = (src === egoNode || tgt === egoNode) ? '#1e40af' : '#cbd5e1';
+    }
+    
+    // Calcular punto medio para efecto de curva
+    const midX = (sourceX + targetX) / 2;
+    const midY = (sourceY + targetY) / 2;
+    
+    // Calcular distancia para determinar la profundidad de la curva
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Calcular vector perpendicular normalizado
+    const perpX = -dy / distance;
+    const perpY = dx / distance;
+    
+    // Desplazamiento de la curva - sutil pero visible
+    const curveOffset = Math.min(distance * 0.15, 15);
+    
+    // Calcular punto de control para la curva
+    const controlX = midX + perpX * curveOffset;
+    const controlY = midY + perpY * curveOffset;
+    
+    // Dibujar línea curva
+    ctx.beginPath();
+    ctx.moveTo(sourceX, sourceY);
+    ctx.quadraticCurveTo(controlX, controlY, targetX, targetY);
+    
+    // Establecer estilo de línea
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = lineWidth;
+    
+    // Crear degradado sutil en la línea
+    const gradient = ctx.createLinearGradient(sourceX, sourceY, targetX, targetY);
+    gradient.addColorStop(0, strokeColor);
+    gradient.addColorStop(0.5, `${strokeColor}CC`); // Semi-transparente en el medio
+    gradient.addColorStop(1, strokeColor);
+    ctx.strokeStyle = gradient;
+    
+    // Dibujar la línea
+    ctx.stroke();
   };
 
   return (
@@ -103,11 +200,9 @@ const MainGraph = ({
       ref={graphRef}
       graphData={graphData}
       nodeCanvasObject={nodeCanvasObject}
-      linkWidth={linkWidth}
-      linkColor={linkColor}
-      linkDirectionalArrowLength={6}
-      linkDirectionalArrowColor={linkColor}
-      linkDistance={150}
+      linkCanvasObject={linkCanvasObject}
+      linkCurvature={0.1}
+      linkDistance={200}
       width={width}
       height={400}
       onNodeClick={onNodeClick}
