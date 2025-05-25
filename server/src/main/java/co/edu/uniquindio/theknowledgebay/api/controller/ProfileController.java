@@ -63,8 +63,8 @@ public class ProfileController {
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
                 .groups(0)    // TODO: implement groups logic
-                .content(userContentCount)
-                .requests(userRequestsCount)
+                .contentCount(userContentCount)
+                .helpRequestCount(userRequestsCount)
                 .interests(user instanceof Student && ((Student) user).getStringInterests() != null ? ((Student) user).getStringInterests() : Arrays.asList());
 
         if (user instanceof Student) {
@@ -177,8 +177,8 @@ public class ProfileController {
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
                 .groups(0)    // TODO: implement groups logic
-                .content(userContentCount)
-                .requests(userRequestsCount)
+                .contentCount(userContentCount)
+                .helpRequestCount(userRequestsCount)
                 .interests(userInterests);
 
         if (user instanceof Student) {
