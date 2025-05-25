@@ -399,6 +399,11 @@ public class TheKnowledgeBay {
         for (Student student : students) {
             this.users.add(student);
         }
+        
+        // Initialize affinity graph
+        System.out.println("Initializing affinity graph...");
+        initializeAffinityGraph();
+        System.out.println("Affinity graph initialized with " + interests.getSize() + " interests");
     }
 
 
@@ -853,38 +858,91 @@ public class TheKnowledgeBay {
     // Analytics operations
     public List<Map<String, Object>> getTopicActivityData() {
         List<Map<String, Object>> result = new ArrayList<>();
-        Map<String, Integer> topicCounts = new HashMap<>();
+        Map<String, Integer> interestContentCounts = new HashMap<>();
+        Map<String, Integer> interestHelpRequestCounts = new HashMap<>();
         
-        // Count content by topics
+        System.out.println("Getting topic activity data based on interests...");
+        
+        // Count content by interests (topics)
         if (contentTree != null && !contentTree.isEmpty()) {
             DoublyLinkedList<Content> allContent = getAllContent();
+            System.out.println("Analyzing " + allContent.getSize() + " content items for interest matching");
+            
             for (int i = 0; i < allContent.getSize(); i++) {
                 Content content = allContent.get(i);
                 if (content.getTopics() != null) {
                     for (int j = 0; j < content.getTopics().getSize(); j++) {
                         String topicName = content.getTopics().get(j).getName();
-                        topicCounts.put(topicName, topicCounts.getOrDefault(topicName, 0) + 1);
+                        // Match with existing interests
+                        if (isInterestInSystem(topicName)) {
+                            interestContentCounts.put(topicName, interestContentCounts.getOrDefault(topicName, 0) + 1);
+                        }
                     }
                 }
             }
         }
         
-        // Convert to DTO format
-        for (Map.Entry<String, Integer> entry : topicCounts.entrySet()) {
-            Map<String, Object> topicData = new HashMap<>();
-            topicData.put("topic", entry.getKey());
-            topicData.put("contents", entry.getValue());
-            result.add(topicData);
+        // Count help requests by interests
+        if (helpRequestQueue != null && !helpRequestQueue.isEmpty()) {
+            DoublyLinkedList<HelpRequest> allRequests = getAllHelpRequests();
+            System.out.println("Analyzing " + allRequests.getSize() + " help requests for interest matching");
+            
+            for (int i = 0; i < allRequests.getSize(); i++) {
+                HelpRequest request = allRequests.get(i);
+                if (request.getTopics() != null) {
+                    for (int j = 0; j < request.getTopics().getSize(); j++) {
+                        String topicName = request.getTopics().get(j).getName();
+                        // Match with existing interests
+                        if (isInterestInSystem(topicName)) {
+                            interestHelpRequestCounts.put(topicName, interestHelpRequestCounts.getOrDefault(topicName, 0) + 1);
+                        }
+                    }
+                }
+            }
         }
         
-        // Add some default data if empty
-        if (result.isEmpty()) {
-            result.add(Map.of("topic", "Matemáticas", "contents", 12));
-            result.add(Map.of("topic", "Ciencias", "contents", 9));
-            result.add(Map.of("topic", "Historia", "contents", 15));
+        // Generate activity data based on all interests in the system
+        for (int i = 0; i < interests.getSize(); i++) {
+            Interest interest = interests.get(i);
+            String interestName = interest.getName();
+            
+            int contentCount = interestContentCounts.getOrDefault(interestName, 0);
+            int helpRequestCount = interestHelpRequestCounts.getOrDefault(interestName, 0);
+            int totalActivity = contentCount + helpRequestCount;
+            
+            if (totalActivity > 0) { // Only include interests that have activity
+                Map<String, Object> topicData = new HashMap<>();
+                topicData.put("topic", interestName);
+                topicData.put("contents", totalActivity);
+                result.add(topicData);
+                System.out.println("Interest '" + interestName + "' has " + totalActivity + " activities (" + contentCount + " content, " + helpRequestCount + " help requests)");
+            }
         }
         
+        // If no interests have activity, add a message indicating this
+        if (result.isEmpty() && interests.getSize() > 0) {
+            System.out.println("No activity found for existing interests, showing interests with 0 activity");
+            // Show all interests but with 0 activity to indicate they exist but have no content/help requests
+            for (int i = 0; i < Math.min(interests.getSize(), 5); i++) {
+                Interest interest = interests.get(i);
+                Map<String, Object> topicData = new HashMap<>();
+                topicData.put("topic", interest.getName());
+                topicData.put("contents", 0);
+                result.add(topicData);
+            }
+        }
+        
+        System.out.println("Topic activity result: " + result.size() + " interests");
         return result;
+    }
+    
+    private boolean isInterestInSystem(String topicName) {
+        for (int i = 0; i < interests.getSize(); i++) {
+            if (interests.get(i).getName().equals(topicName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public List<Map<String, Object>> getParticipationLevelsData() {
@@ -935,46 +993,80 @@ public class TheKnowledgeBay {
     public List<Map<String, Object>> getCommunityDetectionData() {
         List<Map<String, Object>> result = new ArrayList<>();
         Map<String, List<String>> interestGroups = new HashMap<>();
+        Map<String, Integer> interestCounts = new HashMap<>();
         
-        // Group students by their primary interests
+        System.out.println("Getting community detection data based on interests...");
+        
+        // Group students by ALL their interests (not just primary)
         DoublyLinkedNode<Student> current = users.getStudents().getHead();
+        int studentCount = 0;
         while (current != null) {
             Student student = current.getData();
+            studentCount++;
+            String studentName = student.getUsername() != null ? student.getUsername() : student.getId();
+            
             if (student.getInterests() != null && student.getInterests().getSize() > 0) {
-                String primaryInterest = student.getInterests().get(0).getName();
-                interestGroups.computeIfAbsent(primaryInterest, k -> new ArrayList<>())
-                        .add(student.getUsername() != null ? student.getUsername() : student.getId());
+                // Add student to all their interest groups
+                for (int i = 0; i < student.getInterests().getSize(); i++) {
+                    String interestName = student.getInterests().get(i).getName();
+                    interestGroups.computeIfAbsent(interestName, k -> new ArrayList<>()).add(studentName);
+                    interestCounts.put(interestName, interestCounts.getOrDefault(interestName, 0) + 1);
+                }
             }
             current = current.getNext();
         }
         
-        // Convert to cluster format
+        System.out.println("Found " + studentCount + " students distributed across " + interestGroups.size() + " interest groups");
+        
+        // Convert to cluster format based on actual interests in the system
         int clusterId = 1;
-        for (Map.Entry<String, List<String>> entry : interestGroups.entrySet()) {
-            if (entry.getValue().size() >= 2) { // Only include groups with 2+ members
-                Map<String, Object> cluster = new HashMap<>();
-                cluster.put("id", clusterId++);
-                cluster.put("topic", entry.getKey());
-                cluster.put("students", String.join(", ", entry.getValue()));
-                result.add(cluster);
+        for (int i = 0; i < interests.getSize(); i++) {
+            Interest interest = interests.get(i);
+            String interestName = interest.getName();
+            
+            if (interestGroups.containsKey(interestName)) {
+                List<String> studentsInInterest = interestGroups.get(interestName);
+                // Remove duplicates while preserving order
+                List<String> uniqueStudents = new ArrayList<>();
+                for (String student : studentsInInterest) {
+                    if (!uniqueStudents.contains(student)) {
+                        uniqueStudents.add(student);
+                    }
+                }
+                
+                if (!uniqueStudents.isEmpty()) {
+                    Map<String, Object> cluster = new HashMap<>();
+                    cluster.put("id", clusterId++);
+                    cluster.put("topic", interestName);
+                    cluster.put("students", String.join(", ", uniqueStudents));
+                    result.add(cluster);
+                    System.out.println("Interest '" + interestName + "' has " + uniqueStudents.size() + " students: " + uniqueStudents);
+                }
+            } else {
+                System.out.println("Interest '" + interestName + "' has no students");
             }
         }
         
-        // Add default clusters if empty
-        if (result.isEmpty()) {
-            result.add(Map.of("id", 1, "topic", "STEM Avanzado", "students", "Ana, Luis, Sofía"));
-            result.add(Map.of("id", 2, "topic", "Literatura", "students", "Carlos, Diana"));
-            result.add(Map.of("id", 3, "topic", "Historia y Arte", "students", "Miguel, Elena, Pedro"));
-        }
-        
+        System.out.println("Community detection result: " + result.size() + " communities");
         return result;
     }
 
     public Map<String, Object> getFullAnalyticsData() {
+        System.out.println("Getting full analytics data...");
         Map<String, Object> analytics = new HashMap<>();
-        analytics.put("topicActivity", getTopicActivityData());
-        analytics.put("participationLevels", getParticipationLevelsData());
-        analytics.put("communityClusters", getCommunityDetectionData());
+        
+        List<Map<String, Object>> topicActivity = getTopicActivityData();
+        List<Map<String, Object>> participationLevels = getParticipationLevelsData();
+        List<Map<String, Object>> communityClusters = getCommunityDetectionData();
+        
+        analytics.put("topicActivity", topicActivity);
+        analytics.put("participationLevels", participationLevels);
+        analytics.put("communityClusters", communityClusters);
+        
+        System.out.println("Analytics data prepared - topicActivity: " + topicActivity.size() + 
+                          ", participationLevels: " + participationLevels.size() + 
+                          ", communityClusters: " + communityClusters.size());
+        
         return analytics;
     }
 }
