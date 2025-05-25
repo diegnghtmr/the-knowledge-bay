@@ -38,6 +38,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/chat/**").permitAll() // Permit chat endpoints
                         .requestMatchers("/api/help-requests/**").permitAll() // Permit help request endpoints
                         .requestMatchers("/api/content/**").permitAll() // Permit content endpoints
+                        .requestMatchers("/api/admin/**").permitAll() // Permit admin endpoints for development
+                        .requestMatchers("/api/users/**").permitAll() // Permit user endpoints
                         .anyRequest().authenticated() // Secure other endpoints
                 );
         return http.build();
@@ -46,10 +48,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+        configuration.setAllowedOriginPatterns(Arrays.asList("*")); // Allow all origins for development
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(Arrays.asList("*")); // Allow all headers
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

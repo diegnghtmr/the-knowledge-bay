@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import profileLogo from '../../../assets/img/profileLogo.png';
+import { followUser, unfollowUser } from '../../../services/userApi';
 
 const UserCard = ({ user, onToggleFollow }) => {
   const { id, username, firstName, lastName, interests, isFollowing } = user;
+  const [isLoading, setIsLoading] = useState(false);
   
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
@@ -23,14 +25,29 @@ const UserCard = ({ user, onToggleFollow }) => {
           <p className="text-sm text-gray-500">@{username}</p>
         </div>
         <button
-          onClick={() => onToggleFollow(id)}
+          onClick={async () => {
+            setIsLoading(true);
+            try {
+              if (isFollowing) {
+                await unfollowUser(id);
+              } else {
+                await followUser(id);
+              }
+              onToggleFollow(id);
+            } catch (error) {
+              console.error('Error toggling follow:', error);
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          disabled={isLoading}
           className={`px-4 py-1.5 rounded-md text-sm font-medium ${
             isFollowing 
               ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
               : 'bg-[var(--coastal-sea)] text-white hover:bg-opacity-90'
-          }`}
+          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {isFollowing ? 'Siguiendo' : 'Seguir'}
+          {isLoading ? 'Cargando...' : (isFollowing ? 'Siguiendo' : 'Seguir')}
         </button>
       </div>
       

@@ -2,9 +2,10 @@ package co.edu.uniquindio.theknowledgebay.api.controller;
 
 import co.edu.uniquindio.theknowledgebay.api.dto.ProfileUpdateDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
-import co.edu.uniquindio.theknowledgebay.core.model.User;
+
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
+import co.edu.uniquindio.theknowledgebay.core.model.User;
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -66,7 +67,7 @@ public class ProfileController {
                 .groups(0)    // TODO: implement groups logic
                 .content(userContentCount)
                 .requests(userRequestsCount)
-                .interests(user instanceof Student && ((Student) user).getInterests() != null ? ((Student) user).getInterests() : Arrays.asList())
+                .interests(user instanceof Student && ((Student) user).getStringInterests() != null ? ((Student) user).getStringInterests() : Arrays.asList())
                 .build();
                 
         return ResponseEntity.ok(response);
@@ -152,7 +153,7 @@ public class ProfileController {
         String defaultBio = "[Tu biografía aquí]";
         
         System.out.println("PUT /api/profile - Construyendo respuesta con intereses");
-        List<String> userInterests = (user instanceof Student) ? ((Student) user).getInterests() : Arrays.asList();
+        List<String> userInterests = (user instanceof Student) ? ((Student) user).getStringInterests() : Arrays.asList();
         System.out.println("PUT /api/profile - Intereses: " + userInterests);
         
         // Calculate user statistics

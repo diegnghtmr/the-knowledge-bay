@@ -2,30 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { User, Star, Mail, Calendar } from 'lucide-react';
 import Table from '../../common/Table';
 import TableActions from '../../common/TableActions';
-
-// Datos de ejemplo (en un caso real vendrían de una API)
-const initialUsers = [
-  { id: 1, username: 'maria_edu', firstName: 'María', lastName: 'García', birthDate: '1995-05-15', email: 'maria@example.com', interests: ['Matemáticas', 'Física'] },
-  { id: 2, username: 'carlos_research', firstName: 'Carlos', lastName: 'López', birthDate: '1988-10-22', email: 'carlos@example.com', interests: ['Literatura', 'Historia'] },
-  { id: 3, username: 'ana_science', firstName: 'Ana', lastName: 'Martínez', birthDate: '1992-03-08', email: 'ana@example.com', interests: ['Biología', 'Química'] },
-  { id: 4, username: 'david_tech', firstName: 'David', lastName: 'Rodríguez', birthDate: '1990-12-30', email: 'david@example.com', interests: ['Programación', 'Inteligencia Artificial'] },
-  { id: 5, username: 'sofia_arts', firstName: 'Sofía', lastName: 'Fernández', birthDate: '1993-07-18', email: 'sofia@example.com', interests: ['Arte', 'Diseño'] }
-];
+import { getAllUsersAdmin } from '../../../services/adminApi';
 
 const UserTable = () => {
-  const [users, setUsers] = useState(initialUsers);
-  const [filtered, setFiltered] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Simulación de carga inicial
+  // Cargar usuarios desde la API
   useEffect(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await getAllUsersAdmin();
+        setUsers(data);
+        setFiltered(data);
+      } catch (err) {
+        setError('Error al cargar los usuarios');
+        console.error('Error fetching users:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
   }, []);
 
   // Filtrar usuarios cuando cambian los criterios de búsqueda
@@ -147,14 +152,14 @@ const UserTable = () => {
         return isRowEditing ? (
           <input
             type="date"
-            value={form.birthDate}
-            onChange={(e) => handleChange('birthDate', e.target.value)}
+            value={form.dateBirth || form.birthDate}
+            onChange={(e) => handleChange('dateBirth', e.target.value)}
             className="rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           />
         ) : (
           <div className="flex items-center gap-2">
             <Calendar size={14} className="text-[var(--coastal-sea)]" />
-            {row.birthDate}
+            {row.dateBirth || row.birthDate || 'No especificado'}
           </div>
         );
       
@@ -192,6 +197,20 @@ const UserTable = () => {
     }
   };
   
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-[var(--coastal-sea)] text-white rounded-md hover:bg-opacity-90"
+        >
+          Intentar de nuevo
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">

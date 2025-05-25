@@ -1,31 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Users, FileText, HelpCircle, Users2, Award, Mail, TrendingUp } from "lucide-react";
-
-// ────────────────────────────────────────────────────────────────
-// Mock data – reemplaza con tu API
-// ────────────────────────────────────────────────────────────────
-const kpis = [
-  { id: 1, label: "Total Usuarios", value: 777, icon: <Users size={20} />, increase: "+12% ↑" },
-  { id: 2, label: "Total Contenidos", value: 777, icon: <FileText size={20} />, increase: "+8% ↑" },
-  { id: 3, label: "Total Solicitudes", value: 777, icon: <HelpCircle size={20} />, increase: "+15% ↑" },
-  { id: 4, label: "Total Grupos", value: 777, icon: <Users2 size={20} />, increase: "+5% ↑" },
-];
-
-const mostValued = [
-  { id: 1, title: "Matemáticas Avanzadas", author: "Juan Pérez", likes: 125 },
-  { id: 2, title: "Álgebra Lineal", author: "Ana López", likes: 98 },
-  { id: 3, title: "Programación en Python", author: "Carla Gómez", likes: 87 },
-  { id: 4, title: "Comprensión Lectora", author: "Mario Ruiz", likes: 76 },
-  { id: 5, title: "Historia Moderna", author: "Laura Torres", likes: 65 },
-];
-
-const mostConnected = [
-  { id: 1, username: "jperez", email: "jperez@mail.com", connections: 42 },
-  { id: 2, username: "alopez", email: "alopez@mail.com", connections: 38 },
-  { id: 3, username: "cgomez", email: "cgomez@mail.com", connections: 34 },
-  { id: 4, username: "mruiz", email: "mruiz@mail.com", connections: 29 },
-  { id: 5, username: "ltorres", email: "ltorres@mail.com", connections: 27 },
-];
+import { getAdminStats } from "../../services/adminApi";
+import LoadingSpinner from "../common/LoadingSpinner";
 
 // ────────────────────────────────────────────────────────────────
 // UI helpers
@@ -78,6 +54,76 @@ const RankItem = ({ rank, primary, secondary, icon, metric, metricLabel }) => (
  * Panel de estadísticas de administrador que muestra KPIs y listas de ranking
  */
 export default function AdminDashboardStats() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const data = await getAdminStats();
+        setStats(data);
+      } catch (err) {
+        setError('Error al cargar las estadísticas');
+        console.error('Error fetching admin stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-cream-custom p-8 font-workSans flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-cream-custom p-8 font-workSans">
+        <div className="text-center text-red-600">
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const kpis = [
+    { 
+      id: 1, 
+      label: "Total Usuarios", 
+      value: stats?.kpis?.totalUsers || 0, 
+      icon: <Users size={20} />, 
+      increase: "+12% ↑" 
+    },
+    { 
+      id: 2, 
+      label: "Total Contenidos", 
+      value: stats?.kpis?.totalContent || 0, 
+      icon: <FileText size={20} />, 
+      increase: "+8% ↑" 
+    },
+    { 
+      id: 3, 
+      label: "Total Solicitudes", 
+      value: stats?.kpis?.totalHelpRequests || 0, 
+      icon: <HelpCircle size={20} />, 
+      increase: "+15% ↑" 
+    },
+    { 
+      id: 4, 
+      label: "Total Grupos", 
+      value: stats?.kpis?.totalGroups || 0, 
+      icon: <Users2 size={20} />, 
+      increase: "+5% ↑" 
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-cream-custom p-8 font-workSans">
       <div className="mb-6">
@@ -115,16 +161,20 @@ export default function AdminDashboardStats() {
           </div>
           <p className="mb-4 text-sm text-[var(--open-sea)]/80">Top 5 contenidos por cantidad de likes</p>
           <ol className="space-y-2">
-            {mostValued.map((item) => (
+            {stats?.mostValuedContent?.map((item, index) => (
               <RankItem
                 key={item.id}
-                rank={item.id}
+                rank={index + 1}
                 primary={item.title}
                 secondary={`Autor: ${item.author}`}
                 metric={item.likes}
                 metricLabel="likes"
               />
-            ))}
+            )) || (
+              <li className="text-center text-[var(--open-sea)]/70 py-4">
+                No hay contenidos disponibles
+              </li>
+            )}
           </ol>
         </div>
 
@@ -136,16 +186,20 @@ export default function AdminDashboardStats() {
           </div>
           <p className="mb-4 text-sm text-[var(--open-sea)]/80">Top 5 estudiantes por conexiones</p>
           <ol className="space-y-2">
-            {mostConnected.map((item) => (
+            {stats?.mostConnectedUsers?.map((item, index) => (
               <RankItem
                 key={item.id}
-                rank={item.id}
+                rank={index + 1}
                 primary={item.username}
                 secondary={item.email}
                 metric={item.connections}
                 metricLabel="conexiones"
               />
-            ))}
+            )) || (
+              <li className="text-center text-[var(--open-sea)]/70 py-4">
+                No hay usuarios disponibles
+              </li>
+            )}
           </ol>
         </div>
       </div>

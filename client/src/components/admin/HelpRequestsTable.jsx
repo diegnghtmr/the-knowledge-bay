@@ -1,33 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, HelpCircle, CheckCircle, Clock } from 'lucide-react';
+import { User, Calendar, HelpCircle, CheckCircle, Clock, Trash2, AlertTriangle } from 'lucide-react';
 import Table from '../common/Table';
 import TableActions from '../common/TableActions';
 import StatusBadge from '../common/StatusBadge';
-
-// Datos de ejemplo (en un caso real vendrían de una API)
-const initialRequests = [
-  { id: 1, topics: ["Matemáticas", "Cálculo"], information: "Necesito ayuda con ecuaciones diferenciales", urgency: "Alta", studentUsername: "carlos_lopez", completed: false, requestDate: "2023-11-10" },
-  { id: 2, topics: ["Literatura"], information: "Análisis de obras de Gabriel García Márquez", urgency: "Media", studentUsername: "ana_martinez", completed: true, requestDate: "2023-11-05" },
-  { id: 3, topics: ["Física", "Termodinámica"], information: "Conceptos de termodinámica", urgency: "Baja", studentUsername: "roberto_sanchez", completed: false, requestDate: "2023-11-12" },
-  { id: 4, topics: ["Programación", "Java"], information: "Errores en código Java", urgency: "Alta", studentUsername: "maria_gonzalez", completed: true, requestDate: "2023-11-03" },
-  { id: 5, topics: ["Historia", "Revolución Industrial"], information: "Revolución Industrial", urgency: "Media", studentUsername: "juan_perez", completed: false, requestDate: "2023-11-15" }
-];
+import { getAllHelpRequestsAdmin, deleteHelpRequest } from '../../services/adminApi';
 
 const HelpRequestsTable = () => {
-  const [requests, setRequests] = useState(initialRequests);
-  const [filtered, setFiltered] = useState(initialRequests);
+  const [requests, setRequests] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCompleted, setShowCompleted] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Simulación de carga inicial
+  // Cargar solicitudes desde la API
   useEffect(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    const fetchRequests = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await getAllHelpRequestsAdmin();
+        setRequests(data);
+        setFiltered(data);
+      } catch (err) {
+        setError('Error al cargar las solicitudes de ayuda');
+        console.error('Error fetching help requests:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRequests();
   }, []);
 
   // Filtrar solicitudes cuando cambian los criterios de búsqueda
@@ -46,7 +51,7 @@ const HelpRequestsTable = () => {
     
     // Filtrar por estado (completado/pendiente)
     if (!showCompleted) {
-      result = result.filter(req => !req.completed);
+      result = result.filter(req => !req.isCompleted);
     }
     
     setFiltered(result);
@@ -73,9 +78,15 @@ const HelpRequestsTable = () => {
   };
 
   // Eliminar solicitud
-  const removeRequest = (id) => {
+  const removeRequest = async (id) => {
     if (window.confirm('¿Está seguro que desea eliminar esta solicitud?')) {
-      setRequests(requests.filter(req => req.id !== id));
+      try {
+        await deleteHelpRequest(id);
+        setRequests(requests.filter(req => req.requestId !== id));
+      } catch (error) {
+        alert('Error al eliminar la solicitud de ayuda');
+        console.error('Error deleting help request:', error);
+      }
     }
   };
 
@@ -86,10 +97,10 @@ const HelpRequestsTable = () => {
 
   // Obtener badge de urgencia según el valor
   const getUrgencyVariant = (urgency) => {
-    switch (urgency) {
-      case 'Alta': return 'danger';
-      case 'Media': return 'warning';
-      case 'Baja': return 'info';
+    switch (urgency.toLowerCase()) {
+      case 'high': return 'danger';
+      case 'medium': return 'warning';
+      case 'low': return 'info';
       default: return 'default';
     }
   };
@@ -100,7 +111,7 @@ const HelpRequestsTable = () => {
     { key: 'information', label: 'Información', className: 'max-w-xs' },
     { key: 'urgency', label: 'Urgencia' },
     { key: 'student', label: 'Estudiante' },
-    { key: 'completed', label: 'Estado' },
+    { key: 'isCompleted', label: 'Estado' },
     { key: 'requestDate', label: 'Fecha' },
     { key: 'actions', label: 'Acciones', className: 'text-center' }
   ];
@@ -108,7 +119,7 @@ const HelpRequestsTable = () => {
   // Renderizar celdas según la columna
   const renderCell = (row, column, index) => {
     const { key } = column;
-    const isRowEditing = editingId === row.id;
+    const isRowEditing = editingId === row.requestId;
 
     switch (key) {
       case 'topics':
@@ -148,9 +159,9 @@ const HelpRequestsTable = () => {
             onChange={(e) => handleChange('urgency', e.target.value)}
             className="rounded-md border border-[var(--coastal-sea)]/30 bg-white px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           >
-            <option>Alta</option>
-            <option>Media</option>
-            <option>Baja</option>
+            <option value="HIGH">Alta</option>
+            <option value="MEDIUM">Media</option>
+            <option value="LOW">Baja</option>
           </select>
         ) : (
           <StatusBadge 
@@ -173,11 +184,11 @@ const HelpRequestsTable = () => {
           </div>
         );
       
-      case 'completed':
+      case 'isCompleted':
         return isRowEditing ? (
           <select
-            value={form.completed ? "Sí" : "No"}
-            onChange={(e) => handleChange('completed', e.target.value === "Sí")}
+            value={form.isCompleted ? "Sí" : "No"}
+            onChange={(e) => handleChange('isCompleted', e.target.value === "Sí")}
             className="rounded-md border border-[var(--coastal-sea)]/30 bg-white px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           >
             <option>No</option>
@@ -185,9 +196,9 @@ const HelpRequestsTable = () => {
           </select>
         ) : (
           <StatusBadge 
-            text={row.completed ? "Completado" : "Pendiente"}
-            variant={row.completed ? "success" : "warning"}
-            icon={row.completed ? <CheckCircle size={12} /> : <Clock size={12} />}
+            text={row.isCompleted ? "Completado" : "Pendiente"}
+            variant={row.isCompleted ? "success" : "warning"}
+            icon={row.isCompleted ? <CheckCircle size={12} /> : <Clock size={12} />}
           />
         );
       
@@ -202,7 +213,7 @@ const HelpRequestsTable = () => {
         ) : (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <Calendar size={14} className="text-[var(--coastal-sea)]" />
-            {row.requestDate}
+            {new Date(row.requestDate).toLocaleDateString()}
           </div>
         );
       
@@ -211,7 +222,7 @@ const HelpRequestsTable = () => {
           <TableActions 
             isEditing={isRowEditing}
             onEdit={() => startEdit(row)}
-            onDelete={() => removeRequest(row.id)}
+            onDelete={() => removeRequest(row.requestId)}
             onConfirm={confirmEdit}
             onCancel={cancelEdit}
           />
@@ -221,6 +232,20 @@ const HelpRequestsTable = () => {
         return row[key];
     }
   };
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-[var(--coastal-sea)] text-white rounded-md hover:bg-opacity-90"
+        >
+          Intentar de nuevo
+        </button>
+      </div>
+    );
+  }
   
   return (
     <div>
@@ -270,7 +295,7 @@ const HelpRequestsTable = () => {
           <div>
             <p className="text-sm text-[var(--open-sea)]/80">Completadas</p>
             <p className="text-xl font-workSans-semibold text-[var(--deep-sea)]">
-              {requests.filter(r => r.completed).length}
+              {requests.filter(r => r.isCompleted).length}
             </p>
           </div>
         </div>
@@ -282,7 +307,7 @@ const HelpRequestsTable = () => {
           <div>
             <p className="text-sm text-[var(--open-sea)]/80">Pendientes</p>
             <p className="text-xl font-workSans-semibold text-[var(--deep-sea)]">
-              {requests.filter(r => !r.completed).length}
+              {requests.filter(r => !r.isCompleted).length}
             </p>
           </div>
         </div>
@@ -298,7 +323,7 @@ const HelpRequestsTable = () => {
           title: "No se encontraron solicitudes",
           message: "Prueba con diferentes términos de búsqueda o filtros"
         }}
-        rowClassName={(row) => row.completed ? 'hover:bg-[var(--sand)]/20 transition-colors bg-green-50/30' : 'hover:bg-[var(--sand)]/20 transition-colors'}
+        rowClassName={(row) => row.isCompleted ? 'hover:bg-[var(--sand)]/20 transition-colors bg-green-50/30' : 'hover:bg-[var(--sand)]/20 transition-colors'}
       />
     </div>
   );

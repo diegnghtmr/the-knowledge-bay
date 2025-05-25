@@ -4,9 +4,9 @@ import co.edu.uniquindio.theknowledgebay.core.factory.UserFactory;
 import co.edu.uniquindio.theknowledgebay.core.repository.StudentRepository;
 import co.edu.uniquindio.theknowledgebay.infrastructure.config.ModeratorProperties;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.queues.PriorityQueue;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.trees.BinarySearchTree;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -296,6 +296,60 @@ public class TheKnowledgeBay {
         
         System.out.println("TheKnowledgeBay - Total de solicitudes para el usuario: " + count);
         return count;
+    }
+
+    // Delete operations
+    public boolean deleteContent(int contentId) {
+        try {
+            if (contentTree == null || contentTree.isEmpty()) {
+                return false;
+            }
+            
+            // Create a dummy content with the ID for searching
+            Content searchContent = Content.builder().contentId(contentId).build();
+            Content found = contentTree.search(searchContent);
+            
+            if (found != null) {
+                contentTree.remove(found);
+                return true;
+            }
+            
+            return false;
+        } catch (Exception e) {
+            System.err.println("Error deleting content: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean deleteHelpRequest(int requestId) {
+        try {
+            if (helpRequestQueue == null || helpRequestQueue.isEmpty()) {
+                return false;
+            }
+            
+            PriorityQueue<HelpRequest> tempQueue = new PriorityQueue<>();
+            boolean found = false;
+            
+            // Search for the request and exclude it from the temp queue
+            while (!helpRequestQueue.isEmpty()) {
+                HelpRequest request = helpRequestQueue.dequeue();
+                if (request.getRequestId() != requestId) {
+                    tempQueue.insert(request);
+                } else {
+                    found = true;
+                }
+            }
+            
+            // Restore the queue without the deleted request
+            while (!tempQueue.isEmpty()) {
+                helpRequestQueue.insert(tempQueue.dequeue());
+            }
+            
+            return found;
+        } catch (Exception e) {
+            System.err.println("Error deleting help request: " + e.getMessage());
+            return false;
+        }
     }
 
     // Helper methods for ID generation

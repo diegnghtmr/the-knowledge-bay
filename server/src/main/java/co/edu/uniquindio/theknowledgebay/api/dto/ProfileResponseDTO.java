@@ -25,4 +25,7 @@ public class ProfileResponseDTO {
     private int content;
     private int requests;
     private List<String> interests;
+    private int contentCount;
+    private int helpRequestCount;
+    private boolean isFollowing;
 }

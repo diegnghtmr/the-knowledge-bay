@@ -1,5 +1,6 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
+
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import lombok.Data;
@@ -79,7 +80,7 @@ public class Student extends User {
      * 
      * @return Lista de strings con los nombres de los intereses
      */
-    public List<String> getInterests() {
+    public List<String> getStringInterests() {
         if (interests == null) {
             System.out.println("Intereses es null, retornando lista vacía");
             return Collections.emptyList();
