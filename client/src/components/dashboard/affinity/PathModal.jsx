@@ -23,10 +23,10 @@ const PathModal = ({
   useEffect(() => {
     if (graphRef.current) {
       // Mayor fuerza de repulsión para mejor separación
-      graphRef.current.d3Force('charge', forceManyBody().strength(-350));
+      graphRef.current.d3Force('charge', forceManyBody().strength(-1200));
       
       // Añadir fuerza de colisión para evitar solapamientos
-      graphRef.current.d3Force('collision', forceCollide().radius(30));
+      graphRef.current.d3Force('collision', forceCollide().radius(80));
       
       // Centrar el grafo inicialmente
       setTimeout(() => {

@@ -20,10 +20,10 @@ const MainGraph = ({
   useEffect(() => {
     if (graphRef.current) {
       // Aumentar la fuerza de repulsión para mayor separación
-      graphRef.current.d3Force('charge', forceManyBody().strength(-350));
+      graphRef.current.d3Force('charge', forceManyBody().strength(-1200));
       
       // Añadir una fuerza de repulsión adicional para evitar solapamientos
-      graphRef.current.d3Force('collision', forceCollide().radius(30));
+      graphRef.current.d3Force('collision', forceCollide().radius(80));
       
       // Centrar el grafo inicialmente
       setTimeout(() => {
