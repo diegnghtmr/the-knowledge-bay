@@ -1,28 +1,61 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Pencil, Trash2, Check, X } from "lucide-react";
+import { 
+  getAllInterests, 
+  createInterest, 
+  updateInterest, 
+  deleteInterest, 
+  loadSampleInterests 
+} from "../../services/adminApi";
 
 /**
  * Componente para administrar los intereses disponibles en la plataforma
  */
 export default function InterestManagement() {
-  const [interests, setInterests] = useState([
-    { id: 1, name: "Inteligencia Artificial" },
-    { id: 2, name: "Filosofía" },
-  ]);
+  const [interests, setInterests] = useState([]);
   const [newInterest, setNewInterest] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editingValue, setEditingValue] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Cargar intereses al montar el componente
+  useEffect(() => {
+    loadInterests();
+  }, []);
+
+  const loadInterests = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllInterests();
+      setInterests(data);
+      setError("");
+    } catch (error) {
+      setError("Error al cargar los intereses");
+      console.error("Error loading interests:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ────────────────────────────────────────────────────────────────
   // CRUD helpers
   // ────────────────────────────────────────────────────────────────
-  const addInterest = () => {
+  const addInterest = async () => {
     if (!newInterest.trim()) return;
-    setInterests((prev) => [
-      ...prev,
-      { id: Date.now(), name: newInterest.trim() },
-    ]);
-    setNewInterest("");
+    
+    try {
+      setLoading(true);
+      await createInterest({ name: newInterest.trim() });
+      setNewInterest("");
+      await loadInterests(); // Recargar la lista
+      setError("");
+    } catch (error) {
+      setError("Error al crear el interés");
+      console.error("Error creating interest:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startEdit = (id, currentName) => {
@@ -35,18 +68,53 @@ export default function InterestManagement() {
     setEditingValue("");
   };
 
-  const confirmEdit = () => {
+  const confirmEdit = async () => {
     if (!editingValue.trim()) return;
-    setInterests((prev) =>
-      prev.map((int) =>
-        int.id === editingId ? { ...int, name: editingValue.trim() } : int
-      )
-    );
-    cancelEdit();
+    
+    try {
+      setLoading(true);
+      await updateInterest(editingId, { name: editingValue.trim() });
+      await loadInterests(); // Recargar la lista
+      cancelEdit();
+      setError("");
+    } catch (error) {
+      setError("Error al actualizar el interés");
+      console.error("Error updating interest:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeInterest = (id) => {
-    setInterests((prev) => prev.filter((int) => int.id !== id));
+  const removeInterest = async (id) => {
+    if (!window.confirm("¿Estás seguro de que quieres eliminar este interés?")) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      await deleteInterest(id);
+      await loadInterests(); // Recargar la lista
+      setError("");
+    } catch (error) {
+      setError("Error al eliminar el interés");
+      console.error("Error deleting interest:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadData = async () => {
+    try {
+      setLoading(true);
+      await loadSampleInterests();
+      await loadInterests(); // Recargar la lista
+      setError("");
+    } catch (error) {
+      setError("Error al cargar los datos de muestra");
+      console.error("Error loading sample data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ────────────────────────────────────────────────────────────────
@@ -58,6 +126,18 @@ export default function InterestManagement() {
       <p className="mb-6 text-sm text-[var(--open-sea)]/80">
         Manage the interests available on the platform
       </p>
+
+      {error && (
+        <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      {loading && (
+        <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+          <p className="text-sm text-blue-600">Cargando...</p>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Form + Table */}
@@ -73,9 +153,10 @@ export default function InterestManagement() {
             />
             <button
               onClick={addInterest}
-              className="inline-flex items-center gap-1 rounded-md bg-[var(--coastal-sea)] px-4 py-2 text-sm font-workSans-medium text-white hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)]/60"
+              disabled={loading}
+              className="inline-flex items-center gap-1 rounded-md bg-[var(--coastal-sea)] px-4 py-2 text-sm font-workSans-medium text-white hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)]/60 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add
+              {loading ? "Adding..." : "Add"}
             </button>
           </div>
 
@@ -91,10 +172,10 @@ export default function InterestManagement() {
               </thead>
               <tbody>
                 {interests.map((int) => (
-                  <tr key={int.id} className="border-t border-[var(--coastal-sea)]/10 hover:bg-[var(--sand)]/30">
-                    <td className="py-2 pr-4 text-[var(--deep-sea)]">{int.id}</td>
+                  <tr key={int.idInterest || int.id} className="border-t border-[var(--coastal-sea)]/10 hover:bg-[var(--sand)]/30">
+                    <td className="py-2 pr-4 text-[var(--deep-sea)]">{int.idInterest || int.id}</td>
                     <td className="py-2 pr-4 text-[var(--deep-sea)]">
-                      {editingId === int.id ? (
+                      {editingId === (int.idInterest || int.id) ? (
                         <input
                           value={editingValue}
                           onChange={(e) => setEditingValue(e.target.value)}
@@ -105,7 +186,7 @@ export default function InterestManagement() {
                       )}
                     </td>
                     <td className="flex items-center gap-3 py-2 text-[var(--deep-sea)]">
-                      {editingId === int.id ? (
+                      {editingId === (int.idInterest || int.id) ? (
                         <>
                           <button
                             onClick={confirmEdit}
@@ -125,14 +206,14 @@ export default function InterestManagement() {
                       ) : (
                         <>
                           <button
-                            onClick={() => startEdit(int.id, int.name)}
+                            onClick={() => startEdit(int.idInterest || int.id, int.name)}
                             className="text-[var(--coastal-sea)] hover:text-[var(--coastal-sea)]/80 focus:outline-none"
                             title="Edit"
                           >
                             <Pencil size={16} />
                           </button>
                           <button
-                            onClick={() => removeInterest(int.id)}
+                            onClick={() => removeInterest(int.idInterest || int.id)}
                             className="text-red-600 hover:text-red-700 focus:outline-none"
                             title="Delete"
                           >
@@ -151,8 +232,12 @@ export default function InterestManagement() {
         {/* Load Data Card */}
         <div className="flex flex-col items-center justify-center rounded-2xl border border-[var(--coastal-sea)]/30 bg-white p-6 shadow-sm">
           <h2 className="mb-8 text-lg font-workSans-semibold text-[var(--deep-sea)]">Load Data</h2>
-          <button className="rounded-md bg-[var(--coastal-sea)] px-6 py-3 text-sm font-workSans-medium text-white hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)]/60">
-            Load Data
+          <button 
+            onClick={handleLoadData}
+            disabled={loading}
+            className="rounded-md bg-[var(--coastal-sea)] px-6 py-3 text-sm font-workSans-medium text-white hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)]/60 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Loading..." : "Load Data"}
           </button>
         </div>
       </div>

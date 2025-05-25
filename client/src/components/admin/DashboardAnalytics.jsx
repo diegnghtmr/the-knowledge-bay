@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -11,31 +11,61 @@ import {
   Line,
 } from "recharts";
 import { BarChart2, TrendingUp, Network } from "lucide-react";
-
-// --- Mock data --------------------------------------------------------------
-const barData = [
-  { topic: "Matemáticas", contents: 12 },
-  { topic: "Ciencias", contents: 9 },
-  { topic: "Historia", contents: 15 },
-];
-
-const lineData = [
-  { week: "Sem 1", activity: 20 },
-  { week: "Sem 2", activity: 35 },
-  { week: "Sem 3", activity: 40 },
-  { week: "Sem 4", activity: 60 },
-];
-
-const clusters = [
-  { id: 1, topic: "STEM Avanzado", students: "Ana, Luis, Sofía" },
-  { id: 2, topic: "Literatura", students: "Carlos, Diana" },
-  { id: 3, topic: "Historia y Arte", students: "Miguel, Elena, Pedro" },
-];
+import { getAnalyticsDashboard } from "../../services/adminApi";
 
 /**
  * Panel analítico para administradores que muestra estadísticas y análisis
  */
 export default function DashboardAnalytics() {
+  const [analyticsData, setAnalyticsData] = useState({
+    topicActivity: [],
+    participationLevels: [],
+    communityClusters: []
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    loadAnalyticsData();
+  }, []);
+
+  const loadAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      const data = await getAnalyticsDashboard();
+      setAnalyticsData({
+        topicActivity: data.topicActivity || [],
+        participationLevels: data.participationLevels || [],
+        communityClusters: data.communityClusters || []
+      });
+      setError("");
+    } catch (error) {
+      setError("Error al cargar los datos analíticos");
+      console.error("Error loading analytics data:", error);
+      // Set fallback data in case of error
+      setAnalyticsData({
+        topicActivity: [
+          { topic: "Matemáticas", contents: 12 },
+          { topic: "Ciencias", contents: 9 },
+          { topic: "Historia", contents: 15 },
+        ],
+        participationLevels: [
+          { week: "Sem 1", activity: 20 },
+          { week: "Sem 2", activity: 35 },
+          { week: "Sem 3", activity: 40 },
+          { week: "Sem 4", activity: 60 },
+        ],
+        communityClusters: [
+          { id: 1, topic: "STEM Avanzado", students: "Ana, Luis, Sofía" },
+          { id: 2, topic: "Literatura", students: "Carlos, Diana" },
+          { id: 3, topic: "Historia y Arte", students: "Miguel, Elena, Pedro" },
+        ]
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-cream-custom p-8 font-workSans">
       <div className="mb-6">
@@ -44,6 +74,18 @@ export default function DashboardAnalytics() {
           Visión general de la actividad y las comunidades de estudiantes
         </p>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      {loading && (
+        <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+          <p className="text-sm text-blue-600">Cargando datos analíticos...</p>
+        </div>
+      )}
 
       {/* Grid principal */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -58,7 +100,7 @@ export default function DashboardAnalytics() {
           </p>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} barSize={32} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <BarChart data={analyticsData.topicActivity} barSize={32} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="topic" tickLine={false} axisLine={false} />
                 <YAxis tickLine={false} axisLine={false} />
@@ -82,7 +124,7 @@ export default function DashboardAnalytics() {
           <p className="mb-4 text-sm text-[var(--open-sea)]/80">Actividad de estudiantes por semana</p>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={lineData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <LineChart data={analyticsData.participationLevels} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="week" tickLine={false} axisLine={false} />
                 <YAxis tickLine={false} axisLine={false} />
@@ -123,7 +165,7 @@ export default function DashboardAnalytics() {
                 </tr>
               </thead>
               <tbody>
-                {clusters.map((cluster) => (
+                {analyticsData.communityClusters.map((cluster) => (
                   <tr key={cluster.id} className="border-t border-[var(--coastal-sea)]/10 hover:bg-[var(--sand)]/30">
                     <td className="py-3 px-4 text-[var(--deep-sea)] font-workSans-medium">#{cluster.id}</td>
                     <td className="py-3 px-4 text-[var(--deep-sea)]">{cluster.topic}</td>
