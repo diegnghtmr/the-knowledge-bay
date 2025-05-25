@@ -123,10 +123,11 @@ public class Student extends User {
         }
     }
 
-    public void removeFollowing(Student student) {
+    public boolean removeFollowing(Student student) {
         if (this.following != null) {
-            this.following.remove(student);
+            return this.following.remove(student); // Assuming DoublyLinkedList.remove returns boolean
         }
+        return false;
     }
 
     public void addFollower(Student student) {
@@ -138,10 +139,11 @@ public class Student extends User {
         }
     }
 
-    public void removeFollower(Student student) {
+    public boolean removeFollower(Student student) {
         if (this.followers != null) {
-            this.followers.remove(student);
+            return this.followers.remove(student); // Assuming DoublyLinkedList.remove returns boolean
         }
+        return false;
     }
 
     public int getFollowingCount() {

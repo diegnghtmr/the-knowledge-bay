@@ -60,8 +60,8 @@ public class DoublyLinkedList<T> implements Iterable<T>{
      *
      * @param data the element to remove
      */
-    public void remove(T data) {
-        if (head == null) return;
+    public boolean remove(T data) {
+        if (head == null) return false; // Element not found in empty list
         DoublyLinkedNode<T> current = head;
         while (current != null) {
             if (current.getData().equals(data)) {
@@ -70,19 +70,25 @@ public class DoublyLinkedList<T> implements Iterable<T>{
                     tail = null;
                 } else if (current == head) {
                     head = head.getNext();
-                    head.setPrevious(null);
+                    if (head != null) { // List might become empty
+                        head.setPrevious(null);
+                    } else {
+                        tail = null; // List became empty
+                    }
                 } else if (current == tail) {
                     tail = tail.getPrevious();
+                    // No need to check for null tail here as previous node must exist
                     tail.setNext(null);
                 } else {
                     current.getPrevious().setNext(current.getNext());
                     current.getNext().setPrevious(current.getPrevious());
                 }
                 size--;
-                return;
+                return true; // Element found and removed
             }
             current = current.getNext();
         }
+        return false; // Element not found
     }
 
     /**

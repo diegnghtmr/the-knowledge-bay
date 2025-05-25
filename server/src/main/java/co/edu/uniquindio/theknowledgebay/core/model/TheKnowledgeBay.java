@@ -796,26 +796,71 @@ public class TheKnowledgeBay {
             current = current.getNext();
         }
         
-        // Create edges based on shared interests
+        // Create edges based on mutual following in addition to shared interests
         createAffinityConnections();
     }
 
     private void createAffinityConnections() {
         DoublyLinkedNode<Student> current1 = users.getStudents().getHead();
-        
+        System.out.println("[AffinityGraph] Starting createAffinityConnections...");
+
         while (current1 != null) {
             Student student1 = current1.getData();
+            if (student1.getId() == null) {
+                current1 = current1.getNext();
+                continue;
+            }
+
             DoublyLinkedNode<Student> current2 = current1.getNext();
             
             while (current2 != null) {
                 Student student2 = current2.getData();
+                if (student2.getId() == null) {
+                    current2 = current2.getNext();
+                    continue;
+                }
+
+                // Specific log for user_one and user_two
+                if ((student1.getId().equals("usuario.uno@example.com") && student2.getId().equals("usuario.dos@example.com")) || 
+                    (student1.getId().equals("usuario.dos@example.com") && student2.getId().equals("usuario.uno@example.com"))) {
+                    System.out.println("[AffinityGraph] Checking pair: " + student1.getId() + " and " + student2.getId());
+                    boolean s1FollowsS2 = isUserFollowing(student1.getId(), student2.getId());
+                    boolean s2FollowsS1 = isUserFollowing(student2.getId(), student1.getId());
+                    boolean sharedInterests = hasSharedInterests(student1, student2);
+                    System.out.println("[AffinityGraph]   " + student1.getId() + " follows " + student2.getId() + ": " + s1FollowsS2);
+                    System.out.println("[AffinityGraph]   " + student2.getId() + " follows " + student1.getId() + ": " + s2FollowsS1);
+                    System.out.println("[AffinityGraph]   Shared interests: " + sharedInterests);
+
+                    boolean connectedByFollowingLog = s1FollowsS2 || s2FollowsS1;
+                    boolean attemptConnection = sharedInterests || connectedByFollowingLog;
+                    System.out.println("[AffinityGraph]   Connected by following (logic): " + connectedByFollowingLog);
+                    System.out.println("[AffinityGraph]   Attempting to connect: " + attemptConnection);
+
+                    if (attemptConnection) {
+                        boolean edgeExistsBeforeAdd = affinityGraph.edgeExists(student1.getId(), student2.getId());
+                        System.out.println("[AffinityGraph]   Edge exists before add? " + edgeExistsBeforeAdd);
+                        if (!edgeExistsBeforeAdd) {
+                            System.out.println("[AffinityGraph]   Adding edge between " + student1.getId() + " and " + student2.getId());
+                            affinityGraph.addEdge(student1.getId(), student2.getId());
+                        } else {
+                            System.out.println("[AffinityGraph]   Edge already exists, not adding again.");
+                        }
+                    } else {
+                        System.out.println("[AffinityGraph]   No connection condition met, not adding edge.");
+                    }
+                }
                 
-                // Calculate affinity based on shared interests
-                if (hasSharedInterests(student1, student2)) {
+                // General logic (existing)
+                boolean connectedByInterest = hasSharedInterests(student1, student2);
+                boolean connectedByFollowing = isUserFollowing(student1.getId(), student2.getId()) || isUserFollowing(student2.getId(), student1.getId());
+
+                if (connectedByInterest || connectedByFollowing) {
                     try {
-                        affinityGraph.addEdge(student1.getId(), student2.getId());
+                        if (!affinityGraph.edgeExists(student1.getId(), student2.getId())) {
+                           affinityGraph.addEdge(student1.getId(), student2.getId());
+                        } // else edge already exists, do nothing
                     } catch (Exception e) {
-                        // Edge already exists or other error, continue
+                        System.err.println("Error adding edge to affinity graph for " + student1.getId() + " and " + student2.getId() + ": " + e.getMessage());
                     }
                 }
                 
@@ -823,6 +868,7 @@ public class TheKnowledgeBay {
             }
             current1 = current1.getNext();
         }
+        System.out.println("[AffinityGraph] Finished createAffinityConnections.");
     }
 
     private boolean hasSharedInterests(Student student1, Student student2) {
@@ -1266,32 +1312,26 @@ public class TheKnowledgeBay {
         }
         
         // Convert to list and sort by connection count
-        List<Map.Entry<String, Integer>> sortedUsers = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : userConnections.entrySet()) {
-            sortedUsers.add(entry);
-        }
+        List<Map.Entry<String, Integer>> sortedUsers = new ArrayList<>(userConnections.entrySet());
         sortedUsers.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
         
         // Get top 5 most connected users
         int limit = Math.min(5, sortedUsers.size());
         for (int i = 0; i < limit; i++) {
             Map.Entry<String, Integer> entry = sortedUsers.get(i);
-            String userId = entry.getKey();
-            int connections = entry.getValue();
-            
-            User user = getUserById(userId);
+            User user = getUserById(entry.getKey()); 
             if (user != null) {
-                Map<String, Object> item = new HashMap<>();
-                item.put("id", userId);
-                item.put("username", user.getUsername() != null ? user.getUsername() : userId);
-                item.put("email", user.getEmail());
-                item.put("connections", connections);
-                result.add(item);
-                System.out.println("User " + user.getUsername() + " has " + connections + " connections");
+                Map<String, Object> userData = new HashMap<>();
+                userData.put("id", user.getId());
+                userData.put("username", user.getUsername());
+                userData.put("name", (user instanceof Student ? ((Student)user).getFirstName() : "") + " " + (user instanceof Student ? ((Student)user).getLastName() : "")); 
+                userData.put("connections", entry.getValue());
+                // Generate a generic avatar URL based on username or ID
+                String avatarSeed = user.getUsername() != null ? user.getUsername() : user.getId();
+                userData.put("avatar", "https://avatar.vercel.sh/" + avatarSeed + ".png?size=40"); 
+                result.add(userData);
             }
         }
-        
-        System.out.println("Most connected users result: " + result.size() + " users");
         return result;
     }
 
@@ -1334,24 +1374,31 @@ public class TheKnowledgeBay {
             // If explicit save is needed:
             // studentRepository.update(follower);
             // studentRepository.update(followed);
+            System.out.println("[UserAction] " + followerId + " now follows " + followedId);
+            refreshAffinityGraph(); // Refresh graph after successful follow
+            System.out.println("[AffinityGraph] Graph refreshed due to follow action.");
             return true;
         }
         return false;
     }
 
-    public boolean unfollowUser(String followerId, String followedId) {
+    public boolean unfollowUser(String followerId, String unfollowedId) {
         User followerUser = getUserById(followerId);
-        User followedUser = getUserById(followedId);
+        User unfollowedUser = getUserById(unfollowedId);
 
-        if (followerUser instanceof Student && followedUser instanceof Student) {
+        if (followerUser instanceof Student && unfollowedUser instanceof Student) {
             Student follower = (Student) followerUser;
-            Student followed = (Student) followedUser;
+            Student unfollowed = (Student) unfollowedUser;
 
-            follower.removeFollowing(followed);
-            followed.removeFollower(follower);
-            // studentRepository.update(follower);
-            // studentRepository.update(followed);
-            return true;
+            boolean success = follower.removeFollowing(unfollowed) && unfollowed.removeFollower(follower);
+            if (success) {
+                // studentRepository.update(follower); // Potentially update both if needed
+                // studentRepository.update(unfollowed);
+                System.out.println("[UserAction] " + followerId + " unfollowed " + unfollowedId);
+                refreshAffinityGraph(); // Refresh graph after successful unfollow
+                System.out.println("[AffinityGraph] Graph refreshed due to unfollow action.");
+            }
+            return success;
         }
         return false;
     }

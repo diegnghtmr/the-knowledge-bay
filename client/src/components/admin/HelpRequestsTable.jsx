@@ -154,7 +154,7 @@ const HelpRequestsTable = () => {
             className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)] text-xs"
           />
         ) : (
-          <div className="truncate" title={row.information}>
+          <div className="whitespace-normal break-words" title={row.information}>
             {row.information}
           </div>
         );
