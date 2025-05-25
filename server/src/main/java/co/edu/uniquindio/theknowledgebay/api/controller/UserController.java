@@ -31,6 +31,11 @@ public class UserController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String interest) {
         
+        String currentUserId = null;
+        if (token != null && !token.isEmpty() && !token.equals("null")) {
+            currentUserId = sessionManager.getCurrentUserId(token); // Assuming token might be the string "null"
+        }
+
         try {
             List<ProfileResponseDTO> users = new ArrayList<>();
             
@@ -79,7 +84,9 @@ public class UserController {
                             .interests(interestNames)
                             .contentCount(theKnowledgeBay.getContentCountByUserId(student.getId()))
                             .helpRequestCount(theKnowledgeBay.getHelpRequestCountByUserId(student.getId()))
-                            .isFollowing(false) // TODO: Implement following logic
+                            .isFollowing(currentUserId != null && theKnowledgeBay.isUserFollowing(currentUserId, student.getId()))
+                            .following(student.getFollowingCount())
+                            .followers(student.getFollowersCount())
                             .build();
                     
                     users.add(dto);
@@ -106,11 +113,20 @@ public class UserController {
                     .body(new AuthResponseDTO(false, "Token de autorización requerido."));
         }
 
-        try {
-            // TODO: Implement following logic in TheKnowledgeBay
-            // For now, just return success
-            return ResponseEntity.ok(new AuthResponseDTO(true, "Usuario seguido exitosamente."));
+        if (currentUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AuthResponseDTO(false, "No puedes seguirte a ti mismo."));
+        }
 
+        try {
+            boolean success = theKnowledgeBay.followUser(currentUserId, userId);
+            if (success) {
+                return ResponseEntity.ok(new AuthResponseDTO(true, "Usuario seguido exitosamente."));
+            } else {
+                // Could be because user not found, or trying to follow non-student, or other logic error
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new AuthResponseDTO(false, "No se pudo seguir al usuario. Verifique los IDs."));
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
@@ -129,10 +145,13 @@ public class UserController {
         }
 
         try {
-            // TODO: Implement unfollowing logic in TheKnowledgeBay
-            // For now, just return success
-            return ResponseEntity.ok(new AuthResponseDTO(true, "Usuario no seguido exitosamente."));
-
+            boolean success = theKnowledgeBay.unfollowUser(currentUserId, userId);
+            if (success) {
+                return ResponseEntity.ok(new AuthResponseDTO(true, "Usuario no seguido exitosamente."));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new AuthResponseDTO(false, "No se pudo dejar de seguir al usuario. Verifique los IDs."));
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
@@ -144,6 +163,11 @@ public class UserController {
             @RequestParam String query,
             @RequestHeader(value = "Authorization", required = false) String token) {
         
+        String currentUserId = null;
+        if (token != null && !token.isEmpty() && !token.equals("null")) {
+            currentUserId = sessionManager.getCurrentUserId(token);
+        }
+
         try {
             List<ProfileResponseDTO> users = new ArrayList<>();
             String queryLower = query.toLowerCase();
@@ -187,7 +211,9 @@ public class UserController {
                             .interests(interestNames)
                             .contentCount(theKnowledgeBay.getContentCountByUserId(student.getId()))
                             .helpRequestCount(theKnowledgeBay.getHelpRequestCountByUserId(student.getId()))
-                            .isFollowing(false) // TODO: Implement following logic
+                            .isFollowing(currentUserId != null && theKnowledgeBay.isUserFollowing(currentUserId, student.getId()))
+                            .following(student.getFollowingCount())
+                            .followers(student.getFollowersCount())
                             .build();
                     
                     users.add(dto);

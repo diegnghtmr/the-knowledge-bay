@@ -24,6 +24,9 @@ public class Student extends User {
     private DoublyLinkedList<HelpRequest> helpRequests;
     private DoublyLinkedList<StudyGroup> studyGroups;
     private DoublyLinkedList<Chat> chats;
+
+    private DoublyLinkedList<Student> following = new DoublyLinkedList<>();
+    private DoublyLinkedList<Student> followers = new DoublyLinkedList<>();
     
     private String firstName;
     private String lastName;
@@ -108,5 +111,51 @@ public class Student extends User {
             System.out.println("Error al obtener intereses: " + e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    // Methods for managing followers and following
+    public void addFollowing(Student student) {
+        if (this.following == null) {
+            this.following = new DoublyLinkedList<>();
+        }
+        if (!this.isFollowing(student)) { // Avoid duplicates
+            this.following.addLast(student);
+        }
+    }
+
+    public void removeFollowing(Student student) {
+        if (this.following != null) {
+            this.following.remove(student);
+        }
+    }
+
+    public void addFollower(Student student) {
+        if (this.followers == null) {
+            this.followers = new DoublyLinkedList<>();
+        }
+        if (!this.followers.contains(student)) { // Check if student is already a follower to avoid duplicates
+            this.followers.addLast(student);
+        }
+    }
+
+    public void removeFollower(Student student) {
+        if (this.followers != null) {
+            this.followers.remove(student);
+        }
+    }
+
+    public int getFollowingCount() {
+        return (this.following != null) ? this.following.getSize() : 0;
+    }
+
+    public int getFollowersCount() {
+        return (this.followers != null) ? this.followers.getSize() : 0;
+    }
+
+    public boolean isFollowing(Student student) {
+        if (this.following == null || student == null) {
+            return false;
+        }
+        return this.following.contains(student);
     }
 }

@@ -1313,4 +1313,59 @@ public class TheKnowledgeBay {
         
         return analytics;
     }
+
+    // Follow/Unfollow logic
+    public boolean followUser(String followerId, String followedId) {
+        User followerUser = getUserById(followerId);
+        User followedUser = getUserById(followedId);
+
+        if (followerUser instanceof Student && followedUser instanceof Student) {
+            Student follower = (Student) followerUser;
+            Student followed = (Student) followedUser;
+
+            if (follower.getId().equals(followed.getId())) {
+                 // Cannot follow yourself
+                return false;
+            }
+
+            follower.addFollowing(followed);
+            followed.addFollower(follower);
+            // Assuming StudentRepository handles persistence if necessary, or if objects are managed in memory primarily.
+            // If explicit save is needed:
+            // studentRepository.update(follower);
+            // studentRepository.update(followed);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean unfollowUser(String followerId, String followedId) {
+        User followerUser = getUserById(followerId);
+        User followedUser = getUserById(followedId);
+
+        if (followerUser instanceof Student && followedUser instanceof Student) {
+            Student follower = (Student) followerUser;
+            Student followed = (Student) followedUser;
+
+            follower.removeFollowing(followed);
+            followed.removeFollower(follower);
+            // studentRepository.update(follower);
+            // studentRepository.update(followed);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isUserFollowing(String currentUserId, String targetUserId) {
+        if (currentUserId == null || targetUserId == null) {
+            return false;
+        }
+        User currentUser = getUserById(currentUserId);
+        User targetUser = getUserById(targetUserId);
+
+        if (currentUser instanceof Student && targetUser instanceof Student) {
+            return ((Student) currentUser).isFollowing((Student) targetUser);
+        }
+        return false;
+    }
 }

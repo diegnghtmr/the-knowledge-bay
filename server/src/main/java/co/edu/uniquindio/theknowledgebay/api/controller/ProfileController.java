@@ -33,7 +33,7 @@ public class ProfileController {
         
         // Default to user id "1" if no valid token (development stub)
         if (currentUserId == null) {
-            currentUserId = "1";
+            currentUserId = "1"; 
             System.out.println("GET /api/profile - Usando ID por defecto: " + currentUserId);
         }
         
@@ -54,7 +54,7 @@ public class ProfileController {
         int userContentCount = theKnowledgeBay.getContentCountByUserId(currentUserId);
         int userRequestsCount = theKnowledgeBay.getHelpRequestCountByUserId(currentUserId);
         
-        ProfileResponseDTO response = ProfileResponseDTO.builder()
+        ProfileResponseDTO.ProfileResponseDTOBuilder responseBuilder = ProfileResponseDTO.builder()
                 .id(currentUserId)
                 .username(user.getUsername())
                 .email(user.getEmail())
@@ -62,15 +62,23 @@ public class ProfileController {
                 .lastName(user instanceof Student && ((Student) user).getLastName() != null ? ((Student) user).getLastName() : defaultName)
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
-                .following(0) // TODO: implement following logic
-                .followers(0) // TODO: implement followers logic  
                 .groups(0)    // TODO: implement groups logic
                 .content(userContentCount)
                 .requests(userRequestsCount)
-                .interests(user instanceof Student && ((Student) user).getStringInterests() != null ? ((Student) user).getStringInterests() : Arrays.asList())
-                .build();
+                .interests(user instanceof Student && ((Student) user).getStringInterests() != null ? ((Student) user).getStringInterests() : Arrays.asList());
+
+        if (user instanceof Student) {
+            Student student = (Student) user;
+            responseBuilder.following(student.getFollowingCount());
+            responseBuilder.followers(student.getFollowersCount());
+            responseBuilder.isFollowing(false); // Or based on specific logic if viewing another's profile via this endpoint
+        } else {
+            responseBuilder.following(0);
+            responseBuilder.followers(0);
+            responseBuilder.isFollowing(false);
+        }
                 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(responseBuilder.build());
     }
 
     @PutMapping
@@ -160,7 +168,7 @@ public class ProfileController {
         int userContentCount = theKnowledgeBay.getContentCountByUserId(currentUserId);
         int userRequestsCount = theKnowledgeBay.getHelpRequestCountByUserId(currentUserId);
         
-        ProfileResponseDTO response = ProfileResponseDTO.builder()
+        ProfileResponseDTO.ProfileResponseDTOBuilder responseBuilder = ProfileResponseDTO.builder()
                 .id(currentUserId)
                 .username(user.getUsername())
                 .email(user.getEmail())
@@ -168,16 +176,24 @@ public class ProfileController {
                 .lastName(user instanceof Student && ((Student) user).getLastName() != null ? ((Student) user).getLastName() : defaultName)
                 .dateBirth(user instanceof Student && ((Student) user).getDateBirth() != null ? ((Student) user).getDateBirth() : defaultDate)
                 .biography(user instanceof Student && ((Student) user).getBiography() != null ? ((Student) user).getBiography() : defaultBio)
-                .following(0) // TODO: implement following logic
-                .followers(0) // TODO: implement followers logic  
                 .groups(0)    // TODO: implement groups logic
                 .content(userContentCount)
                 .requests(userRequestsCount)
-                .interests(userInterests)
-                .build();
+                .interests(userInterests);
+
+        if (user instanceof Student) {
+            Student student = (Student) user;
+            responseBuilder.following(student.getFollowingCount());
+            responseBuilder.followers(student.getFollowersCount());
+            responseBuilder.isFollowing(false); // Own profile, not following self in this context
+        } else {
+            responseBuilder.following(0);
+            responseBuilder.followers(0);
+            responseBuilder.isFollowing(false);
+        }
                 
-        System.out.println("PUT /api/profile - Usuario actualizado correctamente: " + response.getUsername());
+        System.out.println("PUT /api/profile - Usuario actualizado correctamente: " + user.getUsername());
                 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(responseBuilder.build());
     }
 }
