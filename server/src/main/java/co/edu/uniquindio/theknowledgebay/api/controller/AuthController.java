@@ -47,7 +47,7 @@ public class AuthController {
                 .firstName(registerDto.getFirstName())
                 .lastName(registerDto.getLastName())
                 .dateBirth(dateOfBirth)
-                .biography(registerDto.getBio())
+                .biography(registerDto.getBiography())
                 .interests(StringListToInterests.convert(registerDto.getInterests()))
                 .build();
 

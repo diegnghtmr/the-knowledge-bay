@@ -1,7 +1,6 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
-import co.edu.uniquindio.theknowledgebay.api.dto.ContentResponseDTO;
-import co.edu.uniquindio.theknowledgebay.api.dto.HelpRequestResponseDTO;
+import co.edu.uniquindio.theknowledgebay.api.dto.*;
 import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.Urgency;

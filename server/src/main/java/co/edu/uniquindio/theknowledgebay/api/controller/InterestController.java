@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/interests")
 public class InterestController {
 
@@ -30,8 +29,8 @@ public class InterestController {
     public InterestController(InterestService interestService) {
         this.interestService = interestService;
     }
-    private final TheKnowledgeBay theKnowledgeBay;
-    private final SessionManager sessionManager;
+    private TheKnowledgeBay theKnowledgeBay;
+    private SessionManager sessionManager;
 
     @GetMapping
     public ResponseEntity<List<InterestDTO>> getAllInterests(
