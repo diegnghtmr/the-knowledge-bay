@@ -60,6 +60,7 @@ authApi.interceptors.response.use(
 // Register user
 export const register = async (userData) => {
   // Interceptor handles success/error formatting
+    console.log("Datos de registro:", userData);
   return await authApi.post('/api/auth/register', userData);
 };
 

@@ -50,3 +50,30 @@
 .body-overflow-auto {
     overflow: auto;
 }
+
+
+/* Datepicker */
+[data-part="table-cell-trigger"][data-selected] {
+    color: white;
+}
+
+/* Estilo hover para los días del calendario */
+[data-part="table-cell-trigger"] {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+[data-part="table-cell-trigger"]:hover {
+    color: rgba(9, 7, 7, 0.35); /* Color gris claro */
+}
+
+/* Opcional: Deshabilitar hover en días desactivados */
+[data-part="table-cell-trigger"][data-disabled] {
+    background-color: transparent;
+    color: rgba(255, 255, 255, 0.37); /* Color gris claro */
+    cursor: default;
+}
+
+[data-part="trigger"][data-state="open"] .lucide-calendar {
+    color: var(--coastal-sea); /* Índigo Tailwind */
+}

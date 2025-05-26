@@ -60,13 +60,14 @@ function App() {
           <>
             {/* If not authenticated, show public routes */}
               <Route path="/register" element={<Landing />} />
+              <Route path="/register/steps" element={<Landing />} />
               <Route path="/login" element={<Landing />} />
-            <Route path="/landing" element={<Landing />} />
+              <Route path="/landing" element={<Landing />} />
               <Route path="/terms" element={<Terms />}/>
               {/* Default redirect for root path when not authenticated */}
-            <Route path="/" element={<Navigate to="/landing" replace />} />
+              <Route path="/" element={<Navigate to="/landing" replace />} />
             {/* Redirect any other unknown path to landing */}
-            <Route path="*" element={<Navigate to="/landing" replace />} />
+              <Route path="*" element={<Navigate to="/landing" replace />} />
           </>
         )}
       </Routes>

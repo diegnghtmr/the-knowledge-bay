@@ -10,13 +10,12 @@ import {useAuthHandler} from "../../hooks/useAuthHandler";
 import {useNavigate} from "react-router-dom";
 
 
-const Auth = ({ initialView = "login", isVisible = false, setData, onCoontinue }) => {
+const Auth = ({ initialView = "login", isVisible = false, onContinue }) => {
     const navigate = useNavigate();
     const [activeForm, setActiveForm] = useState(initialView);
     const isLogin = activeForm === "login";
 
     useEffect(() => {
-        console.log('Auth initialView:', initialView);
         setActiveForm(initialView);
     }, [initialView]);
 
@@ -45,17 +44,23 @@ const Auth = ({ initialView = "login", isVisible = false, setData, onCoontinue }
            });
 
        } else {
-           navigate("/register/steps");
+           if (credentials['register-password'] !== credentials['confirm-password']) {
+               console.log("Passwords do not match.");
+               setError("Passwords do not match.");
+               return;
+           }
+
            const data = {
                username: credentials.username,
                email: credentials['register-email'],
                password: credentials['register-password'],
+               confirmPassword: credentials['confirm-password'],
                showSignup: true
            };
 
-               onCoontinue(1500);
+           setActiveForm("register");
+           onContinue(1500, data);
 
-           setData(data)
            }
        }
 
@@ -143,14 +148,4 @@ const Auth = ({ initialView = "login", isVisible = false, setData, onCoontinue }
         </section>
     );
 };
-
-// const signUp = () => {
-//     setData ({
-//         username: credentials.username,
-//         email: credentials['register-email'],
-//         password: credentials['register-password'],
-//         showSignup: true,
-//         registerMethod: handleSubmit
-//     });
-
 export default Auth;

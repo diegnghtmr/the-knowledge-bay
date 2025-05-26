@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS students_interests (
 -- Intereses
 CREATE TABLE IF NOT EXISTS interests (
                                          id_interest INTEGER PRIMARY KEY AUTOINCREMENT,
-                                         name TEXT NOT NULL
+                                         name TEXT NOT NULL UNIQUE
 );
 
 -- Comentarios

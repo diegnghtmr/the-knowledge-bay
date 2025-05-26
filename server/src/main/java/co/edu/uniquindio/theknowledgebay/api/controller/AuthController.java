@@ -7,6 +7,7 @@ import co.edu.uniquindio.theknowledgebay.api.dto.RegisterStudentDTO;
 import co.edu.uniquindio.theknowledgebay.core.dto.AuthResultDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.StringListToInterests;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,8 @@ public class AuthController {
         LocalDate dateOfBirth = null;
         if (registerDto.getDateOfBirth() != null && !registerDto.getDateOfBirth().isEmpty()) {
             try {
+                System.out.println("Date of birth: " + registerDto.getDateOfBirth());
+
                 dateOfBirth = LocalDate.parse(registerDto.getDateOfBirth()); // Assumes yyyy-MM-dd format
             } catch (DateTimeParseException e) {
                 // Log the error or handle it as a bad request
@@ -41,10 +44,11 @@ public class AuthController {
                 .username(registerDto.getUsername())
                 .email(registerDto.getEmail())
                 .password(registerDto.getPassword())
-                .firstName("") // Assuming firstName might be part of a more complete profile later
-                .lastName("")  // Assuming lastName might be part of a more complete profile later
-                .dateBirth(dateOfBirth) // Set the parsed dateOfBirth
-                .biography("") // Assuming biography might be part of a more complete profile later
+                .firstName(registerDto.getFirstName())
+                .lastName(registerDto.getLastName())
+                .dateBirth(dateOfBirth)
+                .biography(registerDto.getBio())
+                .interests(StringListToInterests.convert(registerDto.getInterests()))
                 .build();
 
         String[] registered = authService.registerStudent(newStudent);

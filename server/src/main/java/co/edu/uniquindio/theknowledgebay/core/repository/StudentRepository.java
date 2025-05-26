@@ -1,6 +1,8 @@
 package co.edu.uniquindio.theknowledgebay.core.repository;
 
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.ListToDoublyLinkedList;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -19,9 +21,9 @@ public class StudentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<Student> findAll() {
+    public DoublyLinkedList<Student> findAll() {
         String sql = "SELECT * FROM students";
-        return jdbcTemplate.query(sql, studentRowMapper);
+        return ListToDoublyLinkedList.convert(jdbcTemplate.query(sql, studentRowMapper));
     }
 
     public Student findById(int id) {

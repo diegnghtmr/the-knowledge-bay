@@ -26,18 +26,18 @@ export const useAuthHandler = ({ onRegisterSuccess, onLoginSuccess }) => {
         }
     };
 
-    const handleRegister = async ({ username, email, password, confirmPassword }) => {
+    const handleRegister = async (data) => {
         setIsLoading(true);
         setError('');
 
-        if (password !== confirmPassword) {
+        if (data.password !== data.confirmPassword) {
             setError("Passwords do not match.");
             setIsLoading(false);
             return;
         }
 
         try {
-            const response = await register({ username, email, password });
+            const response = await register(data);
             if (!response.success) {
                 setError(response.message || 'Registration failed.');
             } else {

@@ -15,6 +15,7 @@ const AuthForm = ({ type, action, state, loadState }) => {
                     icon={Mail}
                     label="Correo electrónico"
                     type="email"
+                    index={0}
                     id="email"
                     name="email"
                     placeholder="tu@email.com"
@@ -25,6 +26,7 @@ const AuthForm = ({ type, action, state, loadState }) => {
                     altIcon={Eye}
                     label="Contraseña"
                     type="password"
+                    index={1}
                     id="password"
                     name="password"
                     placeholder="••••••••"
@@ -33,13 +35,13 @@ const AuthForm = ({ type, action, state, loadState }) => {
                 <div className="flex items-center justify-between pt-2">
                     <button
                         type="button"
-                        tabIndex={state ? 0 : -1}
+                        tabIndex={state ? 2 : -1}
                         className="mb-6 text-sm text-[var(--coastal-sea)] hover:text-[var(--sand)] transition-colors duration-300"
                     >
                         ¿Olvidaste tu contraseña?
                     </button>
                 </div>
-                <SubmitButton isLoading={loadState}>Ingresar</SubmitButton>
+                <SubmitButton isLoading={loadState} index={3}>Ingresar</SubmitButton>
             </form>
         );
 
@@ -55,6 +57,7 @@ const AuthForm = ({ type, action, state, loadState }) => {
                     icon={User}
                     label="Nombre de usuario"
                     type="text"
+                    index={0}
                     id="username"
                     name="username"
                     placeholder="usuario123"
@@ -64,6 +67,7 @@ const AuthForm = ({ type, action, state, loadState }) => {
                     icon={Mail}
                     label="Correo electrónico"
                     type="email"
+                    index={1}
                     id="register-email"
                     name="register-email"
                     placeholder="tu@email.com"
@@ -74,6 +78,7 @@ const AuthForm = ({ type, action, state, loadState }) => {
                     altIcon={Eye}
                     label="Contraseña"
                     type="password"
+                    index={2}
                     id="register-password"
                     name="register-password"
                     placeholder="••••••••"
@@ -84,13 +89,14 @@ const AuthForm = ({ type, action, state, loadState }) => {
                     altIcon={Eye}
                     label="Confirmar contraseña"
                     type="password"
+                    index={3}
                     id="confirm-password"
                     name="confirm-password"
                     placeholder="••••••••"
                     isActive={state}
                 />
 
-                <Checkbox.Root className={"flex justify-fist mb-12"}>
+                <Checkbox.Root className={"flex justify-fist mb-12"} tabIndex={4}>
                     <Checkbox.Control className={"h-6 w-6 text-black rounded-md mr-2 border-2 border-black"}>
                         <Checkbox.Indicator>
                             <CheckIcon className={"h-5 w-5 text-black"} />

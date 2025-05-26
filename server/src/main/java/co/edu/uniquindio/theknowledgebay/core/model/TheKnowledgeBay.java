@@ -87,7 +87,7 @@ public class TheKnowledgeBay {
         }
 
         // Initialize students
-        List<Student> students = studentRepository.findAll();
+        DoublyLinkedList<Student> students = studentRepository.findAll();
         for (Student student : students) {
             this.users.add(student);
         }

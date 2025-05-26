@@ -1,90 +1,102 @@
-import {Steps} from "@ark-ui/react";
-import {useState} from "react";
-import InputField from "../ui/InputField.jsx";
+import { useEffect, useState } from "react";
+import { useAuthHandler } from "../../hooks/useAuthHandler.jsx";
+import { useNavigate } from "react-router-dom";
+import { fetchInterests } from "../../services/InterestApi.js";
+import SignupForm from "./SignupForm.jsx";
 
-const Signup = ({data, state}) => {
+const Signup = ({ data }) => {
+    const navigate = useNavigate();
 
-    const fulldata = {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        dateofbirth: '',
-        gender: '',
-        phone: '',
-        address: '',
+    // Form state
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        bio: '',
+        interests: [],
+    });
+
+    // Controls form visibility based on `data`
+    const [showForm, setShowForm] = useState(false);
+
+    // Update formData and show/hide form based on incoming `data`
+    useEffect(() => {
+        if (data && (data.username || data.email || data.password || data.confirmPassword)) {
+            setFormData(prev => ({
+                ...prev,
+                username: data.username || '',
+                email: data.email || '',
+                password: data.password || '',
+                confirmPassword: data.confirmPassword || '',
+            }));
+            setShowForm(true);
+        } else {
+            setShowForm(false);
+            navigate("/register"); // Redirect if data is not valid
+        }
+    }, [data]);
+
+
+    // Custom authentication handler hook
+    const {
+        isLoading,
+        error,
+        handleRegister
+    } = useAuthHandler({
+        onRegisterSuccess: () => {
+            navigate('/dashboard'); // Redirect on success
+        }
+    });
+
+    // Format date to YYYY-MM-DD
+    function formatDate(date) {
+        let { year, month, day } = date;
+
+        function pad(n) {
+            return n.toString().padStart(2, '0');
+        }
+
+        return `${year}-${pad(month)}-${pad(day)}`;
     }
 
-    console.log(data);
+    // Fetch available interests from API
+    useEffect(() => {
+        fetchInterests()
+            .then(data => setAvailableInterests(data))
+            .catch(err => console.error("Failed to load interests", err));
+    }, []);
 
-    const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    const [availableInterests, setAvailableInterests] = useState([]);
 
-    const handleNextClick = () => {
-        setCurrentStepIndex(prev => (prev + 1) % items.length);
+    // Final registration submit
+    const handleFinalSubmit = async () => {
+        const registrationData = {
+            username: formData.username,
+            email: formData.email,
+            password: formData.password,
+            confirmPassword: formData.confirmPassword,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            dateOfBirth: formatDate(formData.dateOfBirth),
+            bio: formData.bio,
+            interests: formData.interests,
+        };
+
+        await handleRegister(registrationData);
     };
 
-    const handlePrevClick = () => {
-        setCurrentStepIndex(prev => (prev > 0 ? prev - 1 : 0));
-    };
 
 
-    const getStepClass = (index) => {
-        return index === currentStepIndex
-            ? "bg-(--coastal-sea) text-white"
-            : "bg-gray-300 text-gray-800";
-    };
 
 
-    const items = [
-        { value: 'first', title: 'Primero', description: 'Información personal' },
-        { value: 'second', title: 'Segundo', description: 'Biografía' },
-        { value: 'third', title: 'Third', description: 'Selector de intereses' },
-    ]
-        return (
-            <Steps.Root count={items.length} className="absolute top-[20%] w-full min-h-[200px] flex flex-col justify-center items-center">
-                <Steps.List className="flex gap-4">
-                    {items.map((item, index) => (
-                        <Steps.Item key={index} index={index}>
-                            <Steps.Trigger className={`${getStepClass(index)} h-12 w-12 rounded-full`}>
-                                <Steps.Indicator className={` text-xl rounded-full relative`}>{index + 1}</Steps.Indicator>
-                            </Steps.Trigger>
-                            <Steps.Separator />
-                        </Steps.Item>
-                    ))}
-                </Steps.List>
-                <Steps.Content index={0} className="h-[400px] flex flex-col justify-center items-center gap-2 p-4 mt-8">
-                    <p>Bienvenido a The Knowledge Bay, antes de comenzar, por favor completa tus datos.</p>
-                    <section className="max-w-[300px]">
-                        <br/>
-                    <InputField
-                        label="Nombre/s"
-                        id="first_name"
-                        type="text"
-                        placeholder="Tu nombre"
-                        icon={null}
-                    />
-                        <br/>
-                    <InputField
-                        label="Apellido/s"
-                        id="last_name"
-                        type="text"
-                        placeholder="Tu apellido"
-                        icon={null}
-                    />
-                    </section>
-                </Steps.Content>
+    return (
+        <SignupForm showForm={showForm} error={error} formData={formData} setFormData={setFormData} isLoading={isLoading} availableInterests={availableInterests} action={handleFinalSubmit}/>
+    );
 
-                <Steps.Content index={1} className="h-[400px] flex flex-col justify-center items-center gap-2 p-4 mt-8">
-                </Steps.Content>
-
-                <Steps.Content index={2} className="h-[400px] flex flex-col justify-center items-center gap-2 p-4 mt-8">
-                </Steps.Content>
-
-                <div>
-                    <Steps.PrevTrigger onClick={handlePrevClick} className="bg-(--deep-sea) rounded-md px-4 py-2 mr-4 text-white cursor-pointer mt-12">Volver</Steps.PrevTrigger>
-                    <Steps.NextTrigger onClick={handleNextClick} className="bg-(--coastal-sea) rounded-md px-4 py-2 text-white cursor-pointer mt-12">Siguiente</Steps.NextTrigger>
-                </div>
-            </Steps.Root>
-        )
-}
+};
 
 export default Signup;

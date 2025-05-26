@@ -5,10 +5,12 @@ const InputField = ({
                         altIcon: AltIcon,
                         label,
                         type,
+                        index,
                         id,
                         placeholder,
                         error,
                         isActive = true,
+                        onChange,
                     }) => {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === "password";
@@ -45,17 +47,18 @@ const InputField = ({
                 )}
 
                 <input
-                    tabIndex={isActive ? 0 : -1}
+                    tabIndex={isActive ? index : -1}
                     type={inputType}
                     id={id}
                     name={id}
                     placeholder={placeholder}
                     aria-invalid={!!error}
                     aria-describedby={error ? `${id}-error` : undefined}
+                    onChange={onChange}
                     className={`
             mt-1 block w-full pl-11 pr-4 py-3
-            border border-[var(--sand)] rounded-xl shadow-sm
-            focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)] focus:border-[var(--coastal-sea)]
+            rounded-xl shadow-sm
+            focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)] focus:border-[var(--coastal-sea)1]
             bg-white transition-all duration-300
             ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""}
           `}
@@ -69,6 +72,7 @@ const InputField = ({
             </div>
         </div>
     );
+
 };
 
 export default InputField;

@@ -1,7 +1,8 @@
-const SubmitButton = ({ children, isLoading }) => (
+const SubmitButton = ({ children, isLoading, index }) => (
     <button
         type="submit"
         disabled={isLoading}
+        tabIndex={index}
         className="
       relative w-full flex justify-center py-3 px-6 z-30
       bg-[var(--coastal-sea)] hover:bg-[var(--sand)] text-white hover:text-[var(--deep-sea)]

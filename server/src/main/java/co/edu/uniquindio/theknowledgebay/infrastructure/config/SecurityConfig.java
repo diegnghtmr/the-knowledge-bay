@@ -32,6 +32,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authorize) -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                         .requestMatchers("/api/auth/**").permitAll() // Permit other auth requests under /api/auth/**
+                        .requestMatchers("/api/interests/**").permitAll() // Permit interests API for frontend
                         .requestMatchers(HttpMethod.GET, "/api/profile").permitAll()  // Permit GET profile
                         .requestMatchers(HttpMethod.PUT, "/api/profile").permitAll()  // Permit PUT profile
                         .requestMatchers("/api/profile/**").permitAll() // Permit profile API for frontend

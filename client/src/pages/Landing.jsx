@@ -39,7 +39,7 @@ const Landing = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showAuth, setShowAuth] = useState(false);
-  const [authType, setAuthType] = useState("login");
+  const [authType, setAuthType] = useState(null);
 
   const handleAuthShow = (type) => {
     setAuthType(type);
@@ -67,6 +67,29 @@ const Landing = () => {
 
   }, [location.pathname]);
 
+  function stepsHandler(duration=1500, data=null) {
+      if (data) {
+          scrollToTopSmooth(duration);
+          setTimeout(() =>
+          {
+              handleAuthShow("steps");
+              navigate("/register/steps");
+
+          }, 1600);
+
+          setData((prev) => ({
+              ...prev,
+              username: data.username,
+              email: data.email,
+              password: data.password,
+              confirmPassword: data.confirmPassword
+          }));
+
+      } else {
+          console.log("Error en el paso de registro");
+      }
+  }
+
   return (
     <main className="flex flex-col justify-between bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)">
       <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-white">
@@ -74,7 +97,7 @@ const Landing = () => {
       <SignupComponent data={data} state={showSignup}/>
       <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white">
       </section>
-      <AuthComponent isVisible={showAuth} initialView={authType} setData={setData} showSignup={setShowSignup} onCoontinue={scrollToTopSmooth}/>
+      <AuthComponent isVisible={showAuth} initialView={authType} showSignup={setShowSignup} onContinue={stepsHandler}/>
       <article className="h-dvh flex flex-col gap-4 justify-center items-center">
         <div className="w-full">
           <img
