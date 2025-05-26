@@ -1,6 +1,7 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
+import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,7 @@ public class Content implements Comparable<Content> {
     private int contentId;
     private DoublyLinkedList<Interest> topics;
     private String title;
+    private ContentType contentType;
     private String information;
     private Student author;
     private DoublyLinkedList<Student> likedBy;

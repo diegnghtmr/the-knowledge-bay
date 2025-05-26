@@ -1,5 +1,6 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
+
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import lombok.Data;
@@ -23,6 +24,9 @@ public class Student extends User {
     private DoublyLinkedList<HelpRequest> helpRequests;
     private DoublyLinkedList<StudyGroup> studyGroups;
     private DoublyLinkedList<Chat> chats;
+
+    private DoublyLinkedList<Student> following = new DoublyLinkedList<>();
+    private DoublyLinkedList<Student> followers = new DoublyLinkedList<>();
     
     private String firstName;
     private String lastName;
@@ -79,7 +83,7 @@ public class Student extends User {
      * 
      * @return Lista de strings con los nombres de los intereses
      */
-    public List<String> getInterests() {
+    public List<String> getStringInterests() {
         if (interests == null) {
             System.out.println("Intereses es null, retornando lista vacía");
             return Collections.emptyList();
@@ -107,5 +111,53 @@ public class Student extends User {
             System.out.println("Error al obtener intereses: " + e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    // Methods for managing followers and following
+    public void addFollowing(Student student) {
+        if (this.following == null) {
+            this.following = new DoublyLinkedList<>();
+        }
+        if (!this.isFollowing(student)) { // Avoid duplicates
+            this.following.addLast(student);
+        }
+    }
+
+    public boolean removeFollowing(Student student) {
+        if (this.following != null) {
+            return this.following.remove(student); // Assuming DoublyLinkedList.remove returns boolean
+        }
+        return false;
+    }
+
+    public void addFollower(Student student) {
+        if (this.followers == null) {
+            this.followers = new DoublyLinkedList<>();
+        }
+        if (!this.followers.contains(student)) { // Check if student is already a follower to avoid duplicates
+            this.followers.addLast(student);
+        }
+    }
+
+    public boolean removeFollower(Student student) {
+        if (this.followers != null) {
+            return this.followers.remove(student); // Assuming DoublyLinkedList.remove returns boolean
+        }
+        return false;
+    }
+
+    public int getFollowingCount() {
+        return (this.following != null) ? this.following.getSize() : 0;
+    }
+
+    public int getFollowersCount() {
+        return (this.followers != null) ? this.followers.getSize() : 0;
+    }
+
+    public boolean isFollowing(Student student) {
+        if (this.following == null || student == null) {
+            return false;
+        }
+        return this.following.contains(student);
     }
 }

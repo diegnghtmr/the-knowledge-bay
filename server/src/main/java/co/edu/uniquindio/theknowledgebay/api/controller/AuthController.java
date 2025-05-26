@@ -6,8 +6,10 @@ import co.edu.uniquindio.theknowledgebay.api.dto.LoginResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.RegisterStudentDTO;
 import co.edu.uniquindio.theknowledgebay.core.dto.AuthResultDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
+import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.StringListToInterests;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,8 +31,6 @@ public class AuthController {
         LocalDate dateOfBirth = null;
         if (registerDto.getDateOfBirth() != null && !registerDto.getDateOfBirth().isEmpty()) {
             try {
-                System.out.println("Date of birth: " + registerDto.getDateOfBirth());
-
                 dateOfBirth = LocalDate.parse(registerDto.getDateOfBirth()); // Assumes yyyy-MM-dd format
             } catch (DateTimeParseException e) {
                 // Log the error or handle it as a bad request

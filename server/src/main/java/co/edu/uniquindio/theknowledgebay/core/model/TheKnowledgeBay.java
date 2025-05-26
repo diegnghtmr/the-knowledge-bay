@@ -1,12 +1,20 @@
 package co.edu.uniquindio.theknowledgebay.core.model;
 
+import co.edu.uniquindio.theknowledgebay.api.dto.ContentResponseDTO;
+import co.edu.uniquindio.theknowledgebay.api.dto.HelpRequestResponseDTO;
+import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
+import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
+import co.edu.uniquindio.theknowledgebay.core.model.enums.Urgency;
 import co.edu.uniquindio.theknowledgebay.core.factory.UserFactory;
 import co.edu.uniquindio.theknowledgebay.core.repository.StudentRepository;
 import co.edu.uniquindio.theknowledgebay.infrastructure.config.ModeratorProperties;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.queues.PriorityQueue;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.trees.BinarySearchTree;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.graphs.UndirectedGraph;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.GraphVertex;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.Edge;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +23,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.context.annotation.Scope;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import java.time.LocalDate;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Getter
 @Component
@@ -35,6 +44,7 @@ public class TheKnowledgeBay {
     private final DoublyLinkedList<Comment> comments = new DoublyLinkedList<>();
     private final DoublyLinkedList<Message> messages = new DoublyLinkedList<>();
     private final DoublyLinkedList<Interest> interests = new DoublyLinkedList<>();
+    private UndirectedGraph<String> affinityGraph;
 
     // Dependencies for Moderator loading
     @Autowired
@@ -58,6 +68,402 @@ public class TheKnowledgeBay {
             contentTree = new BinarySearchTree<>();
         }
         contentTree.insert(c);
+    }
+
+    // HelpRequest operations
+    public boolean addHelpRequest(HelpRequest helpRequest) {
+        try {
+            System.out.println("TheKnowledgeBay - Agregando solicitud de ayuda...");
+            if (helpRequestQueue == null) {
+                helpRequestQueue = new PriorityQueue<>();
+                System.out.println("TheKnowledgeBay - Inicializando cola de prioridad");
+            }
+            
+            // Generate a unique ID for the help request
+            int requestId = generateHelpRequestId();
+            helpRequest.setRequestId(requestId);
+            System.out.println("TheKnowledgeBay - ID generado: " + requestId);
+            
+            helpRequestQueue.insert(helpRequest);
+            System.out.println("TheKnowledgeBay - Solicitud insertada en la cola");
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error adding help request: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public DoublyLinkedList<HelpRequest> getAllHelpRequests() {
+        DoublyLinkedList<HelpRequest> result = new DoublyLinkedList<>();
+        
+        if (helpRequestQueue == null || helpRequestQueue.isEmpty()) {
+            return result;
+        }
+        
+        // Create a copy to preserve the original queue
+        PriorityQueue<HelpRequest> tempQueue = new PriorityQueue<>();
+        
+        // Extract all elements from original queue
+        while (!helpRequestQueue.isEmpty()) {
+            HelpRequest request = helpRequestQueue.dequeue();
+            result.addLast(request);
+            tempQueue.insert(request);
+        }
+        
+        // Restore the original queue
+        while (!tempQueue.isEmpty()) {
+            helpRequestQueue.insert(tempQueue.dequeue());
+        }
+        
+        return result;
+    }
+
+    public HelpRequest getHelpRequestById(int id) {
+        if (helpRequestQueue == null || helpRequestQueue.isEmpty()) {
+            return null;
+        }
+        
+        // Create a temporary queue to search through
+        PriorityQueue<HelpRequest> tempQueue = new PriorityQueue<>();
+        HelpRequest found = null;
+        
+        // Search for the request with the given ID
+        while (!helpRequestQueue.isEmpty()) {
+            HelpRequest request = helpRequestQueue.dequeue();
+            if (request.getRequestId() == id) {
+                found = request;
+            }
+            tempQueue.insert(request);
+        }
+        
+        // Restore the original queue
+        while (!tempQueue.isEmpty()) {
+            helpRequestQueue.insert(tempQueue.dequeue());
+        }
+        
+        return found;
+    }
+
+    public boolean markHelpRequestAsCompleted(int requestId, String userId) {
+        if (helpRequestQueue == null || helpRequestQueue.isEmpty()) {
+            return false;
+        }
+        
+        PriorityQueue<HelpRequest> tempQueue = new PriorityQueue<>();
+        boolean found = false;
+        
+        while (!helpRequestQueue.isEmpty()) {
+            HelpRequest request = helpRequestQueue.dequeue();
+            if (request.getRequestId() == requestId && request.getStudent().getId().equals(userId)) {
+                request.markAsCompleted();
+                found = true;
+            }
+            tempQueue.insert(request);
+        }
+        
+        // Restore the original queue
+        while (!tempQueue.isEmpty()) {
+            helpRequestQueue.insert(tempQueue.dequeue());
+        }
+        
+        return found;
+    }
+
+    public boolean updateHelpRequest(int requestId, HelpRequestResponseDTO updatedDto) {
+        if (helpRequestQueue == null || helpRequestQueue.isEmpty()) {
+            return false;
+        }
+
+        HelpRequest existingRequest = null;
+        PriorityQueue<HelpRequest> tempQueue = new PriorityQueue<>();
+
+        // Find the request and store others temporarily
+        while (!helpRequestQueue.isEmpty()) {
+            HelpRequest current = helpRequestQueue.dequeue();
+            if (current.getRequestId() == requestId) {
+                existingRequest = current;
+            } else {
+                tempQueue.insert(current);
+            }
+        }
+
+        // Restore non-matching requests to the main queue
+        while (!tempQueue.isEmpty()) {
+            helpRequestQueue.insert(tempQueue.dequeue());
+        }
+
+        if (existingRequest == null) {
+            return false; // Request not found
+        }
+
+        // Update the existing request object (interests/topics are not directly updatable here)
+        // The DTO might not contain all fields, so only update what's provided
+        if (updatedDto.getInformation() != null) {
+            existingRequest.setInformation(updatedDto.getInformation());
+        }
+        if (updatedDto.getUrgency() != null) {
+            try {
+                existingRequest.setUrgency(Urgency.valueOf(updatedDto.getUrgency().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                // Handle invalid urgency string, perhaps log or revert
+                System.err.println("Invalid urgency value provided: " + updatedDto.getUrgency());
+            }
+        }
+        existingRequest.setCompleted(updatedDto.isCompleted());
+        // Student and Request Date are generally not changed by admin edit.
+        // Topics are also not part of HelpRequestResponseDTO for direct update.
+
+        // Re-insert the updated request into the priority queue
+        // This ensures its position is correct if urgency (priority) changed.
+        helpRequestQueue.insert(existingRequest);
+        return true;
+    }
+
+    // Content operations
+    public boolean addContent(Content content) {
+        try {
+            if (contentTree == null) {
+                contentTree = new BinarySearchTree<>();
+            }
+            
+            // Generate a unique ID for the content
+            content.setContentId(generateContentId());
+            
+            contentTree.insert(content);
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error adding content: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public DoublyLinkedList<Content> getAllContent() {
+        DoublyLinkedList<Content> result = new DoublyLinkedList<>();
+        
+        if (contentTree == null || contentTree.isEmpty()) {
+            return result;
+        }
+        
+        // Perform in-order traversal to get all content
+        contentTree.inOrderTraversal(result);
+        
+        return result;
+    }
+
+    public Content getContentById(int id) {
+        if (contentTree == null || contentTree.isEmpty()) {
+            return null;
+        }
+        
+        // Create a dummy content with the ID for searching
+        Content searchContent = Content.builder().contentId(id).build();
+        return contentTree.search(searchContent);
+    }
+
+    public boolean updateContent(int contentId, ContentResponseDTO updatedContentDTO) {
+        if (contentTree == null) {
+            return false; // No content to update
+        }
+
+        // Create a dummy content object with the ID to find the existing content
+        Content contentToFind = Content.builder().contentId(contentId).build();
+        Content existingContent = contentTree.search(contentToFind);
+
+        if (existingContent == null) {
+            return false; // Content not found
+        }
+
+        // Create a new Content object with updated information
+        // We keep the original author and date, as these typically don't change on admin edit
+        Content updatedContent = Content.builder()
+                .contentId(existingContent.getContentId()) // Keep original ID
+                .title(updatedContentDTO.getTitle() != null ? updatedContentDTO.getTitle() : existingContent.getTitle())
+                .contentType(updatedContentDTO.getContentType() != null ? ContentType.valueOf(updatedContentDTO.getContentType().toUpperCase()) : existingContent.getContentType())
+                .information(updatedContentDTO.getInformation() != null ? updatedContentDTO.getInformation() : existingContent.getInformation())
+                .author(existingContent.getAuthor()) // Keep original author
+                .likedBy(existingContent.getLikedBy()) // Keep original likes
+                .likeCount(existingContent.getLikeCount()) // Keep original like count
+                .comments(existingContent.getComments()) // Keep original comments
+                .date(existingContent.getDate()) // Keep original date
+                .build();
+        
+        // Topics are not directly editable in this DTO, so we keep existing ones
+        // If topic editing is needed, the DTO and this logic would need adjustment
+        updatedContent.setTopics(existingContent.getTopics());
+
+        // Remove the old content and insert the updated one
+        // This is safer for BSTs if the updated fields affect comparison
+        boolean removed = contentTree.removeAndCheck(existingContent);
+        if (removed) {
+            contentTree.insert(updatedContent);
+            return true;
+        } else {
+            // This case should ideally not happen if search found the content
+            return false; 
+        }
+    }
+
+    public boolean likeContent(int contentId, String userId) {
+        Content content = getContentById(contentId);
+        if (content == null) {
+            return false;
+        }
+        
+        Student user = (Student) getUserById(userId);
+        if (user == null) {
+            return false;
+        }
+        
+        // Check if user already liked this content
+        if (content.getLikedBy() != null) {
+            for (int i = 0; i < content.getLikedBy().getSize(); i++) {
+                if (content.getLikedBy().get(i).getId().equals(userId)) {
+                    return false; // Already liked
+                }
+            }
+        } else {
+            content.setLikedBy(new DoublyLinkedList<>());
+        }
+        
+        // Add like
+        content.getLikedBy().addLast(user);
+        content.setLikeCount(content.getLikeCount() + 1);
+        
+        return true;
+    }
+
+    public boolean unlikeContent(int contentId, String userId) {
+        Content content = getContentById(contentId);
+        if (content == null || content.getLikedBy() == null) {
+            return false;
+        }
+        
+        // Find and remove the user from liked list
+        for (int i = 0; i < content.getLikedBy().getSize(); i++) {
+            if (content.getLikedBy().get(i).getId().equals(userId)) {
+                content.getLikedBy().removeAt(i);
+                content.setLikeCount(content.getLikeCount() - 1);
+                return true;
+            }
+        }
+        
+        return false; // User hadn't liked this content
+    }
+
+    // Statistics methods
+    public int getContentCountByUserId(String userId) {
+        int count = 0;
+        if (contentTree == null || contentTree.isEmpty() || userId == null) {
+            return count;
+        }
+        
+        DoublyLinkedList<Content> allContent = getAllContent();
+        for (int i = 0; i < allContent.getSize(); i++) {
+            Content content = allContent.get(i);
+            if (content != null && content.getAuthor() != null && 
+                content.getAuthor().getId() != null && 
+                content.getAuthor().getId().equals(userId)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int getHelpRequestCountByUserId(String userId) {
+        int count = 0;
+        System.out.println("TheKnowledgeBay - Contando solicitudes para userId: " + userId);
+        
+        if (helpRequestQueue == null || helpRequestQueue.isEmpty() || userId == null) {
+            System.out.println("TheKnowledgeBay - Cola vacía o userId nulo");
+            return count;
+        }
+        
+        DoublyLinkedList<HelpRequest> allRequests = getAllHelpRequests();
+        System.out.println("TheKnowledgeBay - Total de solicitudes en cola: " + allRequests.getSize());
+        
+        for (int i = 0; i < allRequests.getSize(); i++) {
+            HelpRequest request = allRequests.get(i);
+            if (request != null && request.getStudent() != null) {
+                String studentId = request.getStudent().getId();
+                System.out.println("TheKnowledgeBay - Solicitud " + i + " - StudentId: '" + studentId + "', buscando: '" + userId + "'");
+                
+                if (studentId != null && studentId.equals(userId)) {
+                    count++;
+                    System.out.println("TheKnowledgeBay - ¡Coincidencia encontrada! Count: " + count);
+                }
+            } else {
+                System.out.println("TheKnowledgeBay - Solicitud " + i + " - request o student es null");
+            }
+        }
+        
+        System.out.println("TheKnowledgeBay - Total de solicitudes para el usuario: " + count);
+        return count;
+    }
+
+    // Delete operations
+    public boolean deleteContent(int contentId) {
+        try {
+            if (contentTree == null || contentTree.isEmpty()) {
+                return false;
+            }
+            
+            // Create a dummy content with the ID for searching
+            Content searchContent = Content.builder().contentId(contentId).build();
+            Content found = contentTree.search(searchContent);
+            
+            if (found != null) {
+                contentTree.remove(found);
+                return true;
+            }
+            
+            return false;
+        } catch (Exception e) {
+            System.err.println("Error deleting content: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean deleteHelpRequest(int requestId) {
+        try {
+            if (helpRequestQueue == null || helpRequestQueue.isEmpty()) {
+                return false;
+            }
+            
+            PriorityQueue<HelpRequest> tempQueue = new PriorityQueue<>();
+            boolean found = false;
+            
+            // Search for the request and exclude it from the temp queue
+            while (!helpRequestQueue.isEmpty()) {
+                HelpRequest request = helpRequestQueue.dequeue();
+                if (request.getRequestId() != requestId) {
+                    tempQueue.insert(request);
+                } else {
+                    found = true;
+                }
+            }
+            
+            // Restore the queue without the deleted request
+            while (!tempQueue.isEmpty()) {
+                helpRequestQueue.insert(tempQueue.dequeue());
+            }
+            
+            return found;
+        } catch (Exception e) {
+            System.err.println("Error deleting help request: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Helper methods for ID generation
+    private int generateHelpRequestId() {
+        // Simple ID generation based on current timestamp
+        return (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
+    }
+
+    private int generateContentId() {
+        // Simple ID generation based on current timestamp
+        return (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
     }
 
     public void createAutomaticGroups() {
@@ -91,6 +497,11 @@ public class TheKnowledgeBay {
         for (Student student : students) {
             this.users.add(student);
         }
+        
+        // Initialize affinity graph
+        System.out.println("Initializing affinity graph...");
+        initializeAffinityGraph();
+        System.out.println("Affinity graph initialized with " + interests.getSize() + " interests");
     }
 
 
@@ -110,6 +521,11 @@ public class TheKnowledgeBay {
             Student s = current.getData();
             if (s.getEmail() != null && s.getEmail().equals(email)) {
                 System.out.println("Usuario encontrado (estudiante): " + email);
+                // Asegurar que el estudiante tenga un ID asignado
+                if (s.getId() == null) {
+                    s.setId(email);
+                    System.out.println("ID asignado al estudiante existente: " + email);
+                }
                 return s;
             }
             current = current.getNext();
@@ -169,6 +585,40 @@ public class TheKnowledgeBay {
         return null;
     }
 
+    public boolean updateStudent(String userId, ProfileResponseDTO updatedUser) {
+        Student studentToUpdate = (Student) getUserById(userId);
+
+        if (studentToUpdate == null) {
+            return false; // User not found
+        }
+
+        // Update basic fields from ProfileResponseDTO
+        if (updatedUser.getUsername() != null) {
+            studentToUpdate.setUsername(updatedUser.getUsername());
+        }
+        if (updatedUser.getEmail() != null) {
+            studentToUpdate.setEmail(updatedUser.getEmail());
+        }
+        if (updatedUser.getFirstName() != null) {
+            studentToUpdate.setFirstName(updatedUser.getFirstName());
+        }
+        if (updatedUser.getLastName() != null) {
+            studentToUpdate.setLastName(updatedUser.getLastName());
+        }
+        if (updatedUser.getDateBirth() != null) {
+            studentToUpdate.setDateBirth(updatedUser.getDateBirth());
+        }
+        if (updatedUser.getBiography() != null) {
+            studentToUpdate.setBiography(updatedUser.getBiography());
+        }
+
+        // For now, we'll assume the in-memory UserFactory's list is the source of truth
+        // and changes to the studentToUpdate object are reflected.
+        // If using a persistent database, uncomment and implement:
+        studentRepository.update(studentToUpdate);
+
+        return true; // Successfully updated
+    }
 
     public void updateUser(String userId, User updated, List<String> interestNames) {
         // Buscar al moderador
@@ -259,5 +709,710 @@ public class TheKnowledgeBay {
             if (us.getDateBirth() != null) target.setDateBirth(us.getDateBirth());
             if (us.getBiography() != null) target.setBiography(us.getBiography());
         }
+    }
+
+    // Interest management operations
+    public boolean addInterest(Interest interest) {
+        try {
+            if (interest.getName() == null || interest.getName().trim().isEmpty()) {
+                return false;
+            }
+            
+            // Generate unique ID for the interest
+            interest.setIdInterest(generateInterestId());
+            interest.setName(interest.getName().trim());
+            
+            interests.addLast(interest);
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error adding interest: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public DoublyLinkedList<Interest> getAllInterests() {
+        return interests;
+    }
+
+    public Interest getInterestById(String id) {
+        if (id == null || interests.isEmpty()) {
+            return null;
+        }
+        
+        for (int i = 0; i < interests.getSize(); i++) {
+            Interest interest = interests.get(i);
+            if (interest.getIdInterest() != null && interest.getIdInterest().equals(id)) {
+                return interest;
+            }
+        }
+        return null;
+    }
+
+    public boolean updateInterest(String id, String newName) {
+        if (id == null || newName == null || newName.trim().isEmpty()) {
+            return false;
+        }
+        
+        Interest interest = getInterestById(id);
+        if (interest != null) {
+            interest.setName(newName.trim());
+            return true;
+        }
+        return false;
+    }
+
+    public boolean deleteInterest(String id) {
+        if (id == null || interests.isEmpty()) {
+            return false;
+        }
+        
+        for (int i = 0; i < interests.getSize(); i++) {
+            Interest interest = interests.get(i);
+            if (interest.getIdInterest() != null && interest.getIdInterest().equals(id)) {
+                interests.removeAt(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String generateInterestId() {
+        return "interest_" + System.currentTimeMillis();
+    }
+
+    // Affinity Graph operations
+    public void initializeAffinityGraph() {
+        if (affinityGraph == null) {
+            affinityGraph = new UndirectedGraph<>();
+        }
+        
+        // Add all students as vertices
+        DoublyLinkedNode<Student> current = users.getStudents().getHead();
+        while (current != null) {
+            Student student = current.getData();
+            if (student.getId() != null) {
+                affinityGraph.addVertex(student.getId());
+            }
+            current = current.getNext();
+        }
+        
+        // Create edges based on mutual following in addition to shared interests
+        createAffinityConnections();
+    }
+
+    private void createAffinityConnections() {
+        DoublyLinkedNode<Student> current1 = users.getStudents().getHead();
+        System.out.println("[AffinityGraph] Starting createAffinityConnections...");
+
+        while (current1 != null) {
+            Student student1 = current1.getData();
+            if (student1.getId() == null) {
+                current1 = current1.getNext();
+                continue;
+            }
+
+            DoublyLinkedNode<Student> current2 = current1.getNext();
+            
+            while (current2 != null) {
+                Student student2 = current2.getData();
+                if (student2.getId() == null) {
+                    current2 = current2.getNext();
+                    continue;
+                }
+
+                // Specific log for user_one and user_two
+                if ((student1.getId().equals("usuario.uno@example.com") && student2.getId().equals("usuario.dos@example.com")) || 
+                    (student1.getId().equals("usuario.dos@example.com") && student2.getId().equals("usuario.uno@example.com"))) {
+                    System.out.println("[AffinityGraph] Checking pair: " + student1.getId() + " and " + student2.getId());
+                    boolean s1FollowsS2 = isUserFollowing(student1.getId(), student2.getId());
+                    boolean s2FollowsS1 = isUserFollowing(student2.getId(), student1.getId());
+                    boolean sharedInterests = hasSharedInterests(student1, student2);
+                    System.out.println("[AffinityGraph]   " + student1.getId() + " follows " + student2.getId() + ": " + s1FollowsS2);
+                    System.out.println("[AffinityGraph]   " + student2.getId() + " follows " + student1.getId() + ": " + s2FollowsS1);
+                    System.out.println("[AffinityGraph]   Shared interests: " + sharedInterests);
+
+                    boolean connectedByFollowingLog = s1FollowsS2 || s2FollowsS1;
+                    boolean attemptConnection = sharedInterests || connectedByFollowingLog;
+                    System.out.println("[AffinityGraph]   Connected by following (logic): " + connectedByFollowingLog);
+                    System.out.println("[AffinityGraph]   Attempting to connect: " + attemptConnection);
+
+                    if (attemptConnection) {
+                        boolean edgeExistsBeforeAdd = affinityGraph.edgeExists(student1.getId(), student2.getId());
+                        System.out.println("[AffinityGraph]   Edge exists before add? " + edgeExistsBeforeAdd);
+                        if (!edgeExistsBeforeAdd) {
+                            System.out.println("[AffinityGraph]   Adding edge between " + student1.getId() + " and " + student2.getId());
+                            affinityGraph.addEdge(student1.getId(), student2.getId());
+                        } else {
+                            System.out.println("[AffinityGraph]   Edge already exists, not adding again.");
+                        }
+                    } else {
+                        System.out.println("[AffinityGraph]   No connection condition met, not adding edge.");
+                    }
+                }
+                
+                // General logic (existing)
+                boolean connectedByInterest = hasSharedInterests(student1, student2);
+                boolean connectedByFollowing = isUserFollowing(student1.getId(), student2.getId()) || isUserFollowing(student2.getId(), student1.getId());
+
+                if (connectedByInterest || connectedByFollowing) {
+                    try {
+                        if (!affinityGraph.edgeExists(student1.getId(), student2.getId())) {
+                           affinityGraph.addEdge(student1.getId(), student2.getId());
+                        } // else edge already exists, do nothing
+                    } catch (Exception e) {
+                        System.err.println("Error adding edge to affinity graph for " + student1.getId() + " and " + student2.getId() + ": " + e.getMessage());
+                    }
+                }
+                
+                current2 = current2.getNext();
+            }
+            current1 = current1.getNext();
+        }
+        System.out.println("[AffinityGraph] Finished createAffinityConnections.");
+    }
+
+    private boolean hasSharedInterests(Student student1, Student student2) {
+        if (student1.getInterests() == null || student2.getInterests() == null) {
+            return false;
+        }
+        
+        // Check if they share at least one interest
+        for (int i = 0; i < student1.getInterests().getSize(); i++) {
+            Interest interest1 = student1.getInterests().get(i);
+            for (int j = 0; j < student2.getInterests().getSize(); j++) {
+                Interest interest2 = student2.getInterests().get(j);
+                if (interest1.getName().equals(interest2.getName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public List<Map<String, Object>> getAffinityGraphData() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        if (affinityGraph == null) {
+            initializeAffinityGraph();
+        }
+        
+        // Add nodes data
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        List<Map<String, Object>> links = new ArrayList<>();
+        
+        DoublyLinkedNode<Student> current = users.getStudents().getHead();
+        int groupCounter = 0;
+        Map<String, Integer> userGroups = new HashMap<>();
+        
+        while (current != null) {
+            Student student = current.getData();
+            if (student.getId() != null) {
+                // Assign group based on primary interest
+                int group = getGroupForStudent(student, userGroups, groupCounter++);
+                
+                Map<String, Object> node = new HashMap<>();
+                node.put("id", student.getId());
+                node.put("label", student.getUsername() != null ? student.getUsername() : student.getId());
+                node.put("group", group % 4); // Limit to 4 groups for colors
+                
+                // Add interests
+                List<String> interestNames = new ArrayList<>();
+                if (student.getInterests() != null) {
+                    for (int i = 0; i < student.getInterests().getSize(); i++) {
+                        interestNames.add(student.getInterests().get(i).getName());
+                    }
+                }
+                node.put("interests", interestNames);
+                
+                nodes.add(node);
+            }
+            current = current.getNext();
+        }
+        
+        // Add links based on the graph connections
+        GraphVertex<String> vertex = affinityGraph.getVertices();
+        while (vertex != null) {
+            String sourceId = vertex.getData();
+            Edge<String> edge = vertex.getEdgeList();
+            
+            while (edge != null) {
+                String targetId = edge.getAdjacent().getData();
+                
+                // Only add each edge once (avoid duplicates in undirected graph)
+                if (sourceId.compareTo(targetId) < 0) {
+                    Map<String, Object> link = new HashMap<>();
+                    link.put("source", sourceId);
+                    link.put("target", targetId);
+                    link.put("weight", 1.0);
+                    links.add(link);
+                }
+                
+                edge = edge.getNextEdge();
+            }
+            vertex = vertex.getNextVertex();
+        }
+        
+        Map<String, Object> graphData = new HashMap<>();
+        graphData.put("nodes", nodes);
+        graphData.put("links", links);
+        
+        result.add(graphData);
+        return result;
+    }
+
+    private int getGroupForStudent(Student student, Map<String, Integer> userGroups, int defaultGroup) {
+        if (student.getInterests() != null && student.getInterests().getSize() > 0) {
+            String primaryInterest = student.getInterests().get(0).getName();
+            return userGroups.computeIfAbsent(primaryInterest, k -> defaultGroup % 4);
+        }
+        return defaultGroup % 4;
+    }
+
+    public List<String> findShortestPathBetweenStudents(String studentId1, String studentId2) {
+        if (affinityGraph == null) {
+            initializeAffinityGraph();
+        }
+        
+        // Implement BFS for shortest path
+        Queue<String> queue = new LinkedList<>();
+        Map<String, String> parent = new HashMap<>();
+        Set<String> visited = new HashSet<>();
+        
+        queue.offer(studentId1);
+        visited.add(studentId1);
+        parent.put(studentId1, null);
+        
+        while (!queue.isEmpty()) {
+            String currentId = queue.poll();
+            
+            if (currentId.equals(studentId2)) {
+                // Reconstruct path
+                List<String> path = new ArrayList<>();
+                String node = studentId2;
+                while (node != null) {
+                    path.add(0, node);
+                    node = parent.get(node);
+                }
+                return path;
+            }
+            
+            // Find neighbors
+            GraphVertex<String> vertex = findGraphVertex(currentId);
+            if (vertex != null) {
+                Edge<String> edge = vertex.getEdgeList();
+                while (edge != null) {
+                    String neighborId = edge.getAdjacent().getData();
+                    if (!visited.contains(neighborId)) {
+                        visited.add(neighborId);
+                        parent.put(neighborId, currentId);
+                        queue.offer(neighborId);
+                    }
+                    edge = edge.getNextEdge();
+                }
+            }
+        }
+        
+        return new ArrayList<>(); // No path found
+    }
+
+    private GraphVertex<String> findGraphVertex(String data) {
+        if (affinityGraph == null) return null;
+        
+        GraphVertex<String> current = affinityGraph.getVertices();
+        while (current != null) {
+            if (current.getData().equals(data)) {
+                return current;
+            }
+            current = current.getNextVertex();
+        }
+        return null;
+    }
+
+    public void refreshAffinityGraph() {
+        affinityGraph = null;
+        initializeAffinityGraph();
+    }
+
+    // Analytics operations
+    public List<Map<String, Object>> getTopicActivityData() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Integer> interestContentCounts = new HashMap<>();
+        Map<String, Integer> interestHelpRequestCounts = new HashMap<>();
+        
+        System.out.println("Getting topic activity data based on interests...");
+        
+        // Count content by interests (topics)
+        if (contentTree != null && !contentTree.isEmpty()) {
+            DoublyLinkedList<Content> allContent = getAllContent();
+            System.out.println("Analyzing " + allContent.getSize() + " content items for interest matching");
+            
+            for (int i = 0; i < allContent.getSize(); i++) {
+                Content content = allContent.get(i);
+                if (content.getTopics() != null) {
+                    for (int j = 0; j < content.getTopics().getSize(); j++) {
+                        String topicName = content.getTopics().get(j).getName();
+                        // Match with existing interests
+                        if (isInterestInSystem(topicName)) {
+                            interestContentCounts.put(topicName, interestContentCounts.getOrDefault(topicName, 0) + 1);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Count help requests by interests
+        if (helpRequestQueue != null && !helpRequestQueue.isEmpty()) {
+            DoublyLinkedList<HelpRequest> allRequests = getAllHelpRequests();
+            System.out.println("Analyzing " + allRequests.getSize() + " help requests for interest matching");
+            
+            for (int i = 0; i < allRequests.getSize(); i++) {
+                HelpRequest request = allRequests.get(i);
+                if (request.getTopics() != null) {
+                    for (int j = 0; j < request.getTopics().getSize(); j++) {
+                        String topicName = request.getTopics().get(j).getName();
+                        // Match with existing interests
+                        if (isInterestInSystem(topicName)) {
+                            interestHelpRequestCounts.put(topicName, interestHelpRequestCounts.getOrDefault(topicName, 0) + 1);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Generate activity data based on all interests in the system
+        for (int i = 0; i < interests.getSize(); i++) {
+            Interest interest = interests.get(i);
+            String interestName = interest.getName();
+            
+            int contentCount = interestContentCounts.getOrDefault(interestName, 0);
+            int helpRequestCount = interestHelpRequestCounts.getOrDefault(interestName, 0);
+            int totalActivity = contentCount + helpRequestCount;
+            
+            if (totalActivity > 0) { // Only include interests that have activity
+                Map<String, Object> topicData = new HashMap<>();
+                topicData.put("topic", interestName);
+                topicData.put("contents", totalActivity);
+                result.add(topicData);
+                System.out.println("Interest '" + interestName + "' has " + totalActivity + " activities (" + contentCount + " content, " + helpRequestCount + " help requests)");
+            }
+        }
+        
+        // If no interests have activity, add a message indicating this
+        if (result.isEmpty() && interests.getSize() > 0) {
+            System.out.println("No activity found for existing interests, showing interests with 0 activity");
+            // Show all interests but with 0 activity to indicate they exist but have no content/help requests
+            for (int i = 0; i < Math.min(interests.getSize(), 5); i++) {
+                Interest interest = interests.get(i);
+                Map<String, Object> topicData = new HashMap<>();
+                topicData.put("topic", interest.getName());
+                topicData.put("contents", 0);
+                result.add(topicData);
+            }
+        }
+        
+        System.out.println("Topic activity result: " + result.size() + " interests");
+        return result;
+    }
+    
+    private boolean isInterestInSystem(String topicName) {
+        for (int i = 0; i < interests.getSize(); i++) {
+            if (interests.get(i).getName().equals(topicName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<Map<String, Object>> getParticipationLevelsData() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Integer> weeklyActivity = new HashMap<>();
+        
+        System.out.println("Calculating participation levels by week...");
+        
+        // Calculate activity for the last 4 weeks
+        LocalDate now = LocalDate.now();
+        
+        // Initialize weeks
+        for (int i = 3; i >= 0; i--) {
+            LocalDate weekStart = now.minusWeeks(i);
+            String weekLabel = "Sem " + (4 - i);
+            weeklyActivity.put(weekLabel, 0);
+        }
+        
+        // Count content by week
+        if (contentTree != null && !contentTree.isEmpty()) {
+            DoublyLinkedList<Content> allContent = getAllContent();
+            for (int i = 0; i < allContent.getSize(); i++) {
+                Content content = allContent.get(i);
+                if (content.getDate() != null) {
+                    String weekLabel = getWeekLabel(content.getDate(), now);
+                    if (weekLabel != null && weeklyActivity.containsKey(weekLabel)) {
+                        weeklyActivity.put(weekLabel, weeklyActivity.get(weekLabel) + 1);
+                    }
+                }
+            }
+        }
+        
+        // Count help requests by week
+        if (helpRequestQueue != null && !helpRequestQueue.isEmpty()) {
+            DoublyLinkedList<HelpRequest> allRequests = getAllHelpRequests();
+            for (int i = 0; i < allRequests.getSize(); i++) {
+                HelpRequest request = allRequests.get(i);
+                if (request.getRequestDate() != null) {
+                    String weekLabel = getWeekLabel(request.getRequestDate(), now);
+                    if (weekLabel != null && weeklyActivity.containsKey(weekLabel)) {
+                        weeklyActivity.put(weekLabel, weeklyActivity.get(weekLabel) + 1);
+                    }
+                }
+            }
+        }
+        
+        // Convert to result format
+        for (int i = 1; i <= 4; i++) {
+            String weekLabel = "Sem " + i;
+            Map<String, Object> weekData = new HashMap<>();
+            weekData.put("week", weekLabel);
+            weekData.put("activity", weeklyActivity.get(weekLabel));
+            result.add(weekData);
+            System.out.println(weekLabel + ": " + weeklyActivity.get(weekLabel) + " activities");
+        }
+        
+        return result;
+    }
+    
+    private String getWeekLabel(LocalDate activityDate, LocalDate now) {
+        if (activityDate == null) return null;
+        
+        long weeksAgo = java.time.temporal.ChronoUnit.WEEKS.between(activityDate, now);
+        
+        if (weeksAgo >= 0 && weeksAgo <= 3) {
+            return "Sem " + (4 - (int)weeksAgo);
+        }
+        return null;
+    }
+
+    private int calculateWeeklyActivity(int week) {
+        // Simple calculation based on content and help requests
+        int contentCount = getTotalContentCount();
+        int helpRequestCount = getTotalHelpRequestsCount();
+        int userCount = getTotalUsersCount();
+        
+        // Simulate weekly variation
+        int baseActivity = (contentCount + helpRequestCount) * 2;
+        return Math.max(baseActivity + (week * 5) + (userCount / 2), 20);
+    }
+
+    // Helper methods for counts
+    public int getTotalContentCount() {
+        DoublyLinkedList<Content> contents = getAllContent();
+        return contents != null ? contents.getSize() : 0;
+    }
+
+    public int getTotalHelpRequestsCount() {
+        DoublyLinkedList<HelpRequest> requests = getAllHelpRequests();
+        return requests != null ? requests.getSize() : 0;
+    }
+
+    public int getTotalUsersCount() {
+        int count = 0;
+        DoublyLinkedNode<Student> current = users.getStudents().getHead();
+        while (current != null) {
+            count++;
+            current = current.getNext();
+        }
+        return count;
+    }
+
+    public List<Map<String, Object>> getCommunityDetectionData() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, List<String>> interestGroups = new HashMap<>();
+        Map<String, Integer> interestCounts = new HashMap<>();
+        
+        System.out.println("Getting community detection data based on interests...");
+        
+        // Group students by ALL their interests (not just primary)
+        DoublyLinkedNode<Student> current = users.getStudents().getHead();
+        int studentCount = 0;
+        while (current != null) {
+            Student student = current.getData();
+            studentCount++;
+            String studentName = student.getUsername() != null ? student.getUsername() : student.getId();
+            
+            if (student.getInterests() != null && student.getInterests().getSize() > 0) {
+                // Add student to all their interest groups
+                for (int i = 0; i < student.getInterests().getSize(); i++) {
+                    String interestName = student.getInterests().get(i).getName();
+                    interestGroups.computeIfAbsent(interestName, k -> new ArrayList<>()).add(studentName);
+                    interestCounts.put(interestName, interestCounts.getOrDefault(interestName, 0) + 1);
+                }
+            }
+            current = current.getNext();
+        }
+        
+        System.out.println("Found " + studentCount + " students distributed across " + interestGroups.size() + " interest groups");
+        
+        // Convert to cluster format based on actual interests in the system
+        int clusterId = 1;
+        for (int i = 0; i < interests.getSize(); i++) {
+            Interest interest = interests.get(i);
+            String interestName = interest.getName();
+            
+            if (interestGroups.containsKey(interestName)) {
+                List<String> studentsInInterest = interestGroups.get(interestName);
+                // Remove duplicates while preserving order
+                List<String> uniqueStudents = new ArrayList<>();
+                for (String student : studentsInInterest) {
+                    if (!uniqueStudents.contains(student)) {
+                        uniqueStudents.add(student);
+                    }
+                }
+                
+                if (!uniqueStudents.isEmpty()) {
+                    Map<String, Object> cluster = new HashMap<>();
+                    cluster.put("id", clusterId++);
+                    cluster.put("topic", interestName);
+                    cluster.put("students", String.join(", ", uniqueStudents));
+                    result.add(cluster);
+                    System.out.println("Interest '" + interestName + "' has " + uniqueStudents.size() + " students: " + uniqueStudents);
+                }
+            } else {
+                System.out.println("Interest '" + interestName + "' has no students");
+            }
+        }
+        
+        System.out.println("Community detection result: " + result.size() + " communities");
+        return result;
+    }
+
+    public List<Map<String, Object>> getMostConnectedUsers() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Integer> userConnections = new HashMap<>();
+        
+        System.out.println("Calculating most connected users from affinity graph...");
+        
+        if (affinityGraph == null) {
+            initializeAffinityGraph();
+        }
+        
+        // Count connections for each user in the affinity graph
+        GraphVertex<String> vertex = affinityGraph.getVertices();
+        while (vertex != null) {
+            String userId = vertex.getData();
+            int connectionCount = 0;
+            
+            // Count edges for this user
+            Edge<String> edge = vertex.getEdgeList();
+            while (edge != null) {
+                connectionCount++;
+                edge = edge.getNextEdge();
+            }
+            
+            userConnections.put(userId, connectionCount);
+            vertex = vertex.getNextVertex();
+        }
+        
+        // Convert to list and sort by connection count
+        List<Map.Entry<String, Integer>> sortedUsers = new ArrayList<>(userConnections.entrySet());
+        sortedUsers.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        
+        // Get top 5 most connected users
+        int limit = Math.min(5, sortedUsers.size());
+        for (int i = 0; i < limit; i++) {
+            Map.Entry<String, Integer> entry = sortedUsers.get(i);
+            User user = getUserById(entry.getKey()); 
+            if (user != null) {
+                Map<String, Object> userData = new HashMap<>();
+                userData.put("id", user.getId());
+                userData.put("username", user.getUsername());
+                userData.put("name", (user instanceof Student ? ((Student)user).getFirstName() : "") + " " + (user instanceof Student ? ((Student)user).getLastName() : "")); 
+                userData.put("connections", entry.getValue());
+                // Generate a generic avatar URL based on username or ID
+                String avatarSeed = user.getUsername() != null ? user.getUsername() : user.getId();
+                userData.put("avatar", "https://avatar.vercel.sh/" + avatarSeed + ".png?size=40"); 
+                result.add(userData);
+            }
+        }
+        return result;
+    }
+
+    public Map<String, Object> getFullAnalyticsData() {
+        System.out.println("Getting full analytics data...");
+        Map<String, Object> analytics = new HashMap<>();
+        
+        List<Map<String, Object>> topicActivity = getTopicActivityData();
+        List<Map<String, Object>> participationLevels = getParticipationLevelsData();
+        List<Map<String, Object>> communityClusters = getCommunityDetectionData();
+        
+        analytics.put("topicActivity", topicActivity);
+        analytics.put("participationLevels", participationLevels);
+        analytics.put("communityClusters", communityClusters);
+        
+        System.out.println("Analytics data prepared - topicActivity: " + topicActivity.size() + 
+                          ", participationLevels: " + participationLevels.size() + 
+                          ", communityClusters: " + communityClusters.size());
+        
+        return analytics;
+    }
+
+    // Follow/Unfollow logic
+    public boolean followUser(String followerId, String followedId) {
+        User followerUser = getUserById(followerId);
+        User followedUser = getUserById(followedId);
+
+        if (followerUser instanceof Student && followedUser instanceof Student) {
+            Student follower = (Student) followerUser;
+            Student followed = (Student) followedUser;
+
+            if (follower.getId().equals(followed.getId())) {
+                 // Cannot follow yourself
+                return false;
+            }
+
+            follower.addFollowing(followed);
+            followed.addFollower(follower);
+            // Assuming StudentRepository handles persistence if necessary, or if objects are managed in memory primarily.
+            // If explicit save is needed:
+            // studentRepository.update(follower);
+            // studentRepository.update(followed);
+            System.out.println("[UserAction] " + followerId + " now follows " + followedId);
+            refreshAffinityGraph(); // Refresh graph after successful follow
+            System.out.println("[AffinityGraph] Graph refreshed due to follow action.");
+            return true;
+        }
+        return false;
+    }
+
+    public boolean unfollowUser(String followerId, String unfollowedId) {
+        User followerUser = getUserById(followerId);
+        User unfollowedUser = getUserById(unfollowedId);
+
+        if (followerUser instanceof Student && unfollowedUser instanceof Student) {
+            Student follower = (Student) followerUser;
+            Student unfollowed = (Student) unfollowedUser;
+
+            boolean success = follower.removeFollowing(unfollowed) && unfollowed.removeFollower(follower);
+            if (success) {
+                // studentRepository.update(follower); // Potentially update both if needed
+                // studentRepository.update(unfollowed);
+                System.out.println("[UserAction] " + followerId + " unfollowed " + unfollowedId);
+                refreshAffinityGraph(); // Refresh graph after successful unfollow
+                System.out.println("[AffinityGraph] Graph refreshed due to unfollow action.");
+            }
+            return success;
+        }
+        return false;
+    }
+
+    public boolean isUserFollowing(String currentUserId, String targetUserId) {
+        if (currentUserId == null || targetUserId == null) {
+            return false;
+        }
+        User currentUser = getUserById(currentUserId);
+        User targetUser = getUserById(targetUserId);
+
+        if (currentUser instanceof Student && targetUser instanceof Student) {
+            return ((Student) currentUser).isFollowing((Student) targetUser);
+        }
+        return false;
     }
 }

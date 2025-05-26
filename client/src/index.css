@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --coastal-sea: #2A9D8F;
+  --open-sea: #264653;
+  --deep-sea: #1C1F21;
+  --sand: #F2F3D9;
+}
+
+body {
+  margin: 0;
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* ----- Clases personalizadas ----- */
+.bg-cream-custom {
+  background-color: #F8F5EC;
+}
+
+@layer utilities {
+  /* Ocultar barra de desplazamiento pero mantener funcionalidad */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  /* Escala ligeramente más pequeña para el efecto al hacer clic */
+  .active\:scale-98:active {
+    transform: scale(0.98);
+  }
+}
+
+/* ----- Fuentes ----- */
+@font-face {
+  font-family: 'Righteous';
+  src: url('./assets/fonts/Righteous-Regular.ttf') format('truetype');
+}
+
+.font-righteous {
+  font-family: 'Righteous', cursive;
+}
+
+.font-workSans-light {
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 300;
+}
+
+.font-workSans {
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 400;
+}
+
+.font-workSans-medium {
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 500;
+}
+
+.font-workSans-semibold {
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 600;
+}
+
+.font-workSans-bold {
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 700;
+} 

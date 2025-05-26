@@ -4,42 +4,61 @@ import { useAuth } from "./context/AuthContext"; // Import useAuth
 
 import Landing from "./pages/Landing.jsx";
 import ProfilePage from "./pages/profile/ProfilePage";
+import UserProfileViewPage from "./pages/profile/UserProfileViewPage";
 import ChatPage from "./pages/chat/ChatPage";
+import UserDashboardPage from "./pages/UserDashboardPage";
+import ContentDashboardPage from "./pages/ContentDashboardPage";
+import AffinityGraphPage from "./pages/AffinityGraphPage";
+import HelpRequestPage from "./pages/HelpRequestPage";
+import PublishContentPage from "./pages/PublishContentPage";
 import BodyClassManager from "./components/layout/BodyClassManager";
+import Home from "./pages/Home";
+
+// Admin pages
+import DashboardAnalyticsPage from "./pages/admin/DashboardAnalyticsPage";
+import InterestManagementPage from "./pages/admin/InterestManagementPage";
+import HelpRequestsPage from "./pages/admin/HelpRequestsPage";
+import AdminDashboardStatsPage from "./pages/admin/AdminDashboardStatsPage";
 
 import Terms from "./pages/Terms.jsx";
-// Placeholder for authenticated content
-const AuthenticatedApp = () => {
-  const { userRole, logout } = useAuth();
-  return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h2>Welcome, {userRole}!</h2>
-      <div className="flex justify-center space-x-4 mt-4">
-        <button
-          onClick={logout}
-          style={{ padding: '10px 20px', cursor: 'pointer' }}
-        >
-          Logout
-        </button>
-        <a
-          href="/chat"
-          className="bg-coastal-sea text-deep-sea px-5 py-2 rounded hover:bg-open-sea transition-colors"
-        >
-          Ir al Chat
-        </a>
-        <a
-          href="/profile"
-          className="bg-coastal-sea text-deep-sea px-5 py-2 rounded hover:bg-open-sea transition-colors"
-        >
-          Mi Perfil
-        </a>
-      </div>
-    </div>
-  );
+
+// Componente personalizado para rutas protegidas por rol
+const RoleRoute = ({ element, allowedRoles }) => {
+  const { userRole, isAuthenticated } = useAuth();
+
+  // Convertir roles a minúsculas para la comparación
+  const userRoleLowerCase = userRole ? userRole.toLowerCase() : '';
+  const allowedRolesLowerCase = allowedRoles.map(role => role.toLowerCase());
+
+  // Depuración de rutas protegidas
+  console.log("RoleRoute - Checking access:", {
+    userRole,
+    userRoleLowerCase,
+    allowedRoles,
+    allowedRolesLowerCase,
+    isAllowed: allowedRolesLowerCase.includes(userRoleLowerCase),
+    isAuthenticated
+  });
+
+  // Verificar si el usuario está autenticado
+  if (!isAuthenticated) {
+    console.log("RoleRoute - User not authenticated, redirecting to landing");
+    return <Navigate to="/landing" replace />;
+  }
+
+  // Verificar si el rol del usuario está permitido para esta ruta
+  if (allowedRolesLowerCase.includes(userRoleLowerCase)) {
+    console.log("RoleRoute - Access granted");
+    return element;
+  } else {
+    // Redirigir a la página principal si el usuario no tiene acceso
+    console.log("RoleRoute - Access denied, redirecting to home");
+    return <Navigate to="/" replace />;
+  }
 };
 
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userRole } = useAuth();
 
   return (
     <>
@@ -49,11 +68,93 @@ function App() {
       <Routes>
         {isAuthenticated ? (
           <>
-            {/* If authenticated, show the main app view */}
-            <Route path="/" element={<AuthenticatedApp />} />
+            {/* Rutas para todos los usuarios autenticados */}
+            <Route path="/" element={<Home />} />
+            {/* Redireccionar /dashboard a la página principal */}
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/user/:userId" element={<UserProfileViewPage />} />
             <Route path="/chat" element={<ChatPage />} />
-            {/* Redirect any other path to the main authenticated view */}
+
+            {/* Rutas protegidas por rol - Solo Moderador */}
+            <Route
+              path="/users-dashboard"
+              element={
+                <RoleRoute
+                  element={<UserDashboardPage />}
+                  allowedRoles={['moderator']}
+                />
+              }
+            />
+
+            {/* Rutas protegidas por rol - Solo Moderador */}
+            <Route
+              path="/content-dashboard"
+              element={
+                <RoleRoute
+                  element={<ContentDashboardPage />}
+                  allowedRoles={['moderator']}
+                />
+              }
+            />
+
+            {/* Rutas protegidas por rol - Solo Moderador */}
+            <Route
+              path="/affinity-graph"
+              element={
+                <RoleRoute
+                  element={<AffinityGraphPage />}
+                  allowedRoles={['moderator']}
+                />
+              }
+            />
+
+            {/* Nuevas rutas de administrador */}
+            <Route
+              path="/admin/analytics"
+              element={
+                <RoleRoute
+                  element={<DashboardAnalyticsPage />}
+                  allowedRoles={['moderator']}
+                />
+              }
+            />
+
+            <Route
+              path="/admin/interests"
+              element={
+                <RoleRoute
+                  element={<InterestManagementPage />}
+                  allowedRoles={['moderator']}
+                />
+              }
+            />
+
+            <Route
+              path="/admin/help-requests"
+              element={
+                <RoleRoute
+                  element={<HelpRequestsPage />}
+                  allowedRoles={['moderator']}
+                />
+              }
+            />
+
+            <Route
+              path="/admin/stats"
+              element={
+                <RoleRoute
+                  element={<AdminDashboardStatsPage />}
+                  allowedRoles={['moderator']}
+                />
+              }
+            />
+
+            {/* Rutas para estudiantes y moderadores */}
+            <Route path="/help-request" element={<HelpRequestPage />} />
+            <Route path="/publish-content" element={<PublishContentPage />} />
+
+            {/* Redirigir cualquier otra ruta a la página principal */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         ) : (
@@ -67,7 +168,7 @@ function App() {
               {/* Default redirect for root path when not authenticated */}
               <Route path="/" element={<Navigate to="/landing" replace />} />
             {/* Redirect any other unknown path to landing */}
-              <Route path="*" element={<Navigate to="/landing" replace />} />
+            <Route path="*" element={<Navigate to="/landing" replace />} />
           </>
         )}
       </Routes>

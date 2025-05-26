@@ -68,6 +68,31 @@ public class UndirectedGraph<T> {
     }
 
     /**
+     * Checks if an edge exists between two vertices.
+     *
+     * @param data1 the data of the first vertex.
+     * @param data2 the data of the second vertex.
+     * @return true if an edge exists, false otherwise.
+     */
+    public boolean edgeExists(T data1, T data2) {
+        GraphVertex<T> vertex1 = findVertex(data1);
+        GraphVertex<T> vertex2 = findVertex(data2);
+
+        if (vertex1 == null || vertex2 == null) {
+            return false; // One or both vertices not found, so no edge can exist.
+        }
+
+        Edge<T> currentEdge = vertex1.getEdgeList();
+        while (currentEdge != null) {
+            if (currentEdge.getAdjacent().equals(vertex2)) {
+                return true; // Edge found
+            }
+            currentEdge = currentEdge.getNextEdge();
+        }
+        return false; // Edge not found
+    }
+
+    /**
      * Returns a string representation of the graph.
      *
      * @return a string showing each vertex and its adjacent vertices.

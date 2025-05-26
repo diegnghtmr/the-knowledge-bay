@@ -60,8 +60,8 @@ public class DoublyLinkedList<T> implements Iterable<T>{
      *
      * @param data the element to remove
      */
-    public void remove(T data) {
-        if (head == null) return;
+    public boolean remove(T data) {
+        if (head == null) return false; // Element not found in empty list
         DoublyLinkedNode<T> current = head;
         while (current != null) {
             if (current.getData().equals(data)) {
@@ -70,19 +70,25 @@ public class DoublyLinkedList<T> implements Iterable<T>{
                     tail = null;
                 } else if (current == head) {
                     head = head.getNext();
-                    head.setPrevious(null);
+                    if (head != null) { // List might become empty
+                        head.setPrevious(null);
+                    } else {
+                        tail = null; // List became empty
+                    }
                 } else if (current == tail) {
                     tail = tail.getPrevious();
+                    // No need to check for null tail here as previous node must exist
                     tail.setNext(null);
                 } else {
                     current.getPrevious().setNext(current.getNext());
                     current.getNext().setPrevious(current.getPrevious());
                 }
                 size--;
-                return;
+                return true; // Element found and removed
             }
             current = current.getNext();
         }
+        return false; // Element not found
     }
 
     /**
@@ -140,6 +146,83 @@ public class DoublyLinkedList<T> implements Iterable<T>{
     }
 
     /**
+     * Returns the element at the specified index.
+     *
+     * @param index the index of the element to return
+     * @return the element at the specified index
+     * @throws IndexOutOfBoundsException if the index is out of range
+     */
+    public T get(int index) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+
+        DoublyLinkedNode<T> current = head;
+        for (int i = 0; i < index; i++) {
+            current = current.getNext();
+        }
+
+        return current.getData();
+    }
+
+    /**
+     * Removes the element at the specified index.
+     *
+     * @param index the index of the element to remove
+     * @return the removed element
+     * @throws IndexOutOfBoundsException if the index is out of range
+     */
+    public T removeAt(int index) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+
+        // Special case: single element list
+        if (size == 1) {
+            T data = head.getData();
+            head = null;
+            tail = null;
+            size = 0;
+            return data;
+        }
+
+        // Special case: remove head
+        if (index == 0) {
+            T data = head.getData();
+            head = head.getNext();
+            if (head != null) {
+                head.setPrevious(null);
+            } else {
+                tail = null;
+            }
+            size--;
+            return data;
+        }
+
+        // Special case: remove tail
+        if (index == size - 1) {
+            T data = tail.getData();
+            tail = tail.getPrevious();
+            tail.setNext(null);
+            size--;
+            return data;
+        }
+
+        // General case: middle element
+        DoublyLinkedNode<T> current = head;
+        for (int i = 0; i < index; i++) {
+            current = current.getNext();
+        }
+
+        T data = current.getData();
+        current.getPrevious().setNext(current.getNext());
+        current.getNext().setPrevious(current.getPrevious());
+        size--;
+
+        return data;
+    }
+
+    /**
      * Returns a string representation of the list from tail to head.
      *
      * @return a string showing the elements in reverse order
@@ -164,6 +247,15 @@ public class DoublyLinkedList<T> implements Iterable<T>{
      */
     public boolean isEmpty() {
         return size == 0;
+    }
+
+    /**
+     * Returns the number of elements in the list.
+     *
+     * @return the size of the list
+     */
+    public int getSize() {
+        return size;
     }
 
     /**

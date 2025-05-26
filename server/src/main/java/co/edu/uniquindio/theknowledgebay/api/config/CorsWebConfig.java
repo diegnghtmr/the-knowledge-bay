@@ -17,7 +17,8 @@ public class CorsWebConfig {
                         .allowedOrigins("http://localhost:3000")
                         .allowedMethods("*")
                         .allowedHeaders("*")
-                        .allowCredentials(true);
+                        .allowCredentials(true)
+                        .exposedHeaders("Authorization", "Content-Type");
             }
         };
     }

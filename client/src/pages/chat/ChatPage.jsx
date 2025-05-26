@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ContactList from '../../components/chat/ContactList';
 import ChatWindow from '../../components/chat/ChatWindow';
+import NavigationBar from '../../components/layout/NavigationBar';
 import { getContactsWithLastMessages } from '../../services/chatApi';
 
 const ChatPage = () => {
@@ -106,32 +107,35 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="flex h-screen p-4 gap-4 bg-cream-custom overflow-hidden">
-      {/* Lista de contactos */}
-      <div className={`${
-        isMobileView ? (showContacts ? 'block w-full' : 'hidden') : 'block'
-      } w-80 h-full bg-cream-custom`}>
-        <ContactList 
-          contacts={contacts} 
-          onSelectContact={handleContactSelect} 
-          selectedContact={selectedContact} 
-        />
-      </div>
-      
-      {/* Ventana de chat */}
-      <div className={`${
-        isMobileView ? (showContacts ? 'hidden' : 'block w-full') : 'flex-1'
-      }`}>
-        {selectedContact ? (
-          <ChatWindow 
-            contact={selectedContact} 
-            onMessageSent={(message) => updateContactWithNewMessage(selectedContact.id, message)} 
+    <div className="flex flex-col h-screen bg-cream-custom overflow-hidden">
+      <NavigationBar title="Chat" />
+      <div className="flex flex-1 p-4 gap-4 overflow-hidden">
+        {/* Lista de contactos */}
+        <div className={`${
+          isMobileView ? (showContacts ? 'block w-full' : 'hidden') : 'block'
+        } w-80 h-full bg-cream-custom`}>
+          <ContactList 
+            contacts={contacts} 
+            onSelectContact={handleContactSelect} 
+            selectedContact={selectedContact} 
           />
-        ) : (
-          <div className="flex justify-center items-center h-full bg-cream-custom">
-            <p className="text-gray-600">Selecciona un chat para comenzar</p>
-          </div>
-        )}
+        </div>
+        
+        {/* Ventana de chat */}
+        <div className={`${
+          isMobileView ? (showContacts ? 'hidden' : 'block w-full') : 'flex-1'
+        }`}>
+          {selectedContact ? (
+            <ChatWindow 
+              contact={selectedContact} 
+              onMessageSent={(message) => updateContactWithNewMessage(selectedContact.id, message)} 
+            />
+          ) : (
+            <div className="flex justify-center items-center h-full bg-cream-custom">
+              <p className="text-gray-600">Selecciona un chat para comenzar</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
