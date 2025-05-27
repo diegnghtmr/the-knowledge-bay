@@ -10,7 +10,7 @@ class InterestTest {
 
     @Test
     void testAllArgsConstructor() {
-        Interest interest = new Interest(1, "Matemáticas");
+        Interest interest = new Interest("4", "Matemáticas");
         assertEquals(1, interest.getIdInterest());
         assertEquals("Matemáticas", interest.getName());
     }
@@ -18,7 +18,7 @@ class InterestTest {
     @Test
     void testSettersAndGetters() {
         Interest interest = new Interest();
-        interest.setIdInterest(2);
+        interest.setIdInterest("1");
         interest.setName("Programación");
 
         assertEquals(2, interest.getIdInterest());
@@ -28,7 +28,7 @@ class InterestTest {
     @Test
     void testBuilder() {
         Interest interest = Interest.builder()
-                .idInterest(3)
+                .idInterest("3")
                 .name("Física")
                 .build();
 
@@ -38,9 +38,9 @@ class InterestTest {
 
     @Test
     void testEqualsAndHashCode() {
-        Interest i1 = new Interest(4, "Química");
-        Interest i2 = new Interest(4, "Química");
-        Interest i3 = new Interest(5, "Biología");
+        Interest i1 = new Interest("4", "Química");
+        Interest i2 = new Interest("4", "Química");
+        Interest i3 = new Interest("4", "Biología");
 
         assertEquals(i1, i2);
         assertNotEquals(i1, i3);
@@ -49,7 +49,7 @@ class InterestTest {
 
     @Test
     void testToString() {
-        Interest interest = new Interest(6, "Historia");
+        Interest interest = new Interest("6", "Historia");
         String expected = "Interest(idInterest=6, name=Historia)";
         assertEquals(expected, interest.toString());
     }
