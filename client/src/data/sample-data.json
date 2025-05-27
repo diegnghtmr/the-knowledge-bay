@@ -1,28 +1,12 @@
 {
-  "students": [
-    {
-      "username": "user1",
-      "email": "user1@example.com",
-      "password": "1234",
-      "firstName": "Juan",
-      "lastName": "Pérez",
-      "dateBirth": "2000-01-01",
-      "biography": "Me gusta la física."
-    },
-    {
-      "username": "user2",
-      "email": "user2@example.com",
-      "password": "1234",
-      "firstName": "Carlos",
-      "lastName": "Martínez",
-      "dateBirth": "1999-01-01",
-      "biography": "Me gusta la matemáticas."
-    }
-  ],
   "interests": [
     {
       "idInterest": "1",
       "name": "Matemáticas"
+    },
+    {
+      "idInterest": "2",
+      "name": "Programación"
     }
   ]
 }

@@ -6,7 +6,13 @@ import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.repository.InterestRepository;
 import co.edu.uniquindio.theknowledgebay.core.repository.StudentRepository;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.DoublyLinkedListToList;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ImportService {
@@ -20,19 +26,20 @@ public class ImportService {
         this.theKnowledgeBay = theKnowledgeBay;
     }
 
-    public String processImport(ImportDTO data) {
+    public Map<String, Object> processImport(ImportDTO data) {
+        Map<String, Object> result = new HashMap<>();
+
         if (data == null) {
-            return "Error: Los datos de importación no pueden ser nulos";
+            result.put("message", "Error: Los datos de importación no pueden ser nulos");
+            return result;
         }
 
         int studentsImported = 0;
         int interestsImported = 0;
 
-
         // Procesar estudiantes
         if (data.getStudents() != null) {
-            for (int i = 0; i < data.getStudents().size(); i++) {
-                Student student = data.getStudents().get(i);
+            for (Student student : data.getStudents()) {
                 if (isValidStudent(student)) {
                     try {
                         studentRepository.save(student);
@@ -44,16 +51,27 @@ public class ImportService {
             }
         }
 
-        // Procesar intereses
+        // Procesar intereses (evitar duplicados por nombre)
         if (data.getInterests() != null) {
-            for (int i = 0; i < data.getInterests().size(); i++) {
-                Interest interest = data.getInterests().get(i);
+            // Obtener nombres ya existentes (normalizados en minúsculas)
+            Set<String> existingNames = DoublyLinkedListToList.convert(interestRepository.findAll())
+                    .stream()
+                    .map(i -> i.getName().toLowerCase())
+                    .collect(Collectors.toSet());
+
+            for (Interest interest : data.getInterests()) {
                 if (isValidInterest(interest)) {
-                    try {
-                        interestRepository.save(interest);
-                        interestsImported++;
-                    } catch (Exception e) {
-                        System.err.println("Error al importar interés: " + e.getMessage());
+                    String name = interest.getName().trim();
+                    if (!existingNames.contains(name.toLowerCase())) {
+                        try {
+                            interestRepository.save(interest);
+                            interestsImported++;
+                            existingNames.add(name.toLowerCase()); // agregar para evitar repetir dentro del mismo lote
+                        } catch (Exception e) {
+                            System.err.println("Error al importar interés: " + e.getMessage());
+                        }
+                    } else {
+                        System.out.println("Interés duplicado ignorado: " + name);
                     }
                 }
             }
@@ -61,13 +79,13 @@ public class ImportService {
 
         this.theKnowledgeBay.updateData();
 
-        return String.format(
-                "Importación completada. Estudiantes: %d/%d, Intereses: %d/%d",
-                studentsImported,
-                data.getStudents() != null ? data.getStudents().size() : 0,
-                interestsImported,
-                data.getInterests() != null ? data.getInterests().size() : 0
-        );
+        result.put("message", "Importación completada");
+        result.put("studentsImported", studentsImported);
+        result.put("studentsTotal", data.getStudents() != null ? data.getStudents().size() : 0);
+        result.put("interestsImported", interestsImported);
+        result.put("interestsTotal", data.getInterests() != null ? data.getInterests().size() : 0);
+
+        return result;
     }
 
     private boolean isValidStudent(Student student) {

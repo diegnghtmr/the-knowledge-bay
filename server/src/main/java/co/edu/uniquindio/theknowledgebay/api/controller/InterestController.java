@@ -42,8 +42,17 @@ public class InterestController {
             @RequestHeader(value = "Authorization", required = false) String token) {
         try {
             String currentUserId = getCurrentUserId(token);
+            String name = createInterestDTO.getName().trim();
+
+            // Validar si el nombre ya existe
+            if (interestService.isInterestNameTaken(name)) {
+                return ResponseEntity.badRequest().body(
+                        new AuthResponseDTO(false, "Ya existe un interés con ese nombre")
+                );
+            }
+
             return ResponseEntity.ok(
-                    interestService.createInterest(createInterestDTO.getName(), currentUserId)
+                    interestService.createInterest(name, currentUserId)
             );
         } catch (Exception e) {
             return errorResponse(e);

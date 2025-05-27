@@ -429,8 +429,16 @@ export const updateContentAdmin = async (contentId, contentData) => {
     });
 
     if (!response.ok) {
-      const errorBody = await response.json();
-      throw new Error(errorBody.message || `Error: ${response.status}`);
+      let errorMessage = `Error: ${response.status}`;
+      try {
+        const errorBody = await response.json();
+        errorMessage = errorBody.message || errorMessage;
+      } catch {
+        // Si no es JSON, intenta leer como texto
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     return await response.json();

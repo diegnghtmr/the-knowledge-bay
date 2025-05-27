@@ -4,6 +4,7 @@ import co.edu.uniquindio.theknowledgebay.api.dto.AuthResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.InterestDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
+import co.edu.uniquindio.theknowledgebay.core.repository.InterestRepository;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +15,11 @@ import java.util.List;
 public class InterestService {
 
     private final TheKnowledgeBay theKnowledgeBay;
+    private final InterestRepository interestRepository;
 
-    public InterestService(TheKnowledgeBay theKnowledgeBay) {
+    public InterestService(TheKnowledgeBay theKnowledgeBay, InterestRepository interestRepository) {
         this.theKnowledgeBay = theKnowledgeBay;
+        this.interestRepository = interestRepository;
     }
 
     public List<InterestDTO> getAllInterests() {
@@ -66,4 +69,17 @@ public class InterestService {
                 .name(interest.getName())
                 .build();
     }
+
+    public boolean isInterestNameTaken(String name) {
+        DoublyLinkedList<Interest> interests = interestRepository.findByName(name);
+
+        for (Interest i : interests) {
+            if (i.getName().equals(name)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 }
