@@ -3,13 +3,8 @@ package co.edu.uniquindio.theknowledgebay.api.controller;
 import co.edu.uniquindio.theknowledgebay.api.dto.AuthResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.CreateInterestDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.InterestDTO;
-import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.service.InterestService;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.DoublyLinkedListToList;
-import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,42 +12,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/interests")
+@RequestMapping("/interests")
 public class InterestController {
 
     private final InterestService interestService;
+    private final SessionManager sessionManager;
 
-    public InterestController(InterestService interestService) {
+    public InterestController(InterestService interestService, SessionManager sessionManager) {
         this.interestService = interestService;
+        this.sessionManager = sessionManager;
     }
-    private TheKnowledgeBay theKnowledgeBay;
-    private SessionManager sessionManager;
 
     @GetMapping
     public ResponseEntity<List<InterestDTO>> getAllInterests(
             @RequestHeader(value = "Authorization", required = false) String token) {
-
         try {
-            DoublyLinkedList<Interest> interests = theKnowledgeBay.getAllInterests();
-            List<InterestDTO> response = new ArrayList<>();
-
-            if (interests != null) {
-                for (int i = 0; i < interests.getSize(); i++) {
-                    Interest interest = interests.get(i);
-                    InterestDTO dto = InterestDTO.builder()
-                            .idInterest(interest.getIdInterest())
-                            .name(interest.getName())
-                            .build();
-                    response.add(dto);
-                }
-            }
-
-            return ResponseEntity.ok(response);
-
+            return ResponseEntity.ok(interestService.getAllInterests());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -62,30 +40,13 @@ public class InterestController {
     public ResponseEntity<AuthResponseDTO> createInterest(
             @RequestBody CreateInterestDTO createInterestDTO,
             @RequestHeader(value = "Authorization", required = false) String token) {
-
         try {
-            // For development, allow access without strict authentication
-            String currentUserId = sessionManager.getCurrentUserId(token);
-            if (currentUserId == null) {
-                currentUserId = "admin"; // Default admin user for development
-            }
-
-            Interest interest = Interest.builder()
-                    .name(createInterestDTO.getName())
-                    .build();
-
-            boolean added = theKnowledgeBay.addInterest(interest);
-
-            if (added) {
-                return ResponseEntity.ok(new AuthResponseDTO(true, "Interés creado exitosamente."));
-            } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new AuthResponseDTO(false, "Error al crear el interés."));
-            }
-
+            String currentUserId = getCurrentUserId(token);
+            return ResponseEntity.ok(
+                    interestService.createInterest(createInterestDTO.getName(), currentUserId)
+            );
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+            return errorResponse(e);
         }
     }
 
@@ -94,26 +55,13 @@ public class InterestController {
             @PathVariable String id,
             @RequestBody CreateInterestDTO updateInterestDTO,
             @RequestHeader(value = "Authorization", required = false) String token) {
-
         try {
-            // For development, allow access without strict authentication
-            String currentUserId = sessionManager.getCurrentUserId(token);
-            if (currentUserId == null) {
-                currentUserId = "admin"; // Default admin user for development
-            }
-
-            boolean updated = theKnowledgeBay.updateInterest(id, updateInterestDTO.getName());
-
-            if (updated) {
-                return ResponseEntity.ok(new AuthResponseDTO(true, "Interés actualizado exitosamente."));
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new AuthResponseDTO(false, "Interés no encontrado."));
-            }
-
+            String currentUserId = getCurrentUserId(token);
+            return ResponseEntity.ok(
+                    interestService.updateInterest(id, updateInterestDTO.getName(), currentUserId)
+            );
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+            return errorResponse(e);
         }
     }
 
@@ -121,28 +69,23 @@ public class InterestController {
     public ResponseEntity<AuthResponseDTO> deleteInterest(
             @PathVariable String id,
             @RequestHeader(value = "Authorization", required = false) String token) {
-
         try {
-            // For development, allow access without strict authentication
-            String currentUserId = sessionManager.getCurrentUserId(token);
-            if (currentUserId == null) {
-                currentUserId = "admin"; // Default admin user for development
-            }
-
-            boolean deleted = theKnowledgeBay.deleteInterest(id);
-
-            if (deleted) {
-                return ResponseEntity.ok(new AuthResponseDTO(true, "Interés eliminado exitosamente."));
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new AuthResponseDTO(false, "Interés no encontrado."));
-            }
-
+            String currentUserId = getCurrentUserId(token);
+            return ResponseEntity.ok(
+                    interestService.deleteInterest(id, currentUserId)
+            );
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+            return errorResponse(e);
         }
     }
 
+    private String getCurrentUserId(String token) {
+        String userId = sessionManager.getCurrentUserId(token);
+        return userId != null ? userId : "admin"; // Default para desarrollo
+    }
 
+    private ResponseEntity<AuthResponseDTO> errorResponse(Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new AuthResponseDTO(false, "Error interno: " + e.getMessage()));
+    }
 }

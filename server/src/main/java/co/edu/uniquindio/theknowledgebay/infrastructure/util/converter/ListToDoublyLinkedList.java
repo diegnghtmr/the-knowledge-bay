@@ -1,7 +1,8 @@
 package co.edu.uniquindio.theknowledgebay.infrastructure.util.converter;
 
-import java.util.List;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
+
+import java.util.List;
 
 public class ListToDoublyLinkedList {
     /**

@@ -17,4 +17,4 @@ const AffinityGraphPage = () => {
   );
 };
 
-export default AffinityGraphPage; 
+export default AffinityGraphPage;

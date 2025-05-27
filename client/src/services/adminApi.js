@@ -1,11 +1,14 @@
-const API_BASE_URL = 'http://localhost:8080/api';
+import sampleData from "../data/sample-data.json";
+import * as Json from "postcss";
+
+const API_BASE_URL = "http://localhost:8080/api";
 
 // Función helper para incluir headers de autorización
 const getHeaders = () => {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem("authToken");
   return {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` })
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
   };
 };
 
@@ -13,8 +16,8 @@ const getHeaders = () => {
 export const getAdminStats = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/stats`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -23,7 +26,7 @@ export const getAdminStats = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching admin stats:', error);
+    console.error("Error fetching admin stats:", error);
     throw error;
   }
 };
@@ -32,8 +35,8 @@ export const getAdminStats = async () => {
 export const getAllUsersAdmin = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/users`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -42,7 +45,7 @@ export const getAllUsersAdmin = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error("Error fetching users:", error);
     throw error;
   }
 };
@@ -51,8 +54,8 @@ export const getAllUsersAdmin = async () => {
 export const getAllContentAdmin = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/content`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -61,7 +64,7 @@ export const getAllContentAdmin = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching content:', error);
+    console.error("Error fetching content:", error);
     throw error;
   }
 };
@@ -70,8 +73,8 @@ export const getAllContentAdmin = async () => {
 export const getAllHelpRequestsAdmin = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/help-requests`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -80,7 +83,7 @@ export const getAllHelpRequestsAdmin = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching help requests:', error);
+    console.error("Error fetching help requests:", error);
     throw error;
   }
 };
@@ -89,8 +92,8 @@ export const getAllHelpRequestsAdmin = async () => {
 export const deleteContent = async (contentId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/content/${contentId}`, {
-      method: 'DELETE',
-      headers: getHeaders()
+      method: "DELETE",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -99,7 +102,7 @@ export const deleteContent = async (contentId) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error deleting content:', error);
+    console.error("Error deleting content:", error);
     throw error;
   }
 };
@@ -107,10 +110,13 @@ export const deleteContent = async (contentId) => {
 // Eliminar solicitud de ayuda (admin)
 export const deleteHelpRequest = async (requestId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/help-requests/${requestId}`, {
-      method: 'DELETE',
-      headers: getHeaders()
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/admin/help-requests/${requestId}`,
+      {
+        method: "DELETE",
+        headers: getHeaders(),
+      },
+    );
 
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
@@ -118,7 +124,7 @@ export const deleteHelpRequest = async (requestId) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error deleting help request:', error);
+    console.error("Error deleting help request:", error);
     throw error;
   }
 };
@@ -126,11 +132,14 @@ export const deleteHelpRequest = async (requestId) => {
 // Actualizar solicitud de ayuda (admin)
 export const updateHelpRequestAdmin = async (requestId, requestData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/help-requests/${requestId}`, {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify(requestData)
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/admin/help-requests/${requestId}`,
+      {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(requestData),
+      },
+    );
 
     if (!response.ok) {
       const errorBody = await response.json();
@@ -139,7 +148,7 @@ export const updateHelpRequestAdmin = async (requestId, requestData) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error updating help request:', error);
+    console.error("Error updating help request:", error);
     throw error;
   }
 };
@@ -150,8 +159,8 @@ export const updateHelpRequestAdmin = async (requestId, requestData) => {
 export const getAllInterests = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/interests`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -160,7 +169,7 @@ export const getAllInterests = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching interests:', error);
+    console.error("Error fetching interests:", error);
     throw error;
   }
 };
@@ -169,9 +178,9 @@ export const getAllInterests = async () => {
 export const createInterest = async (interestData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/interests`, {
-      method: 'POST',
+      method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify(interestData)
+      body: JSON.stringify(interestData),
     });
 
     if (!response.ok) {
@@ -180,7 +189,7 @@ export const createInterest = async (interestData) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error creating interest:', error);
+    console.error("Error creating interest:", error);
     throw error;
   }
 };
@@ -189,9 +198,9 @@ export const createInterest = async (interestData) => {
 export const updateInterest = async (interestId, interestData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/interests/${interestId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: getHeaders(),
-      body: JSON.stringify(interestData)
+      body: JSON.stringify(interestData),
     });
 
     if (!response.ok) {
@@ -200,7 +209,7 @@ export const updateInterest = async (interestId, interestData) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error updating interest:', error);
+    console.error("Error updating interest:", error);
     throw error;
   }
 };
@@ -209,8 +218,8 @@ export const updateInterest = async (interestId, interestData) => {
 export const deleteInterest = async (interestId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/interests/${interestId}`, {
-      method: 'DELETE',
-      headers: getHeaders()
+      method: "DELETE",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -219,28 +228,28 @@ export const deleteInterest = async (interestId) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error deleting interest:', error);
+    console.error("Error deleting interest:", error);
     throw error;
   }
 };
 
 // Cargar datos de muestra para intereses
+
 export const loadSampleInterests = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/interests/load-data`, {
-      method: 'POST',
-      headers: getHeaders()
-    });
+  const response = await fetch(`${API_BASE_URL}/import`, {
+    method: "POST",
+    headers: {
+      ...getHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(sampleData),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status}`);
-    }
+  console.log("Response:", JSON.stringify(sampleData));
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error loading sample interests:', error);
-    throw error;
-  }
+  if (!response.ok) throw new Error("Error al importar datos");
+
+  return await response.json();
 };
 
 // === AFFINITY GRAPH APIs ===
@@ -249,8 +258,8 @@ export const loadSampleInterests = async () => {
 export const getAffinityGraphData = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/affinity-graph/data`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -259,7 +268,7 @@ export const getAffinityGraphData = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching affinity graph data:', error);
+    console.error("Error fetching affinity graph data:", error);
     throw error;
   }
 };
@@ -267,10 +276,13 @@ export const getAffinityGraphData = async () => {
 // Encontrar ruta más corta entre estudiantes
 export const findShortestPath = async (student1, student2) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/affinity-graph/shortest-path?student1=${encodeURIComponent(student1)}&student2=${encodeURIComponent(student2)}`, {
-      method: 'GET',
-      headers: getHeaders()
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/affinity-graph/shortest-path?student1=${encodeURIComponent(student1)}&student2=${encodeURIComponent(student2)}`,
+      {
+        method: "GET",
+        headers: getHeaders(),
+      },
+    );
 
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
@@ -278,7 +290,7 @@ export const findShortestPath = async (student1, student2) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error finding shortest path:', error);
+    console.error("Error finding shortest path:", error);
     throw error;
   }
 };
@@ -287,8 +299,8 @@ export const findShortestPath = async (student1, student2) => {
 export const refreshAffinityGraph = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/affinity-graph/refresh`, {
-      method: 'POST',
-      headers: getHeaders()
+      method: "POST",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -297,7 +309,7 @@ export const refreshAffinityGraph = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error refreshing affinity graph:', error);
+    console.error("Error refreshing affinity graph:", error);
     throw error;
   }
 };
@@ -308,8 +320,8 @@ export const refreshAffinityGraph = async () => {
 export const getAnalyticsDashboard = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/analytics/dashboard`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -318,7 +330,7 @@ export const getAnalyticsDashboard = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching analytics dashboard:', error);
+    console.error("Error fetching analytics dashboard:", error);
     throw error;
   }
 };
@@ -327,8 +339,8 @@ export const getAnalyticsDashboard = async () => {
 export const getTopicActivity = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/analytics/topic-activity`, {
-      method: 'GET',
-      headers: getHeaders()
+      method: "GET",
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -337,7 +349,7 @@ export const getTopicActivity = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching topic activity:', error);
+    console.error("Error fetching topic activity:", error);
     throw error;
   }
 };
@@ -345,10 +357,13 @@ export const getTopicActivity = async () => {
 // Obtener niveles de participación
 export const getParticipationLevels = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/analytics/participation-levels`, {
-      method: 'GET',
-      headers: getHeaders()
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/analytics/participation-levels`,
+      {
+        method: "GET",
+        headers: getHeaders(),
+      },
+    );
 
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
@@ -356,7 +371,7 @@ export const getParticipationLevels = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching participation levels:', error);
+    console.error("Error fetching participation levels:", error);
     throw error;
   }
 };
@@ -364,10 +379,13 @@ export const getParticipationLevels = async () => {
 // Obtener detección de comunidades
 export const getCommunityDetection = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/analytics/community-detection`, {
-      method: 'GET',
-      headers: getHeaders()
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/analytics/community-detection`,
+      {
+        method: "GET",
+        headers: getHeaders(),
+      },
+    );
 
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
@@ -375,7 +393,7 @@ export const getCommunityDetection = async () => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching community detection:', error);
+    console.error("Error fetching community detection:", error);
     throw error;
   }
 };
@@ -384,9 +402,9 @@ export const getCommunityDetection = async () => {
 export const updateUserAdmin = async (userId, userData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: getHeaders(),
-      body: JSON.stringify(userData)
+      body: JSON.stringify(userData),
     });
 
     if (!response.ok) {
@@ -396,7 +414,7 @@ export const updateUserAdmin = async (userId, userData) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error("Error updating user:", error);
     throw error;
   }
 };
@@ -405,9 +423,9 @@ export const updateUserAdmin = async (userId, userData) => {
 export const updateContentAdmin = async (contentId, contentData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/content/${contentId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: getHeaders(),
-      body: JSON.stringify(contentData)
+      body: JSON.stringify(contentData),
     });
 
     if (!response.ok) {
@@ -417,7 +435,7 @@ export const updateContentAdmin = async (contentId, contentData) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error updating content:', error);
+    console.error("Error updating content:", error);
     throw error;
   }
 };

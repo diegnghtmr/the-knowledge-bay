@@ -27,8 +27,8 @@ const RoleRoute = ({ element, allowedRoles }) => {
   const { userRole, isAuthenticated } = useAuth();
 
   // Convertir roles a minúsculas para la comparación
-  const userRoleLowerCase = userRole ? userRole.toLowerCase() : '';
-  const allowedRolesLowerCase = allowedRoles.map(role => role.toLowerCase());
+  const userRoleLowerCase = userRole ? userRole.toLowerCase() : "";
+  const allowedRolesLowerCase = allowedRoles.map((role) => role.toLowerCase());
 
   // Depuración de rutas protegidas
   console.log("RoleRoute - Checking access:", {
@@ -37,7 +37,7 @@ const RoleRoute = ({ element, allowedRoles }) => {
     allowedRoles,
     allowedRolesLowerCase,
     isAllowed: allowedRolesLowerCase.includes(userRoleLowerCase),
-    isAuthenticated
+    isAuthenticated,
   });
 
   // Verificar si el usuario está autenticado
@@ -82,7 +82,7 @@ function App() {
               element={
                 <RoleRoute
                   element={<UserDashboardPage />}
-                  allowedRoles={['moderator']}
+                  allowedRoles={["moderator"]}
                 />
               }
             />
@@ -93,7 +93,7 @@ function App() {
               element={
                 <RoleRoute
                   element={<ContentDashboardPage />}
-                  allowedRoles={['moderator']}
+                  allowedRoles={["moderator"]}
                 />
               }
             />
@@ -104,7 +104,7 @@ function App() {
               element={
                 <RoleRoute
                   element={<AffinityGraphPage />}
-                  allowedRoles={['moderator']}
+                  allowedRoles={["moderator"]}
                 />
               }
             />
@@ -115,7 +115,7 @@ function App() {
               element={
                 <RoleRoute
                   element={<DashboardAnalyticsPage />}
-                  allowedRoles={['moderator']}
+                  allowedRoles={["moderator"]}
                 />
               }
             />
@@ -125,7 +125,7 @@ function App() {
               element={
                 <RoleRoute
                   element={<InterestManagementPage />}
-                  allowedRoles={['moderator']}
+                  allowedRoles={["moderator"]}
                 />
               }
             />
@@ -135,7 +135,7 @@ function App() {
               element={
                 <RoleRoute
                   element={<HelpRequestsPage />}
-                  allowedRoles={['moderator']}
+                  allowedRoles={["moderator"]}
                 />
               }
             />
@@ -145,7 +145,7 @@ function App() {
               element={
                 <RoleRoute
                   element={<AdminDashboardStatsPage />}
-                  allowedRoles={['moderator']}
+                  allowedRoles={["moderator"]}
                 />
               }
             />
@@ -160,13 +160,13 @@ function App() {
         ) : (
           <>
             {/* If not authenticated, show public routes */}
-              <Route path="/register" element={<Landing />} />
-              <Route path="/register/steps" element={<Landing />} />
-              <Route path="/login" element={<Landing />} />
-              <Route path="/landing" element={<Landing />} />
-              <Route path="/terms" element={<Terms />}/>
-              {/* Default redirect for root path when not authenticated */}
-              <Route path="/" element={<Navigate to="/landing" replace />} />
+            <Route path="/register" element={<Landing />} />
+            <Route path="/register/steps" element={<Landing />} />
+            <Route path="/login" element={<Landing />} />
+            <Route path="/landing" element={<Landing />} />
+            <Route path="/terms" element={<Terms />} />
+            {/* Default redirect for root path when not authenticated */}
+            <Route path="/" element={<Navigate to="/landing" replace />} />
             {/* Redirect any other unknown path to landing */}
             <Route path="*" element={<Navigate to="/landing" replace />} />
           </>

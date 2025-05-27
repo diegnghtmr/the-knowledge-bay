@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import NavigationBar from '../components/layout/NavigationBar';
-import ContentPublicationForm from '../components/content-publication/ContentPublicationForm';
-import { useAuth } from '../context/AuthContext';
-import { contentApi } from '../services/contentApi';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import NavigationBar from "../components/layout/NavigationBar";
+import ContentPublicationForm from "../components/content-publication/ContentPublicationForm";
+import { useAuth } from "../context/AuthContext";
+import { contentApi } from "../services/contentApi";
 
 const PublishContentPage = () => {
   const { user } = useAuth();
@@ -12,10 +12,10 @@ const PublishContentPage = () => {
 
   const handlePublish = async (data) => {
     setIsSubmitting(true);
-    
+
     try {
-      console.log('Contenido a publicar:', data);
-      
+      console.log("Contenido a publicar:", data);
+
       const contentData = {
         title: data.title,
         contentType: data.contentType,
@@ -26,14 +26,14 @@ const PublishContentPage = () => {
       };
 
       console.log("Enviando datos de contenido:", contentData);
-      
+
       const response = await contentApi.createContent(contentData, data.file);
-      
+
       console.log("Respuesta del servidor:", response);
-      
+
       if (response.success) {
         alert("Contenido publicado exitosamente");
-        navigate('/');
+        navigate("/");
       } else {
         alert(response.message || "Error al publicar el contenido");
       }
@@ -46,8 +46,8 @@ const PublishContentPage = () => {
   };
 
   const handleCancel = () => {
-    console.log('Publicación cancelada');
-    navigate('/');
+    console.log("Publicación cancelada");
+    navigate("/");
   };
 
   return (
@@ -58,8 +58,8 @@ const PublishContentPage = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--deep-sea)] mb-6 text-center">
             Comparte tu Conocimiento
           </h1>
-          <ContentPublicationForm 
-            onPublish={handlePublish} 
+          <ContentPublicationForm
+            onPublish={handlePublish}
             onCancel={handleCancel}
             isSubmitting={isSubmitting}
           />
@@ -69,4 +69,4 @@ const PublishContentPage = () => {
   );
 };
 
-export default PublishContentPage; 
+export default PublishContentPage;

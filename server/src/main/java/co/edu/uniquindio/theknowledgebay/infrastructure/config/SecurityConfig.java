@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/interests/**").permitAll() // Permit interest management endpoints
                         .requestMatchers("/api/affinity-graph/**").permitAll() // Permit affinity graph endpoints
                         .requestMatchers("/api/analytics/**").permitAll() // Permit analytics endpoints
+                        .requestMatchers("/api/import/**").permitAll() // Permit import endpoint
                         .anyRequest().authenticated() // Secure other endpoints
                 );
         return http.build();

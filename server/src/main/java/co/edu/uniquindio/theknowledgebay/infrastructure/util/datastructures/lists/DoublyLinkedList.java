@@ -263,9 +263,21 @@ public class DoublyLinkedList<T> implements Iterable<T>{
      *
      * @return an iterator
      */
+
+
     @Override
     public Iterator<T> iterator() {
         return new DoublyLinkedListIterator();
+    }
+
+    /**
+     * Clears the list.
+     */
+
+    public void clear() {
+        head = null;
+        tail = null;
+        size = 0;
     }
 
     /**

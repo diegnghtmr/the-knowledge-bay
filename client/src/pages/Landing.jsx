@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import {useLocation, useNavigate} from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AuthComponent from "../components/auth/Auth.jsx";
 import SignupComponent from "../components/auth/Signup.jsx";
 // Assets
@@ -29,10 +29,10 @@ const scrollToTopSmooth = (duration = 2000, multiplier = 1) => {
 
 const Landing = () => {
   const [data, setData] = useState({
-    username: '',
-    email: '',
-    password: '',
-  })
+    username: "",
+    email: "",
+    password: "",
+  });
 
   const [showSignup, setShowSignup] = useState(false);
 
@@ -47,57 +47,57 @@ const Landing = () => {
   };
 
   useEffect(() => {
-      if (location.pathname === "/register") {
-          window.scrollTo(0, document.body.scrollHeight);
-          handleAuthShow("register");
-          scrollToTopSmooth(0, 2);
-      } else if (location.pathname === "/login") {
-          window.scrollTo(0, document.body.scrollHeight);
-          handleAuthShow("login");
-          scrollToTopSmooth(0, 2);
-      } else if (location.pathname === "/register/steps") {
-          window.scrollTo(0, document.body.scrollHeight);
-          scrollToTopSmooth(0, 3);
-
-      } else {
-        window.scrollTo(0, document.body.scrollHeight);
-        setTimeout(() => {
+    if (location.pathname === "/register") {
+      window.scrollTo(0, document.body.scrollHeight);
+      handleAuthShow("register");
+      scrollToTopSmooth(0, 2);
+    } else if (location.pathname === "/login") {
+      window.scrollTo(0, document.body.scrollHeight);
+      handleAuthShow("login");
+      scrollToTopSmooth(0, 2);
+    } else if (location.pathname === "/register/steps") {
+      handleAuthShow("steps");
+      window.scrollTo(0, document.body.scrollHeight);
+      scrollToTopSmooth(0, 3);
+    } else {
+      window.scrollTo(0, document.body.scrollHeight);
+      setTimeout(() => {
         scrollToTopSmooth(2300);
-      }, 500)}
-
+      }, 500);
+    }
   }, [location.pathname]);
 
-  function stepsHandler(duration=1500, data=null) {
-      if (data) {
-          scrollToTopSmooth(duration);
-          setTimeout(() =>
-          {
-              handleAuthShow("steps");
-              navigate("/register/steps");
+  function stepsHandler(duration = 1500, data = null) {
+    if (data) {
+      scrollToTopSmooth(duration);
+      setTimeout(() => {
+        handleAuthShow("steps");
+        navigate("/register/steps");
+      }, 1600);
 
-          }, 1600);
-
-          setData((prev) => ({
-              ...prev,
-              username: data.username,
-              email: data.email,
-              password: data.password,
-              confirmPassword: data.confirmPassword
-          }));
-
-      } else {
-          console.log("Error en el paso de registro");
-      }
+      setData((prev) => ({
+        ...prev,
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+      }));
+    } else {
+      console.log("Error en el paso de registro");
+    }
   }
 
   return (
     <main className="flex flex-col justify-between bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)">
-      <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-white">
-      </section>
-      <SignupComponent data={data} state={showSignup}/>
-      <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white">
-      </section>
-      <AuthComponent isVisible={showAuth} initialView={authType} showSignup={setShowSignup} onContinue={stepsHandler}/>
+      <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-white"></section>
+      <SignupComponent data={data} state={showSignup} />
+      <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white"></section>
+      <AuthComponent
+        isVisible={showAuth}
+        initialView={authType}
+        showSignup={setShowSignup}
+        onContinue={stepsHandler}
+      />
       <article className="h-dvh flex flex-col gap-4 justify-center items-center">
         <div className="w-full">
           <img
@@ -117,8 +117,7 @@ const Landing = () => {
           <button
             onClick={() => {
               scrollToTopSmooth(1500);
-              setTimeout(() =>
-              {
+              setTimeout(() => {
                 handleAuthShow("register");
                 navigate("/register");
               }, 1500);

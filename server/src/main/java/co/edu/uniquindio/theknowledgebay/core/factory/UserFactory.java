@@ -32,6 +32,10 @@ public class UserFactory {
         students.addLast(s);
     }
 
+    public void clear() {
+        students.clear();
+    }
+
     public void setModerator(ModeratorProperties props, String password) {
         moderator.setUsername(props.name());
         moderator.setEmail(props.email());

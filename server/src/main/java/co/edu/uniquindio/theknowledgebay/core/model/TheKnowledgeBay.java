@@ -5,8 +5,11 @@ import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.Urgency;
 import co.edu.uniquindio.theknowledgebay.core.factory.UserFactory;
+import co.edu.uniquindio.theknowledgebay.core.repository.InterestRepository;
 import co.edu.uniquindio.theknowledgebay.core.repository.StudentRepository;
 import co.edu.uniquindio.theknowledgebay.infrastructure.config.ModeratorProperties;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.ListToDoublyLinkedList;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.StringListToInterests;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.queues.PriorityQueue;
@@ -31,8 +34,8 @@ import java.util.stream.Collectors;
 public class TheKnowledgeBay {
 
     // DataBase connection
-    @Autowired
     private final StudentRepository studentRepository;
+    private final InterestRepository interestRepository;
 
     // Data storage
     private final UserFactory users = UserFactory.getInstance();
@@ -48,13 +51,13 @@ public class TheKnowledgeBay {
     // Dependencies for Moderator loading
     @Autowired
     private PasswordEncoder passwordEncoder;
-
     @Autowired
     private ModeratorProperties props;
 
     @Autowired
-    public TheKnowledgeBay(StudentRepository studentRepository) {
+    public TheKnowledgeBay(StudentRepository studentRepository, InterestRepository interestRepository) {
         this.studentRepository = studentRepository;
+        this.interestRepository = interestRepository;
     }
 
     public void addStudent(Student student) {
@@ -496,11 +499,33 @@ public class TheKnowledgeBay {
         for (Student student : students) {
             this.users.add(student);
         }
+
+        // Initialize interests
+        DoublyLinkedList<Interest> interests = interestRepository.findAll();
+        for (Interest interest : interests) {
+            this.interests.addLast(interest);
+        }
         
         // Initialize affinity graph
         System.out.println("Initializing affinity graph...");
         initializeAffinityGraph();
         System.out.println("Affinity graph initialized with " + interests.getSize() + " interests");
+    }
+
+    public void updateData() {
+        this.users.clear();
+
+        // Initialize students
+        DoublyLinkedList<Student> students = studentRepository.findAll();
+        for (Student student : students) {
+            this.users.add(student);
+        }
+
+        // Initialize interests
+        DoublyLinkedList<Interest> interests = interestRepository.findAll();
+        for (Interest interest : interests) {
+            this.interests.addLast(interest);
+        }
     }
 
 
