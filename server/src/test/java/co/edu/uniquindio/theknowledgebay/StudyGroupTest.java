@@ -24,7 +24,7 @@ class StudyGroupTest {
                 .groupId(101)
                 .name("Grupo de Álgebra")
                 .members(new DoublyLinkedList<>())
-                .topic(Interest.builder().idInterest(1).name("Matemáticas").build())
+                .topic(Interest.builder().idInterest("1").name("Matemáticas").build())
                 .date(LocalDate.of(2024, 5, 15))
                 .hidden(false)
                 .associatedContents(new DoublyLinkedList<>())
@@ -58,7 +58,7 @@ class StudyGroupTest {
                 .groupId(200)
                 .name("Física Cuántica")
                 .members(new DoublyLinkedList<>())
-                .topic(Interest.builder().idInterest(2).name("Física").build())
+                .topic(Interest.builder().idInterest("2").name("Física").build())
                 .date(LocalDate.now())
                 .hidden(true)
                 .associatedContents(new DoublyLinkedList<>())
@@ -73,12 +73,12 @@ class StudyGroupTest {
     @Test
     void testEqualsAndHashCode() {
         StudyGroup g1 = new StudyGroup(1, "Grupo 1", new DoublyLinkedList<>(),
-                Interest.builder().idInterest(1).name("Redes").build(),
+                Interest.builder().idInterest("1").name("Redes").build(),
                 LocalDate.of(2024, 5, 1), false,
                 new DoublyLinkedList<>(), new DoublyLinkedList<>());
 
         StudyGroup g2 = new StudyGroup(1, "Grupo 1", new DoublyLinkedList<>(),
-                Interest.builder().idInterest(1).name("Redes").build(),
+                Interest.builder().idInterest("1").name("Redes").build(),
                 LocalDate.of(2024, 5, 1), false,
                 new DoublyLinkedList<>(), new DoublyLinkedList<>());
 
