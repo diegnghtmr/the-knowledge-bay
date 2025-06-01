@@ -17,7 +17,7 @@ public class RegisterStudentDTO {
     private String firstName;
     private String lastName;
     private String biography;
-    private DoublyLinkedList<String> interests;
+    private List<String> interests;
     // Add other fields from Student if needed for registration, e.g., username, lastName
     // For simplicity, starting with basic fields.
 }

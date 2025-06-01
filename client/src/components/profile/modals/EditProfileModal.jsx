@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import ImprovedModalBase from './ImprovedModalBase';
 import { PencilSquareIcon } from '@heroicons/react/24/solid';
+import interestApi from '../../../services/interestApi'; // Importar el servicio de API de intereses
 
 const EditProfileModal = ({ userData, onClose, onSave }) => {
   // Inicializar con los valores de firstName y lastName directamente
@@ -12,40 +13,19 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
     bio: userData.bio,
     email: userData.email,
     birthday: userData.birthday,
-    interests: userData.interests
+    interests: userData.interests || [] // Asegurar que interests sea un array
   });
   
   // Estado para controlar la altura del textarea
   const [bioHeight, setBioHeight] = useState('auto');
   
-  // Lista predefinida de intereses disponibles
-  const availableInterests = [
-    'Programación', 
-    'Inteligencia Artificial', 
-    'Diseño Web', 
-    'Literatura', 
-    'Fotografía',
-    'Ciencia',
-    'Arte',
-    'Música',
-    'Cine',
-    'Viajes',
-    'Gastronomía',
-    'Deportes',
-    'Historia',
-    'Tecnología',
-    'Matemáticas',
-    'Física',
-    'Química',
-    'Biología',
-    'Medicina',
-    'Psicología',
-    'Educación',
-    'Medio Ambiente',
-    'Astronomía',
-    'Política',
-    'Economía'
-  ].sort();
+  // Lista predefinida de intereses disponibles (se reemplazará con datos del backend)
+  // const availableInterests = [
+  //   'Programación', 
+  //   'Inteligencia Artificial', 
+  //   ...
+  // ].sort();
+  const [backendAvailableInterests, setBackendAvailableInterests] = useState([]); // Para intereses del backend
 
   // Estado para controlar intereses filtrados en el dropdown
   const [filteredInterests, setFilteredInterests] = useState([]);
@@ -94,6 +74,25 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
   // Estado para controlar la fecha en el formato del input date
   const [birthdayDate, setBirthdayDate] = useState(formatDateForInput(userData.birthday));
   
+  // Efecto para cargar intereses desde el backend
+  useEffect(() => {
+    const fetchInterests = async () => {
+      try {
+        const interestsData = await interestApi.getAllInterests();
+        if (Array.isArray(interestsData)) {
+            setBackendAvailableInterests(interestsData.map(interest => interest.name).sort());
+        } else {
+            console.error("Fetched interests data is not an array:", interestsData);
+            setBackendAvailableInterests([]);
+        }
+      } catch (error) {
+        console.error("Error fetching interests for profile edit:", error);
+        setBackendAvailableInterests([]);
+      }
+    };
+    fetchInterests();
+  }, []);
+  
   // Efecto para ajustar la altura del textarea automáticamente
   useEffect(() => {
     const adjustHeight = () => {
@@ -129,12 +128,12 @@ const EditProfileModal = ({ userData, onClose, onSave }) => {
   useEffect(() => {
     // Si el campo de búsqueda está vacío, mostramos todos los intereses disponibles
     // que no estén ya seleccionados
-    const filtered = availableInterests.filter(
+    const filtered = backendAvailableInterests.filter( // Usar backendAvailableInterests
       interest => !formData.interests.includes(interest) && 
       (searchInterest.trim() === '' || interest.toLowerCase().includes(searchInterest.toLowerCase()))
     );
     setFilteredInterests(filtered);
-  }, [searchInterest, formData.interests]);
+  }, [searchInterest, formData.interests, backendAvailableInterests]); // Añadir backendAvailableInterests
   
   const handleChange = (e) => {
     const { name, value } = e.target;

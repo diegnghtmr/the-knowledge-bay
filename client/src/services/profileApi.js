@@ -31,91 +31,48 @@ export const updateProfile = async (profileData) => {
 
 // Fetch other user profile by userId
 export const getProfileByUserId = async (userId) => {
-  // Endpoint real: GET /api/user/{userId}/profile
-  // Como el backend aún no tiene implementada esta ruta, usaremos datos mock
-  // En una implementación real, descomentar el try/catch y usar la API real
-  
-  // Mock data para desarrollo y pruebas
-  console.log(`Usando datos mock para el perfil del usuario ${userId}`);
-  return {
-    success: true,
-    data: {
-      firstName: 'Usuario',
-      lastName: 'Ejemplo',
-      username: `usuario${userId}`,
-      biography: 'Esta es una biografía de ejemplo para un perfil de usuario.',
-      email: `usuario${userId}@example.com`,
-      dateBirth: '1990-01-01',
-      interests: ['Programación', 'JavaScript', 'React'],
-      stats: {
-        following: 42,
-        followers: 120,
-        groups: 5,
-        content: 18,
-        requests: 3
-      }
-    }
-  };
-  
-  /* Descomentar cuando el backend implemente esta ruta
   try {
-    return await authApi.get(`/api/user/${userId}/profile`);
+    console.log(`🔍 [ProfileAPI] Obteniendo perfil real para el usuario ${userId}`);
+    const response = await authApi.get(`/api/profile/${userId}`);
+    console.log(`✅ [ProfileAPI] Respuesta exitosa para usuario ${userId}:`, response);
+    return response;
   } catch (error) {
-    console.error(`Error al obtener el perfil del usuario ${userId}:`, error);
+    console.error(`❌ [ProfileAPI] Error al obtener el perfil del usuario ${userId}:`, error);
+    console.error(`❌ [ProfileAPI] Error details:`, error.response?.data || error.message);
     
-    // Fallback con datos mock
-    return {
-      success: true,
-      data: {
-        firstName: 'Usuario',
-        lastName: 'Ejemplo',
-        username: `usuario${userId}`,
-        biography: 'Esta es una biografía de ejemplo para un perfil de usuario.',
-        email: `usuario${userId}@example.com`,
-        dateBirth: '1990-01-01',
-        interests: ['Programación', 'JavaScript', 'React'],
-        stats: {
-          following: 42,
-          followers: 120,
-          groups: 5,
-          content: 18,
-          requests: 3
-        }
-      }
-    };
+    // NO usar fallback mock - propagar el error para que se vea
+    throw error;
   }
-  */
 };
 
 // Get follow status with a user
 export const getFollowStatus = async (userId) => {
-  // Endpoint real: GET /api/user/{userId}/follow-status
-  // Como el backend aún no tiene implementada esta ruta, usaremos datos mock
-  
-  // Datos mock para desarrollo y pruebas (aleatorio para simular diferentes estados)
-  console.log(`Usando datos mock para el estado de seguimiento del usuario ${userId}`);
-  return {
-    success: true,
-    data: {
-      isFollowing: Math.random() > 0.5 // 50% probabilidad de que sea true
-    }
-  };
-  
-  /* Descomentar cuando el backend implemente esta ruta
   try {
-    return await authApi.get(`/api/user/${userId}/follow-status`);
+    console.log(`Obteniendo estado de seguimiento para el usuario ${userId}`);
+    // En lugar de un endpoint separado, usamos la información del perfil que ya incluye currentUserFollowing
+    const profileResponse = await authApi.get(`/api/profile/${userId}`);
+    if (profileResponse.success) {
+      return {
+        success: true,
+        data: {
+          isFollowing: profileResponse.data.currentUserFollowing || false
+        }
+      };
+    } else {
+      throw new Error('No se pudo obtener el perfil del usuario');
+    }
   } catch (error) {
     console.error(`Error al obtener el estado de seguimiento para el usuario ${userId}:`, error);
     
     // Fallback con datos mock
+    console.log(`Usando datos mock como fallback para el estado de seguimiento del usuario ${userId}`);
     return {
       success: true,
       data: {
-        isFollowing: Math.random() > 0.5 // 50% probabilidad de que sea true
+        isFollowing: false // Default fallback
       }
     };
   }
-  */
 };
 
 // Follow a user
@@ -171,11 +128,43 @@ export const unfollowUser = async (userId) => {
   */
 };
 
+/**
+ * Obtener lista de seguidores del usuario actual
+ */
+export const getFollowers = async () => {
+  try {
+    return await authApi.get('/api/profile/followers');
+  } catch (error) {
+    console.error('Error en getFollowers:', error);
+    return { 
+      success: false, 
+      message: error.message || 'Error al obtener seguidores' 
+    };
+  }
+};
+
+/**
+ * Obtener lista de usuarios seguidos por el usuario actual
+ */
+export const getFollowing = async () => {
+  try {
+    return await authApi.get('/api/profile/following');
+  } catch (error) {
+    console.error('Error en getFollowing:', error);
+    return { 
+      success: false, 
+      message: error.message || 'Error al obtener seguidos' 
+    };
+  }
+};
+
 export default {
   getProfile,
   updateProfile,
   getProfileByUserId,
   getFollowStatus,
   followUser,
-  unfollowUser
+  unfollowUser,
+  getFollowers,
+  getFollowing
 };

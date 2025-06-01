@@ -1,45 +1,46 @@
 import React, { useState, useEffect, useRef } from 'react';
 import FormField from './FormField';
 import { ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import interestApi from '../../services/interestApi'; // Importar el servicio de API de intereses
 
 // Lista de intereses disponibles (hardcoded por ahora)
-const AVAILABLE_INTERESTS = [
-  'Programación',
-  'Inteligencia Artificial',
-  'Diseño Web',
-  'Literatura',
-  'Fotografía',
-  'Ciencia',
-  'Arte',
-  'Música',
-  'Cine',
-  'Viajes',
-  'Gastronomía',
-  'Deportes',
-  'Historia',
-  'Tecnología',
-  'Matemáticas',
-  'Física',
-  'Química',
-  'Biología',
-  'Medicina',
-  'Psicología',
-  'Educación',
-  'Medio Ambiente',
-  'Astronomía',
-  'Política',
-  'Economía',
-  'Filosofía',
-  'Arquitectura',
-  'Ingeniería',
-  'Finanzas',
-  'Marketing',
-  'Emprendimiento',
-  'Idiomas',
-  'Sociología',
-  'Antropología',
-  'Derecho'
-].sort();
+// const AVAILABLE_INTERESTS = [
+//   'Programación',
+//   'Inteligencia Artificial',
+//   'Diseño Web',
+//   'Literatura',
+//   'Fotografía',
+//   'Ciencia',
+//   'Arte',
+//   'Música',
+//   'Cine',
+//   'Viajes',
+//   'Gastronomía',
+//   'Deportes',
+//   'Historia',
+//   'Tecnología',
+//   'Matemáticas',
+//   'Física',
+//   'Química',
+//   'Biología',
+//   'Medicina',
+//   'Psicología',
+//   'Educación',
+//   'Medio Ambiente',
+//   'Astronomía',
+//   'Política',
+//   'Economía',
+//   'Filosofía',
+//   'Arquitectura',
+//   'Ingeniería',
+//   'Finanzas',
+//   'Marketing',
+//   'Emprendimiento',
+//   'Idiomas',
+//   'Sociología',
+//   'Antropología',
+//   'Derecho'
+// ].sort();
 
 /**
  * Selector de múltiples temas de interés
@@ -61,9 +62,27 @@ const InterestSelector = ({
   const [searchInterest, setSearchInterest] = useState('');
   const [showInterestsDropdown, setShowInterestsDropdown] = useState(false);
   const [filteredInterests, setFilteredInterests] = useState([]);
+  const [availableInterests, setAvailableInterests] = useState([]); // Estado para intereses del backend
   
   // Ref para el dropdown de intereses
   const interestsDropdownRef = useRef(null);
+
+  // Efecto para cargar intereses desde el backend
+  useEffect(() => {
+    const fetchInterests = async () => {
+      try {
+        const interestsData = await interestApi.getAllInterests();
+        // Asumiendo que interestsData es un array de objetos { id: '...', name: '...' }
+        // Extraer solo los nombres para mantener la lógica actual
+        setAvailableInterests(interestsData.map(interest => interest.name).sort());
+      } catch (error) {
+        console.error("Error fetching interests for selector:", error);
+        // Opcional: manejar el error, ej. mostrar un mensaje al usuario
+        setAvailableInterests([]); // Dejar vacío o con valores por defecto en caso de error
+      }
+    };
+    fetchInterests();
+  }, []);
 
   // Efecto para manejar clics fuera del dropdown
   useEffect(() => {
@@ -81,12 +100,12 @@ const InterestSelector = ({
 
   // Efecto para filtrar intereses disponibles
   useEffect(() => {
-    const filtered = AVAILABLE_INTERESTS.filter(
+    const filtered = availableInterests.filter(
       interest => !value.includes(interest) && 
       (searchInterest.trim() === '' || interest.toLowerCase().includes(searchInterest.toLowerCase()))
     );
     setFilteredInterests(filtered);
-  }, [searchInterest, value]);
+  }, [searchInterest, value, availableInterests]); // Añadir availableInterests a las dependencias
 
   // Agregar un interés a la lista
   const addInterest = (interest) => {

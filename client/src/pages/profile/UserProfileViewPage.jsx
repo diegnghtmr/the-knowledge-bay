@@ -157,7 +157,15 @@ const UserProfileViewPage = () => {
   
   const birthday = formatDate(userData.dateBirth);
   const interests = userData.interests || [];
-  const stats = userData.stats || { following: 0, followers: 0, groups: 0, content: 0, requests: 0 };
+  
+  // Fix: Use the actual field names from the API response instead of userData.stats
+  const stats = {
+    following: userData.following || 0,
+    followers: userData.followers || 0, 
+    groups: userData.groups || 0,
+    content: userData.contentCount || 0,
+    requests: userData.helpRequestCount || 0
+  };
 
   return (
     <div className="min-h-screen bg-white">

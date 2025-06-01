@@ -36,21 +36,28 @@ const Home = () => {
   const studentFeatures = [
     {
       icon: "👤",
-      title: "Gestiona tu Perfil",
+      title: "Mi Perfil",
       description:
         "Actualiza tus intereses y detalles académicos para mejorar tus conexiones.",
       linkTo: "/profile",
     },
     {
       icon: "💬",
-      title: "Chatea",
+      title: "Chat",
       description:
         "Comunícate en tiempo real con otros miembros de la comunidad.",
       linkTo: "/chat",
     },
     {
+      icon: "👥",
+      title: "Grupos de Estudio",
+      description:
+        "Únete a grupos temáticos para colaborar y compartir conocimientos.",
+      linkTo: "/study-groups",
+    },
+    {
       icon: "🆘",
-      title: "Solicita Ayuda",
+      title: "Solicitud de Ayuda",
       description:
         "¿Necesitas apoyo en algún tema? Crea una solicitud y recibe ayuda.",
       linkTo: "/help-request",
@@ -74,10 +81,22 @@ const Home = () => {
     },
     {
       icon: "📚",
-      title: "Gestión de Contenidos",
+      title: "Gestión de Contenido",
       description:
         "Accede a documentos, tutoriales y recursos compartidos por la comunidad.",
       linkTo: "/content-dashboard",
+    },
+    {
+      icon: "🆘",
+      title: "Gestión de Solicitudes",
+      description: "Gestiona y responde a las solicitudes de ayuda de los usuarios.",
+      linkTo: "/admin/help-requests",
+    },
+    {
+      icon: "🏷️",
+      title: "Gestión de Intereses",
+      description: "Administra los intereses disponibles en la plataforma.",
+      linkTo: "/admin/interests",
     },
     {
       icon: "🔗",
@@ -85,6 +104,18 @@ const Home = () => {
       description:
         "Descubre cómo se conectan los conocimientos a través del grafo de afinidad.",
       linkTo: "/affinity-graph",
+    },
+    {
+      icon: "📊",
+      title: "Panel Analítico",
+      description: "Visualiza datos y métricas clave de la plataforma.",
+      linkTo: "/admin/analytics",
+    },
+    {
+      icon: "📈",
+      title: "Estadísticas",
+      description: "Consulta estadísticas detalladas sobre el uso de la plataforma.",
+      linkTo: "/admin/stats",
     },
   ];
 
@@ -112,11 +143,10 @@ const Home = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      3
       <NavigationBar title="Inicio" />
       <div className="container mx-auto py-8 px-4 flex-grow">
         {/* Encabezado de bienvenida */}
-        <div className="text-center mb-12">
+        <div className={`text-center mb-12 ${userRole === 'moderator' ? 'hidden' : ''}`}>
           <h1 className="text-4xl font-bold text-[var(--deep-sea)] mb-3">
             {userName
               ? `¡Bienvenido de nuevo, ${userName}!`
@@ -141,18 +171,6 @@ const Home = () => {
           ))}
         </div>
 
-        {/* Sección de actividad reciente (incorporada desde Dashboard) */}
-        <div className="mt-10">
-          <h2 className="text-xl font-semibold text-[var(--deep-sea)] mb-4">
-            Actividad Reciente
-          </h2>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-[var(--open-sea)] text-center py-4">
-              No hay actividad reciente para mostrar.
-            </p>
-            {/* Aquí se mostrará la actividad reciente cuando se implemente */}
-          </div>
-        </div>
       </div>
       {/* Footer informativo - Siempre al final de la página gracias a flexbox */}
       <footer className="mt-auto w-full py-6 bg-[var(--deep-sea)] text-white">

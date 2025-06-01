@@ -12,9 +12,10 @@ import EditProfileModal from '../../components/profile/modals/EditProfileModal';
 import NavigationBar from '../../components/layout/NavigationBar';
 import profileLogo from '../../assets/img/profileLogo.png';
 // Import profile API service
-import { getProfile, updateProfile } from '../../services/profileApi';
+import { getProfile, updateProfile, getFollowers, getFollowing } from '../../services/profileApi';
 import { helpRequestApi } from '../../services/helpRequestApi';
 import { contentApi } from '../../services/contentApi';
+import { getAllGroups } from '../../services/studyGroupApi';
 
 const ProfilePage = () => {
   const [activeModal, setActiveModal] = useState(null);
@@ -25,12 +26,12 @@ const ProfilePage = () => {
   // Estados para datos de modales
   const [userRequests, setUserRequests] = useState([]);
   const [userContent, setUserContent] = useState([]);
+  const [userFollowers, setUserFollowers] = useState([]);
+  const [userFollowing, setUserFollowing] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
 
   // Datos mock para modales no implementados
-  const mockFollowers = [];
-  const mockFollowing = [];
-  const mockGroups = [];
+  const [userGroups, setUserGroups] = useState([]);
 
   useEffect(() => {
     // Usamos el token que ya está en sessionStorage (del login)
@@ -132,6 +133,12 @@ const ProfilePage = () => {
       await loadUserRequests();
     } else if (modalName === 'content') {
       await loadUserContent();
+    } else if (modalName === 'groups') {
+      await loadUserGroups();
+    } else if (modalName === 'followers') {
+      await loadUserFollowers();
+    } else if (modalName === 'following') {
+      await loadUserFollowing();
     }
   };
   
@@ -178,6 +185,58 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error loading user content:', error);
       setUserContent([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const loadUserGroups = async () => {
+    setModalLoading(true);
+    try {
+      const groups = await getAllGroups();
+      // Assuming the API returns groups in a format compatible with GroupsModal
+      // or we transform them here if needed.
+      // For now, we'll assume they are directly usable.
+      setUserGroups(groups);
+    } catch (error) {
+      console.error('Error loading user groups:', error);
+      setUserGroups([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  
+  const loadUserFollowers = async () => {
+    setModalLoading(true);
+    try {
+      const response = await getFollowers();
+      if (response.success) {
+        setUserFollowers(response.data);
+      } else {
+        console.error('Error loading followers:', response.message);
+        setUserFollowers([]);
+      }
+    } catch (error) {
+      console.error('Error loading followers:', error);
+      setUserFollowers([]);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  
+  const loadUserFollowing = async () => {
+    setModalLoading(true);
+    try {
+      const response = await getFollowing();
+      if (response.success) {
+        setUserFollowing(response.data);
+      } else {
+        console.error('Error loading following:', response.message);
+        setUserFollowing([]);
+      }
+    } catch (error) {
+      console.error('Error loading following:', error);
+      setUserFollowing([]);
     } finally {
       setModalLoading(false);
     }
@@ -286,18 +345,10 @@ const ProfilePage = () => {
         />
 
         {/* Modales */}
-        {activeModal === 'followers' && <FollowersModal followers={mockFollowers} onClose={closeModal} />}
-        {activeModal === 'following' && <FollowingModal following={mockFollowing} onClose={closeModal} />}
-        {activeModal === 'groups' && <GroupsModal groups={mockGroups} onClose={closeModal} />}
-        {activeModal === 'content' && (
-          <div>
-            {modalLoading ? (
-              <div className="text-center p-8">Cargando contenido...</div>
-            ) : (
-              <ContentModal content={userContent} onClose={closeModal} />
-            )}
-          </div>
-        )}
+        {activeModal === 'followers' && <FollowersModal followers={userFollowers} onClose={closeModal} />}
+        {activeModal === 'following' && <FollowingModal following={userFollowing} onClose={closeModal} />}
+        {activeModal === 'groups' && <GroupsModal groups={userGroups} onClose={closeModal} loading={modalLoading} />}
+        {activeModal === 'content' && <ContentModal content={userContent} onClose={closeModal} loading={modalLoading} />}
         {activeModal === 'requests' && (
           <div>
             {modalLoading ? (

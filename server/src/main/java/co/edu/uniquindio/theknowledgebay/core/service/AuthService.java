@@ -5,6 +5,7 @@ import co.edu.uniquindio.theknowledgebay.core.model.Moderator;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.model.User;
+import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 
 import lombok.RequiredArgsConstructor;
@@ -80,9 +81,17 @@ public class AuthService {
         if (student.getBiography() == null) {
             student.setBiography("");
         }
+        // Ensure interests list is initialized if it's null, though it should be set by controller
+        if (student.getInterests() == null) {
+            student.setInterests(new DoublyLinkedList<>());
+        }
 
-        domain.addStudent(student);
+        domain.addStudent(student); // Adds student to UserFactory and persists (if configured)
         log.info("Registered new student: {}", student.getEmail());
+        
+        // After student is added and their initial interests are set,
+        // update/create automatic study groups.
+        domain.updateAutomaticStudyGroupsForStudent(student);
 
         return new String[] { "true", "Student registered successfully." };
     }
@@ -93,7 +102,8 @@ public class AuthService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(rawPassword, user.getPassword())) {
-                String token = sessionManager.createSession(user.getEmail());
+                String userId = user.getId() != null ? user.getId() : user.getEmail();
+                String token = sessionManager.createSession(userId);
                 String role = getUserRole(user);
                 log.info("Login successful for user: {}", email);
                 return Optional.of(new AuthResultDTO(token, role));

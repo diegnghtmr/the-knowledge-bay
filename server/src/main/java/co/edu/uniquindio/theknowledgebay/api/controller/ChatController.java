@@ -40,23 +40,23 @@ public class ChatController {
             @RequestBody SendMessageRequestDTO requestDTO) {
         
         // Validate token and get current user
-        String currentUserEmail = sessionManager.getCurrentUserId(token);
-        if (currentUserEmail == null) {
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        if (currentUserId == null) {
             log.warn("Unauthorized attempt to send message");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         // Send message
-        Message message = chatService.sendMessage(currentUserEmail, requestDTO.getReceiverId(), requestDTO.getText());
+        Message message = chatService.sendMessage(currentUserId, requestDTO.getReceiverId(), requestDTO.getText());
         if (message == null) {
-            log.error("Error sending message from {} to {}", currentUserEmail, requestDTO.getReceiverId());
+            log.error("Error sending message from {} to {}", currentUserId, requestDTO.getReceiverId());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error sending message");
         }
 
         // Convert message to DTO
         MessageDTO messageDTO = MessageDTO.builder()
                 .id(message.getMessageId())
-                .senderId(message.getSender().getEmail())
+                .senderId(message.getSender().getId())
                 .text(message.getText())
                 .timestamp(message.getTimestamp())
                 .build();
@@ -77,13 +77,13 @@ public class ChatController {
             @PathVariable String contactId) {
         
         // Validate token and get current user
-        String currentUserEmail = sessionManager.getCurrentUserId(token);
-        if (currentUserEmail == null) {
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        if (currentUserId == null) {
             log.warn("Unauthorized attempt to get messages");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        DoublyLinkedList<Message> messages = chatService.getMessagesForChat(currentUserEmail, contactId);
+        DoublyLinkedList<Message> messages = chatService.getMessagesForChat(currentUserId, contactId);
         
         List<MessageDTO> messageDTOs = new ArrayList<>();
         DoublyLinkedNode<Message> current = messages.getHead();
@@ -91,7 +91,7 @@ public class ChatController {
             Message message = current.getData();
             MessageDTO messageDTO = MessageDTO.builder()
                     .id(message.getMessageId())
-                    .senderId(message.getSender().getEmail())
+                    .senderId(message.getSender().getId())
                     .text(message.getText())
                     .timestamp(message.getTimestamp())
                     .build();
@@ -111,13 +111,13 @@ public class ChatController {
     @GetMapping("/contacts")
     public ResponseEntity<?> getContacts(@RequestHeader("Authorization") String token) {
         // Validate token and get current user
-        String currentUserEmail = sessionManager.getCurrentUserId(token);
-        if (currentUserEmail == null) {
+        String currentUserId = sessionManager.getCurrentUserId(token);
+        if (currentUserId == null) {
             log.warn("Unauthorized attempt to get contacts");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        DoublyLinkedList<ChatContactDTO> contacts = chatService.getChatContactsWithLastMessage(currentUserEmail);
+        DoublyLinkedList<ChatContactDTO> contacts = chatService.getChatContactsWithLastMessage(currentUserId);
         
         // Convert to list for JSON serialization
         List<ChatContactDTO> contactsList = new ArrayList<>();

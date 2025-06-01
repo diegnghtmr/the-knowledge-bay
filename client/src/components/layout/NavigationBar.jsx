@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogOut, Home, Users, BookOpen, Network, HelpCircle, UserPlus, ChevronRight, ChevronLeft, User, MessageCircle, FileText, BarChart2, Tag, Headphones, PieChart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import logo from '../../assets/img/logoAlt.webp';
 
 /**
  * Componente de navegación reutilizable que muestra la página actual
@@ -33,6 +34,11 @@ const NavigationBar = ({ title }) => {
       path: '/chat', 
       label: 'Chat', 
       icon: <MessageCircle size={18} />,
+    },
+    { 
+      path: '/study-groups', 
+      label: 'Grupos de Estudio', 
+      icon: <Users size={18} />,
     },
     { 
       path: '/help-request', 
@@ -252,12 +258,13 @@ const NavigationBar = ({ title }) => {
   };
 
   return (
-    <header className="bg-[var(--open-sea)] text-white p-4 shadow-md overflow-hidden">
+    <header className="bg-(--deep-sea) text-white p-4 shadow-md overflow-hidden m-[0.5rem] rounded-[1rem]">
       <div className="container mx-auto max-w-7xl flex flex-col md:flex-row md:items-center justify-between">
-        <h1 className="font-righteous text-xl mb-3 md:mb-0 whitespace-nowrap overflow-hidden text-ellipsis pr-4">
-          The Knowledge Bay - {title || 'Panel Principal'}
+        <h1 className="font-workSans-bold text-(--coastal-sea)/90 text-xl mb-3 md:mb-0 whitespace-nowrap overflow-hidden text-ellipsis pr-4 inline-flex items-center gap-5">
+          <img src={logo} className="h-9" alt={title || 'The Knowledge Bay'}/>
+          {title || 'Panel Principal'}
         </h1>
-        
+
         <div className="relative flex-1 md:max-w-3xl">
           {/* Botón de desplazamiento izquierdo */}
           <div 
@@ -267,7 +274,7 @@ const NavigationBar = ({ title }) => {
           >
             <button 
               onClick={() => scrollNav('left')}
-              className="h-full bg-[var(--open-sea)]/90 flex items-center px-1 shadow-md rounded-r-md transition-transform duration-200 hover:scale-110"
+              className="h-full bg-(--deep-sea)/90 flex items-center px-1 shadow-md rounded-r-md transition-transform duration-200 hover:scale-110"
             >
               <ChevronLeft size={20} className="text-white animate-pulse" />
             </button>
@@ -275,7 +282,7 @@ const NavigationBar = ({ title }) => {
           
           {/* Fade izquierdo */}
           <div 
-            className={`absolute left-0 top-0 w-24 h-full bg-gradient-to-r from-[var(--open-sea)] to-transparent z-[1] pointer-events-none transition-opacity duration-500 ease-in-out ${
+            className={`absolute left-0 top-0 w-24 h-full bg-gradient-to-r from-(--deep-sea) to-transparent z-[1] pointer-events-none transition-opacity duration-500 ease-in-out ${
               showLeftFade ? 'opacity-100' : 'opacity-0'
             }`}
           />
@@ -368,7 +375,7 @@ const NavigationBar = ({ title }) => {
           
           {/* Fade derecho */}
           <div 
-            className={`absolute right-0 top-0 w-24 h-full bg-gradient-to-l from-[var(--open-sea)] to-transparent z-[1] pointer-events-none transition-opacity duration-500 ease-in-out ${
+            className={`absolute right-0 top-0 w-24 h-full bg-gradient-to-l from-[var(--deep-sea)] to-transparent z-[1] pointer-events-none transition-opacity duration-500 ease-in-out ${
               showRightFade ? 'opacity-100' : 'opacity-0'
             }`}
           />
@@ -381,7 +388,7 @@ const NavigationBar = ({ title }) => {
           >
             <button 
               onClick={() => scrollNav('right')}
-              className="h-full bg-[var(--open-sea)]/90 flex items-center px-1 shadow-md rounded-l-md transition-transform duration-200 hover:scale-110"
+              className="h-full bg-[var(--deep-sea)]/90 flex items-center px-1 shadow-md rounded-l-md transition-transform duration-200 hover:scale-110"
             >
               <ChevronRight size={20} className="text-white animate-pulse" />
             </button>

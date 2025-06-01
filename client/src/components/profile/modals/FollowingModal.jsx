@@ -1,14 +1,18 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 import ImprovedModalBase from './ImprovedModalBase';
 import ListItem from './ListItem';
 import { UserGroupIcon } from '@heroicons/react/24/solid';
 
 const FollowingModal = ({ following, onClose }) => {
+  const navigate = useNavigate();
+
   const handleViewFollowing = (followingId) => {
-    // Aquí iría la lógica para navegar al perfil del usuario seguido
-    console.log(`Ver perfil del usuario seguido con ID: ${followingId}`);
-    // En implementación real: history.push(`/profile/${followingId}`);
+    // Cerrar el modal primero
+    onClose();
+    // Navegar al perfil del usuario seguido
+    navigate(`/user/${followingId}`);
   };
 
   return (

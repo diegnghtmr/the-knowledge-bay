@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuthHandler } from "../../hooks/useAuthHandler.jsx";
 import { useNavigate } from "react-router-dom";
-import { fetchInterests } from "../../services/InterestApi.js";
+import { fetchInterests } from "../../services/InterestsApi.js";
 import SignupForm from "./SignupForm.jsx";
 
 const Signup = ({ data, state }) => {

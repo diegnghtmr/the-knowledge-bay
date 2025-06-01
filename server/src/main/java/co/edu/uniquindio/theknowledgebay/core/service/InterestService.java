@@ -71,7 +71,7 @@ public class InterestService {
     }
 
     public boolean isInterestNameTaken(String name) {
-        DoublyLinkedList<Interest> interests = interestRepository.findByName(name);
+        List<Interest> interests = interestRepository.findByName(name);
 
         for (Interest i : interests) {
             if (i.getName().equals(name)) {

@@ -21,9 +21,9 @@ public class StudentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public DoublyLinkedList<Student> findAll() {
+    public List<Student> findAll() {
         String sql = "SELECT * FROM students";
-        return ListToDoublyLinkedList.convert(jdbcTemplate.query(sql, studentRowMapper));
+        return jdbcTemplate.query(sql, studentRowMapper);
     }
 
     public Student findById(int id) {
@@ -32,13 +32,31 @@ public class StudentRepository {
     }
 
     public void save(Student student) {
+        if (student.getId() != null && !student.getId().isEmpty()) {
+            // Si el estudiante tiene ID, usar INSERT con ID específico
+            String sql = """
+                    INSERT INTO students (id, username, email, password, first_name, last_name, date_birth, biography)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """;
+
+            jdbcTemplate.update(sql,
+                    student.getId(),
+                    student.getUsername(),
+                    student.getEmail(),
+                    student.getPassword(),
+                    student.getFirstName(),
+                    student.getLastName(),
+                    student.getDateBirth() == null ? null : student.getDateBirth().toString(),
+                    student.getBiography()
+            );
+        } else {
+            // Si no tiene ID, usar INSERT sin ID (autoincrement)
         String sql = """
-                INSERT INTO students (id, username, email, password, first_name, last_name, date_birth, biography)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO students (username, email, password, first_name, last_name, date_birth, biography)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
         jdbcTemplate.update(sql,
-                student.getId(),
                 student.getUsername(),
                 student.getEmail(),
                 student.getPassword(),
@@ -47,6 +65,7 @@ public class StudentRepository {
                 student.getDateBirth() == null ? null : student.getDateBirth().toString(),
                 student.getBiography()
         );
+        }
     }
 
     private final RowMapper<Student> studentRowMapper = (rs, rowNum) -> {

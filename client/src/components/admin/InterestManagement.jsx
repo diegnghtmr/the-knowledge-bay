@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, DatabaseZap } from "lucide-react";
 import { 
   getAllInterests, 
   createInterest, 
   updateInterest, 
   deleteInterest, 
-  loadSampleInterests 
+  loadComprehensiveTestData
 } from "../../services/adminApi";
 
 /**
- * Componente para administrar los intereses disponibles en la plataforma
+ * Componente para administrar los intereses disponibles en la plataforma y cargar datos de prueba.
  */
 export default function InterestManagement() {
   const [interests, setInterests] = useState([]);
@@ -28,8 +28,19 @@ export default function InterestManagement() {
     try {
       setLoading(true);
       const data = await getAllInterests();
-      setInterests(data);
-      setError("");
+      const unique = [];
+      const seenIds = new Set();
+
+      for (const item of data) {
+        const id = item.idInterest;
+        if (!seenIds.has(id)) {
+          unique.push(item);
+          seenIds.add(id);
+        }
+      }
+
+      setInterests(unique);
+
     } catch (error) {
       setError("Error al cargar los intereses");
       console.error("Error loading interests:", error);
@@ -104,14 +115,19 @@ export default function InterestManagement() {
   };
 
   const handleLoadData = async () => {
+    if (!window.confirm("Are you sure you want to load comprehensive test data? This may overwrite or duplicate existing data.")) {
+      return;
+    }
     try {
       setLoading(true);
-      await loadSampleInterests();
-      await loadInterests(); // Recargar la lista
-      setError("");
+      setError(""); // Clear previous errors
+      const message = await loadComprehensiveTestData(); // Use the new function
+      await loadInterests(); // Recargar la lista de intereses, y potencialmente otras listas si es necesario
+      alert(message || "Comprehensive test data loaded successfully!"); // Show success message from server or a default one
     } catch (error) {
-      setError("Error al cargar los datos de muestra");
-      console.error("Error loading sample data:", error);
+      setError(error.message || "Error loading comprehensive test data");
+      console.error("Error loading comprehensive test data:", error);
+      alert(`Failed to load data: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -229,15 +245,19 @@ export default function InterestManagement() {
           </div>
         </div>
 
-        {/* Load Data Card */}
+        {/* Sección para Cargar Datos de Prueba Generales */}
         <div className="flex flex-col items-center justify-center rounded-2xl border border-[var(--coastal-sea)]/30 bg-white p-6 shadow-sm">
-          <h2 className="mb-8 text-lg font-workSans-semibold text-[var(--deep-sea)]">Load Data</h2>
+          <DatabaseZap size={48} className="mb-4 text-[var(--coastal-sea)]" />
+          <h2 className="mb-2 text-lg font-workSans-semibold text-[var(--deep-sea)]">Load All Test Data</h2>
+          <p className="mb-6 text-center text-sm text-[var(--open-sea)]/80">
+            Populate the system with a comprehensive set of sample users, content, help requests, and their relationships. This is useful for testing and development.
+          </p>
           <button 
             onClick={handleLoadData}
             disabled={loading}
             className="rounded-md bg-[var(--coastal-sea)] px-6 py-3 text-sm font-workSans-medium text-white hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)]/60 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Loading..." : "Load Data"}
+            {loading ? "Loading Data..." : "Load All Test Data"}
           </button>
         </div>
       </div>

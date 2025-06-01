@@ -21,7 +21,7 @@ class StudyGroupTest {
         student = Student.builder().firstName("Lucas").lastName("Martínez").build();
 
         studyGroup = StudyGroup.builder()
-                .groupId(101)
+                .id("101")
                 .name("Grupo de Álgebra")
                 .members(new DoublyLinkedList<>())
                 .topic(Interest.builder().idInterest("1").name("Matemáticas").build())
@@ -34,7 +34,7 @@ class StudyGroupTest {
 
     @Test
     void testAttributes() {
-        assertEquals(101, studyGroup.getGroupId());
+        assertEquals(101, studyGroup.getId());
         assertEquals("Grupo de Álgebra", studyGroup.getName());
         assertEquals("Matemáticas", studyGroup.getTopic().getName());
         assertFalse(studyGroup.isHidden());
@@ -55,7 +55,7 @@ class StudyGroupTest {
     @Test
     void testBuilder() {
         StudyGroup group = StudyGroup.builder()
-                .groupId(200)
+                .id("200")
                 .name("Física Cuántica")
                 .members(new DoublyLinkedList<>())
                 .topic(Interest.builder().idInterest("2").name("Física").build())
@@ -65,19 +65,19 @@ class StudyGroupTest {
                 .associatedHelpRequests(new DoublyLinkedList<>())
                 .build();
 
-        assertEquals(200, group.getGroupId());
+        assertEquals(200, group.getId());
         assertEquals("Física Cuántica", group.getName());
         assertTrue(group.isHidden());
     }
 
     @Test
     void testEqualsAndHashCode() {
-        StudyGroup g1 = new StudyGroup(1, "Grupo 1", new DoublyLinkedList<>(),
+        StudyGroup g1 = new StudyGroup("1", "Grupo 1", new DoublyLinkedList<>(),
                 Interest.builder().idInterest("1").name("Redes").build(),
                 LocalDate.of(2024, 5, 1), false,
                 new DoublyLinkedList<>(), new DoublyLinkedList<>());
 
-        StudyGroup g2 = new StudyGroup(1, "Grupo 1", new DoublyLinkedList<>(),
+        StudyGroup g2 = new StudyGroup("1", "Grupo 1", new DoublyLinkedList<>(),
                 Interest.builder().idInterest("1").name("Redes").build(),
                 LocalDate.of(2024, 5, 1), false,
                 new DoublyLinkedList<>(), new DoublyLinkedList<>());

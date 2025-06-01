@@ -84,7 +84,7 @@ public class UserController {
                             .interests(interestNames)
                             .contentCount(theKnowledgeBay.getContentCountByUserId(student.getId()))
                             .helpRequestCount(theKnowledgeBay.getHelpRequestCountByUserId(student.getId()))
-                            .isFollowing(currentUserId != null && theKnowledgeBay.isUserFollowing(currentUserId, student.getId()))
+                            .currentUserFollowing(currentUserId != null && theKnowledgeBay.isUserFollowing(currentUserId, student.getId()))
                             .following(student.getFollowingCount())
                             .followers(student.getFollowersCount())
                             .build();
@@ -211,7 +211,7 @@ public class UserController {
                             .interests(interestNames)
                             .contentCount(theKnowledgeBay.getContentCountByUserId(student.getId()))
                             .helpRequestCount(theKnowledgeBay.getHelpRequestCountByUserId(student.getId()))
-                            .isFollowing(currentUserId != null && theKnowledgeBay.isUserFollowing(currentUserId, student.getId()))
+                            .currentUserFollowing(currentUserId != null && theKnowledgeBay.isUserFollowing(currentUserId, student.getId()))
                             .following(student.getFollowingCount())
                             .followers(student.getFollowersCount())
                             .build();

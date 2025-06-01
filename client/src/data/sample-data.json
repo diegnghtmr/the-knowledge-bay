@@ -8,5 +8,20 @@
       "idInterest": "2",
       "name": "Programación"
     }
+  ],
+  "students": [
+    {
+      "id": "1",
+      "username": "jorge",
+      "email": "jorge@example.com",
+      "firstName": "Jorge",
+      "lastName": "Ramírez",
+      "dateBirth": "1990-01-01",
+      "biography": "Estudiante de Ingeniería Informática en la Universidad de la República",
+      "interests": [
+        "1",
+        "2"
+      ]
+    }
   ]
 }

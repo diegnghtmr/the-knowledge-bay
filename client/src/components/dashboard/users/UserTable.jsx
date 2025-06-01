@@ -114,7 +114,7 @@ const UserTable = () => {
   // Renderizar celdas según la columna
   const renderCell = (row, column, index) => {
     const { key } = column;
-    const isRowEditing = editingId === row.id;
+    const isRowEditing = editingId !== null && editingId === row.id;
 
     switch (key) {
       case 'user':

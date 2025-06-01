@@ -73,11 +73,15 @@ export default function AdminDashboardStats() {
     const fetchStats = async () => {
       try {
         setLoading(true);
+        console.log("🔍 Fetching admin stats...");
         const data = await getAdminStats();
+        console.log("📊 Admin stats received:", data);
+        console.log("📈 KPIs:", data.kpis);
+        console.log("👥 Total Groups:", data?.kpis?.totalGroups);
         setStats(data);
       } catch (err) {
         setError("Error al cargar las estadísticas");
-        console.error("Error fetching admin stats:", err);
+        console.error("❌ Error fetching admin stats:", err);
       } finally {
         setLoading(false);
       }
@@ -130,6 +134,9 @@ export default function AdminDashboardStats() {
       icon: <Users2 size={20} />,
     },
   ];
+
+  // Debug log para ver qué valores se están renderizando
+  console.log("🎯 KPIs being rendered:", kpis.map(kpi => ({ label: kpi.label, value: kpi.value })));
 
   return (
     <div className="min-h-screen bg-white p-8 font-workSans">

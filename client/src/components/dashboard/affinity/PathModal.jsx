@@ -23,10 +23,10 @@ const PathModal = ({
   useEffect(() => {
     if (graphRef.current) {
       // Mayor fuerza de repulsión para mejor separación
-      graphRef.current.d3Force('charge', forceManyBody().strength(-1200));
+      graphRef.current.d3Force('charge', forceManyBody().strength(-500));
       
       // Añadir fuerza de colisión para evitar solapamientos
-      graphRef.current.d3Force('collision', forceCollide().radius(80));
+      graphRef.current.d3Force('collision', forceCollide().radius(60));
       
       // Centrar el grafo inicialmente
       setTimeout(() => {
@@ -248,9 +248,9 @@ const PathModal = ({
             nodeCanvasObject={nodeCanvasObject}
             linkCanvasObject={linkCanvasObject}
             linkCurvature={0.1}
-            linkDistance={180}
+            linkDistance={100}
             width={width || 500}
-            height={340}
+            height={300}
             backgroundColor="#FEFBF6"
             nodeRelSize={6}
             cooldownTime={2000}

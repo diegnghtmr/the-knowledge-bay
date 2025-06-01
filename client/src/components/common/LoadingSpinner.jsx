@@ -1,12 +1,10 @@
-import React from 'react';
+import React from "react";
 
-const LoadingSpinner = ({ message = 'Cargando...' }) => {
-  return (
-    <div className="flex flex-col items-center justify-center py-8">
-      <div className="w-12 h-12 border-4 border-[var(--coastal-sea)] border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-[var(--open-sea)]">{message}</p>
-    </div>
-  );
-};
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center my-8">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--coastal-sea)]"></div>
+    <p className="ml-3 text-gray-500">Cargando más contenido...</p>
+  </div>
+);
 
 export default LoadingSpinner; 

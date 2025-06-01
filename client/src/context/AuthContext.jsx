@@ -63,10 +63,33 @@ export const AuthProvider = ({ children }) => {
         console.log("AuthContext - Login successful with original role:", originalRole);
         console.log("AuthContext - Normalized role for consistency:", normalizedRole);
         
+        // Obtener el perfil del usuario para conseguir su ID real
+        let userId = credentials.email; // Fallback al email
+        try {
+          // Hacer una llamada adicional para obtener el perfil con el token
+          const profileResponse = await fetch('http://localhost:8080/api/profile', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${responseToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            if (profileData.id) {
+              userId = profileData.id; // Usar el ID real del usuario
+              console.log("AuthContext - Real user ID obtained:", userId);
+            }
+          }
+        } catch (profileError) {
+          console.warn("AuthContext - Could not fetch user profile, using email as fallback:", profileError);
+        }
+        
         // Guardar en sessionStorage
         sessionStorage.setItem('token', responseToken);
         sessionStorage.setItem('role', normalizedRole);
-        sessionStorage.setItem('userId', credentials.email);
+        sessionStorage.setItem('userId', userId); // Guardar el ID real
         
         // Actualizar estado
         setToken(responseToken);

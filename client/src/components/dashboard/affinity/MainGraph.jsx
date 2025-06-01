@@ -20,10 +20,10 @@ const MainGraph = ({
   useEffect(() => {
     if (graphRef.current) {
       // Aumentar la fuerza de repulsión para mayor separación
-      graphRef.current.d3Force('charge', forceManyBody().strength(-1200));
+      graphRef.current.d3Force('charge', forceManyBody().strength(-500));
       
       // Añadir una fuerza de repulsión adicional para evitar solapamientos
-      graphRef.current.d3Force('collision', forceCollide().radius(80));
+      graphRef.current.d3Force('collision', forceCollide().radius(60));
       
       // Centrar el grafo inicialmente
       setTimeout(() => {
@@ -202,7 +202,7 @@ const MainGraph = ({
       nodeCanvasObject={nodeCanvasObject}
       linkCanvasObject={linkCanvasObject}
       linkCurvature={0.1}
-      linkDistance={200}
+      linkDistance={100}
       width={width}
       height={400}
       onNodeClick={onNodeClick}

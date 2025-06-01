@@ -19,13 +19,20 @@ import java.util.Collections;
 @SuperBuilder
 public class Student extends User {
 
-    private DoublyLinkedList<Interest> interests;
-    private DoublyLinkedList<Content> publishedContents;
-    private DoublyLinkedList<HelpRequest> helpRequests;
-    private DoublyLinkedList<StudyGroup> studyGroups;
-    private DoublyLinkedList<Chat> chats;
+    @lombok.Builder.Default
+    private DoublyLinkedList<Interest> interests = new DoublyLinkedList<>();
+    @lombok.Builder.Default
+    private DoublyLinkedList<Content> publishedContents = new DoublyLinkedList<>();
+    @lombok.Builder.Default
+    private DoublyLinkedList<HelpRequest> helpRequests = new DoublyLinkedList<>();
+    @lombok.Builder.Default
+    private DoublyLinkedList<StudyGroup> studyGroups = new DoublyLinkedList<>();
+    @lombok.Builder.Default
+    private DoublyLinkedList<Chat> chats = new DoublyLinkedList<>();
 
+    @lombok.Builder.Default
     private DoublyLinkedList<Student> following = new DoublyLinkedList<>();
+    @lombok.Builder.Default
     private DoublyLinkedList<Student> followers = new DoublyLinkedList<>();
     
     private String firstName;

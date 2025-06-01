@@ -31,9 +31,9 @@ public class InterestRepository {
         }
     }
 
-    public DoublyLinkedList<Interest> findAll() {
+    public List<Interest> findAll() {
         String sql = "SELECT * FROM interests";
-        return ListToDoublyLinkedList.convert(jdbcTemplate.query(sql, new InterestRowMapper()));
+        return jdbcTemplate.query(sql, new InterestRowMapper());
     }
 
     public Interest findById(int id) {
@@ -41,9 +41,9 @@ public class InterestRepository {
         return jdbcTemplate.queryForObject(sql, new InterestRowMapper(), id);
     }
 
-    public DoublyLinkedList<Interest> findByName(String name) {
+    public List<Interest> findByName(String name) {
         String sql = "SELECT * FROM interests WHERE name = ?";
-        return ListToDoublyLinkedList.convert(jdbcTemplate.query(sql, new InterestRowMapper(), name));
+        return jdbcTemplate.query(sql, new InterestRowMapper(), name);
     }
 
     public int save(Interest interest) {

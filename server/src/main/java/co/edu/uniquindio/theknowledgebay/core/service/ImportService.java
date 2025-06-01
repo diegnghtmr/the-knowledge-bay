@@ -39,6 +39,7 @@ public class ImportService {
 
         // Procesar estudiantes
         if (data.getStudents() != null) {
+            System.out.println("Importando estudiantes...");
             for (Student student : data.getStudents()) {
                 if (isValidStudent(student)) {
                     try {
@@ -54,7 +55,7 @@ public class ImportService {
         // Procesar intereses (evitar duplicados por nombre)
         if (data.getInterests() != null) {
             // Obtener nombres ya existentes (normalizados en minúsculas)
-            Set<String> existingNames = DoublyLinkedListToList.convert(interestRepository.findAll())
+            Set<String> existingNames = interestRepository.findAll()
                     .stream()
                     .map(i -> i.getName().toLowerCase())
                     .collect(Collectors.toSet());

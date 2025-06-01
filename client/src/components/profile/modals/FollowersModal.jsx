@@ -1,14 +1,18 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 import ImprovedModalBase from './ImprovedModalBase';
 import ListItem from './ListItem';
 import { UsersIcon } from '@heroicons/react/24/solid';
 
 const FollowersModal = ({ followers, onClose }) => {
+  const navigate = useNavigate();
+
   const handleViewFollower = (followerId) => {
-    // Aquí iría la lógica para navegar al perfil del seguidor
-    console.log(`Ver perfil del seguidor con ID: ${followerId}`);
-    // En implementación real: history.push(`/profile/${followerId}`);
+    // Cerrar el modal primero
+    onClose();
+    // Navegar al perfil del seguidor
+    navigate(`/user/${followerId}`);
   };
 
   return (

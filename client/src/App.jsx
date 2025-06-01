@@ -11,6 +11,7 @@ import ContentDashboardPage from "./pages/ContentDashboardPage";
 import AffinityGraphPage from "./pages/AffinityGraphPage";
 import HelpRequestPage from "./pages/HelpRequestPage";
 import PublishContentPage from "./pages/PublishContentPage";
+import StudyGroupsPage from "./pages/StudyGroupsPage";
 import BodyClassManager from "./components/layout/BodyClassManager";
 import Home from "./pages/Home";
 
@@ -75,6 +76,8 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/user/:userId" element={<UserProfileViewPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/study-groups" element={<StudyGroupsPage />} />
+            <Route path="/terms" element={<Terms />} />
 
             {/* Rutas protegidas por rol - Solo Moderador */}
             <Route

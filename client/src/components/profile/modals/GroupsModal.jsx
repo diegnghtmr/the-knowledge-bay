@@ -3,12 +3,17 @@ import PropTypes from 'prop-types';
 import ImprovedModalBase from './ImprovedModalBase';
 import ListItem from './ListItem';
 import { UsersIcon } from '@heroicons/react/24/solid';
+import { useNavigate } from 'react-router-dom';
 
 const GroupsModal = ({ groups, onClose }) => {
+  const navigate = useNavigate();
+
   const handleViewGroup = (groupId) => {
     // Aquí iría la lógica para navegar al grupo
     console.log(`Ver grupo con ID: ${groupId}`);
     // En implementación real: history.push(`/groups/${groupId}`);
+    navigate(`/study-groups`, { state: { groupId: groupId } });
+    onClose();
   };
 
   return (

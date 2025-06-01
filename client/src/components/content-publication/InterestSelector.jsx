@@ -1,58 +1,75 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import interestApi from '../../services/interestApi'; // Importar el servicio de API de intereses
 
 const InterestSelector = ({ 
   selectedInterests, 
   onInterestsChange, 
   label = 'Tema Principal',
-  availableInterests = [] 
+  // availableInterests = [] // Ya no se usa como prop, se carga desde la API
 }) => {
   const [filteredInterests, setFilteredInterests] = useState([]);
   const [searchInterest, setSearchInterest] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const [backendInterests, setBackendInterests] = useState([]); // Para almacenar intereses del backend
   
   // Lista predefinida de intereses disponibles si no se proporciona
-  const defaultInterests = useMemo(() => [
-    'Programación', 
-    'Inteligencia Artificial', 
-    'Diseño Web', 
-    'Literatura', 
-    'Fotografía',
-    'Ciencia',
-    'Arte',
-    'Música',
-    'Cine',
-    'Viajes',
-    'Gastronomía',
-    'Deportes',
-    'Historia',
-    'Tecnología',
-    'Matemáticas',
-    'Física',
-    'Química',
-    'Biología',
-    'Medicina',
-    'Psicología',
-    'Educación',
-    'Medio Ambiente',
-    'Astronomía',
-    'Política',
-    'Economía',
-    'JavaScript',
-    'React',
-    'Python',
-    'Java',
-    'Android',
-    'iOS',
-    'Machine Learning',
-    'Data Science'
-  ].sort(), []);
+  // const defaultInterests = useMemo(() => [
+  //   'Programación', 
+  //   'Inteligencia Artificial', 
+  //   'Diseño Web', 
+  //   'Literatura', 
+  //   'Fotografía',
+  //   'Ciencia',
+  //   'Arte',
+  //   'Música',
+  //   'Cine',
+  //   'Viajes',
+  //   'Gastronomía',
+  //   'Deportes',
+  //   'Historia',
+  //   'Tecnología',
+  //   'Matemáticas',
+  //   'Física',
+  //   'Química',
+  //   'Biología',
+  //   'Medicina',
+  //   'Psicología',
+  //   'Educación',
+  //   'Medio Ambiente',
+  //   'Astronomía',
+  //   'Política',
+  //   'Economía',
+  //   'JavaScript',
+  //   'React',
+  //   'Python',
+  //   'Java',
+  //   'Android',
+  //   'iOS',
+  //   'Machine Learning',
+  //   'Data Science'
+  // ].sort(), []);
+
+  // Efecto para cargar intereses desde el backend
+  useEffect(() => {
+    const fetchInterests = async () => {
+      try {
+        const interestsData = await interestApi.getAllInterests();
+        // Asumiendo que interestsData es un array de objetos { id: '...', name: '...' }
+        setBackendInterests(interestsData.map(interest => interest.name).sort());
+      } catch (error) {
+        console.error("Error fetching interests for content publication selector:", error);
+        setBackendInterests([]); // Mantener vacío o con valores por defecto en caso de error
+      }
+    };
+    fetchInterests();
+  }, []);
 
   // Memorizar la lista de intereses para evitar recreaciones en cada renderizado
   const interestsList = useMemo(() => 
-    availableInterests.length > 0 ? availableInterests : defaultInterests,
-    [availableInterests, defaultInterests]
+    backendInterests.length > 0 ? backendInterests : [], // Usar backendInterests
+    [backendInterests]
   );
 
   // Memorizar el tema seleccionado actual
@@ -207,7 +224,7 @@ InterestSelector.propTypes = {
   selectedInterests: PropTypes.arrayOf(PropTypes.string).isRequired,
   onInterestsChange: PropTypes.func.isRequired,
   label: PropTypes.string,
-  availableInterests: PropTypes.arrayOf(PropTypes.string)
+  // availableInterests: PropTypes.arrayOf(PropTypes.string)
 };
 
 export default InterestSelector; 

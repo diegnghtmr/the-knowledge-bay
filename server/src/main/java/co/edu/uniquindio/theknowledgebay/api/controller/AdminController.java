@@ -50,7 +50,7 @@ public class AdminController {
             kpis.put("totalUsers", getTotalUsers());
             kpis.put("totalContent", getTotalContent());
             kpis.put("totalHelpRequests", getTotalHelpRequests());
-            kpis.put("totalGroups", 0); // TODO: Implement when groups are available
+            kpis.put("totalGroups", getTotalGroups());
             
             stats.put("kpis", kpis);
             
@@ -437,6 +437,11 @@ public class AdminController {
     private int getTotalHelpRequests() {
         DoublyLinkedList<HelpRequest> requests = theKnowledgeBay.getAllHelpRequests();
         return requests != null ? requests.getSize() : 0;
+    }
+
+    private int getTotalGroups() {
+        DoublyLinkedList<StudyGroup> groups = theKnowledgeBay.getStudyGroups();
+        return groups != null ? groups.getSize() : 0;
     }
 
     private List<Map<String, Object>> getMostValuedContent() {
