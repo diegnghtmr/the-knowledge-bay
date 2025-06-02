@@ -1,6 +1,7 @@
 <!-- # Logo Placeholder -->
-<div style="text-align: center;">
-  ![Project Logo](path/to/your/logo.png)
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/489523ff-e121-46d9-969d-b1945df34790" alt="Logo TKB" width="700"/>
+  <br/>
 </div>
 
 # Table of Contents
