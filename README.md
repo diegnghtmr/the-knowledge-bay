@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/489523ff-e121-46d9-969d-b1945df34790" alt="Logo TKB" width="700"/>
+  <img src="https://github.com/user-attachments/assets/be1b5fad-7c90-4370-8b9f-20988e63f58f" alt="Logo TKB" width="700"/>
   <br/>
 </div>
 
