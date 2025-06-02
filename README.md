@@ -28,6 +28,7 @@
 # 📖 Introduction
 
 Welcome to The Knowledge Bay! 🌟 This project is a centralized platform designed to empower users by providing easy access to a vast repository of information and resources. In a world overflowing with data, finding reliable and relevant knowledge can be challenging. The Knowledge Bay aims to solve this by curating and organizing information, making it readily available and digestible. Our main goal is to foster a community of learners and knowledge-sharers, enabling users to explore diverse topics, contribute their expertise, and collaborate effectively.
+
 # ✨ Features
 
 - 🔐 User Authentication: Secure sign-up, sign-in, and password reset functionalities.
@@ -40,6 +41,7 @@ Welcome to The Knowledge Bay! 🌟 This project is a centralized platform design
 - 📱 Responsive Design: Seamless experience across desktops, tablets, and mobile devices.
 - ⭐ Personalized Recommendations: Discover content tailored to your interests and learning history.
 - 🏷️ Tagging & Categorization: Organize and browse content effectively with a flexible tagging system.
+
 # 🛠️ Tech Stack
 
 ## 💻 Front-End
@@ -62,6 +64,7 @@ Welcome to The Knowledge Bay! 🌟 This project is a centralized platform design
 - **Database:** SQLite, Spring Boot Starter JDBC
 - **Build Tool:** Maven
 - **Other:** Lombok
+
 # 📂 Project Structure
 
 The project is organized into the following main directories:
@@ -87,6 +90,7 @@ The project is organized into the following main directories:
 - `.gitignore`: Specifies intentionally untracked files that Git should ignore (e.g., `node_modules/`, `target/`, IDE-specific files).
 - `LICENSE.md`: Contains the full text of the project's license.
 - `README.md`: This file, providing an overview of the project, setup instructions, and other relevant information.
+
 # ✅ Prerequisites
 
 Before you begin, ensure you have the following software and tools installed on your system:
@@ -132,8 +136,6 @@ Follow these steps to get The Knowledge Bay up and running on your local machine
     yarn dev
     ```
 
-4.  The client application should now be accessible at `http://localhost:5173` (Vite's default port). If this port is in use, Vite will automatically choose the next available port. Check your terminal for the correct URL.
-
 ## ⚙️ Server (Back-End)
 
 1.  **Navigate to the server directory:**
@@ -160,7 +162,7 @@ Follow these steps to get The Knowledge Bay up and running on your local machine
 Once both the client and server are running, you can start using The Knowledge Bay:
 
 1.  **Access the Application:**
-    Open your web browser and navigate to `http://localhost:5173` (or the port your client is running on).
+    Open your web browser and navigate to `http://localhost:3000` (or the port your client is running on).
 
 2.  **User Registration and Login:**
     - **Sign Up:** If you are a new user, look for a "Sign Up" or "Register" option. You will typically need to provide a username, email, and password.
@@ -180,61 +182,41 @@ Once both the client and server are running, you can start using The Knowledge B
     - **Searching:** Utilize the search bar to find specific topics or keywords.
     - **Commenting/Discussing:** Engage with content by leaving comments or participating in discussion threads.
 
-5.  **Default Admin Credentials (if applicable):**
-    - For initial setup or testing, there might be default administrator credentials. A common example could be `username: admin` and `password: admin`.
-    - **Important:** If such default credentials exist, it is crucial to change them immediately after your first login to secure the application.
-
 Enjoy exploring and contributing to The Knowledge Bay!
+
 # 🌐 API Endpoints
 
-The following is a selection of key API endpoints available in The Knowledge Bay. For a complete list and more detailed information, please examine the controller classes within the `server/src/main/java/co/edu/uniquindio/theknowledgebay/api/controller/` directory (or the relevant path in your project). The base path for all API endpoints is `/api`.
+The following is a selection of key API endpoints available in The Knowledge Bay. For a complete list and more detailed information, please examine the controller classes within the `server/src/main/java/co/edu/uniquindio/theknowledgebay/api/controller/` directory. The base path for all API endpoints is `/api`.
 
 ### 🔑 Authentication Endpoints (`/api/auth`)
 
--   `POST /register`: Registers a new user. No authorization required.
--   `POST /login`: Logs in an existing user and returns a JWT token upon successful authentication. No authorization required.
--   `POST /logout`: Logs out the currently authenticated user. Requires Authorization token (JWT).
+-   `POST /register`: Registers a new user.
+-   `POST /login`: Logs in an existing user and returns a JWT token upon successful authentication.
+-   `POST /logout`: Logs out the currently authenticated user.
 
 ### 📝 Content Endpoints (`/api/content`)
 
--   `POST /`: Creates new content (e.g., article, resource). Requires Authorization token. Supports multipart requests for file uploads.
--   `GET /my-content`: Retrieves all content created by the currently authenticated user. Requires Authorization token.
--   `GET /`: Retrieves all content available in the system. No authorization typically required, but may depend on content visibility settings.
--   `GET /{id}`: Retrieves a specific piece of content by its unique ID. No authorization typically required.
--   `PUT /{id}`: Updates an existing piece of content by its ID. Requires Authorization token and user must be the owner of the content or have administrative privileges.
--   `DELETE /{id}`: Deletes a specific piece of content by its ID. Requires Authorization token and user must be the owner of the content or have administrative privileges.
--   `POST /{id}/like`: Likes a specific piece of content. Requires Authorization token.
--   `DELETE /{id}/like`: Removes a like from a specific piece of content. Requires Authorization token.
+-   `POST /`: Creates new content (e.g., article, resource). Supports multipart requests for file uploads.
+-   `GET /my-content`: Retrieves all content created by the currently authenticated user.
+-   `GET /`: Retrieves all content available in the system.
+-   `GET /{id}`: Retrieves a specific piece of content by its unique ID.
+-   `PUT /{id}`: Updates an existing piece of content by its ID.
+-   `DELETE /{id}`: Deletes a specific piece of content by its ID.
+-   `POST /{id}/like`: Likes a specific piece of content.
+-   `DELETE /{id}/like`: Removes a like from a specific piece of content.
 
 ### 👥 User Endpoints (`/api/users`)
 
--   `GET /`: Retrieves a list of all users. May require administrative privileges. Supports optional query parameters for filtering, such as:
+-   `GET /`: Retrieves a list of all users. Supports optional query parameters for filtering, such as:
     -   `search` (string): Filters users by username or other profile fields.
     -   `interest` (string): Filters users by declared interests.
--   `GET /{userId}`: Retrieves profile information for a specific user by their `userId`. Requires Authorization token.
--   `PUT /profile`: Updates the profile information of the currently authenticated user. Requires Authorization token.
--   `POST /{userId}/follow`: Allows the authenticated user to follow the user specified by `userId`. Requires Authorization token.
--   `DELETE /{userId}/follow`: Allows the authenticated user to unfollow the user specified by `userId`. Requires Authorization token.
--   `GET /search?query={searchTerm}`: Searches for users based on a `searchTerm`. This might be an alias or a more specific search than the general `GET /` with a search parameter. Requires Authorization token.
+-   `GET /{userId}`: Retrieves profile information for a specific user by their `userId`. 
+-   `PUT /profile`: Updates the profile information of the currently authenticated user.
+-   `POST /{userId}/follow`: Allows the authenticated user to follow the user specified by `userId`. 
+-   `DELETE /{userId}/follow`: Allows the authenticated user to unfollow the user specified by `userId`. 
+-   `GET /search?query={searchTerm}`: Searches for users based on a `searchTerm`. This might be an alias or a more specific search than the general `GET /` with a search parameter.
 
-_Note: "Authorization token" typically refers to a JWT Bearer token sent in the `Authorization` header of the HTTP request._
 # 🧪 Testing
-
-This section describes how to run tests for both the client and server components of The Knowledge Bay.
-
-## 💻 Client (Front-End)
-
-1.  **Linting:**
-    To check the client-side code for linting errors and ensure code style consistency, navigate to the `client` directory and run:
-    ```bash
-    cd client
-    npm run lint
-    ```
-
-2.  **Unit/Integration Tests:**
-    The `package.json` for the client does not specify a standard test script (e.g., `npm test`). Please consult specific project documentation, `CONTRIBUTING.md`, or look for testing libraries and configurations (like Jest, React Testing Library) within the `client/src` directory to understand how to run client-side tests if they are implemented.
-
-## ⚙️ Server (Back-End)
 
 1.  **Running Tests:**
     To execute the unit and integration tests for the server-side Spring Boot application, navigate to the `server` directory and use the following Maven command:
@@ -258,7 +240,6 @@ Don't forget to give the project a star! Thanks again!
     - Clone your fork to your local machine:
       ```bash
       git clone https://github.com/YOUR_USERNAME/THE_KNOWLEDGE_BAY_FORK.git 
-      # Replace YOUR_USERNAME and THE_KNOWLEDGE_BAY_FORK with the correct URLs for your fork
       ```
 
 2.  🌿 **Create your Feature Branch**
@@ -304,46 +285,35 @@ Don't forget to give the project a star! Thanks again!
 For significant changes, such as adding a major feature or refactoring core components, it's a good idea to open an issue first to discuss your ideas with the maintainers. This helps ensure your contributions align with the project's goals and roadmap.
 
 We look forward to your contributions!
+
 # 📄 License
 
 This project is distributed under the terms of the license specified in `LICENSE.md`.
 Please see the `LICENSE.md` file in the root of the project for the full license text and details.
+
 # 🙏 Acknowledgements
 
-This project has benefited from the work and inspiration of many. We'd like to acknowledge:
+A big thank you to the open-source community and the developers of the tools and libraries that make The Knowledge Bay possible. Your work is greatly appreciated!
 
--   Key inspirations or ideas that shaped this project (e.g., "Inspired by [Project X or Concept Y]").
--   Individuals or communities who provided significant help, feedback, or contributions.
--   Third-party libraries, frameworks, or tools that were instrumental in the development (e.g., React, Spring Boot, Tailwind CSS, etc. - many are already listed in Tech Stack).
--   Authors of helpful tutorials, articles, or documentation that aided the learning process.
--   Anyone whose code snippets or guidance proved invaluable.
+We also thank all users and contributors who help make this platform a thriving space for learning and collaboration.
 
-*This section is a place to give credit where it's due. Feel free to expand this list!*
 # 📧 Contact
 
-Project Maintainer: **[Your Name / Organization Name]** - **[your.email@example.com or project-email@example.com]**
+Project Maintainers: 
+- **Diego Flores:** diegoa.floresq@uqvirtual.edu.co
+- **Jorge Acosta:** jorgei.acostaa@uqvirtual.edu.co
+- **July Cartagena:** julyt.cartagenam@uqvirtual.edu.co
 
-Project Link: [https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME)
+Project Link: [https://github.com/diegnghtmr/the-knowledge-bay](https://github.com/diegnghtmr/the-knowledge-bay)
 
 For questions, feedback, feature requests, or support, please:
-1.  Open an issue on the GitHub repository: [https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME/issues](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME/issues)
-2.  Alternatively, reach out to the maintainer(s) via the email provided above.
+1.  Open an issue on the GitHub repository: [https://github.com/diegnghtmr/the-knowledge-bay/issues](https://github.com/diegnghtmr/the-knowledge-bay/issues)
+2.  Alternatively, reach out to the maintainers via the email provided above.
 
 We welcome your input and contributions to make The Knowledge Bay even better!
-# 🤔 Why The Knowledge Bay?
-
-This section is your space to highlight what makes **The Knowledge Bay** special and why someone should use or contribute to it. Consider the unique value propositions of your project.
-
-Here are some placeholder ideas to get you started – please replace them with the actual reasons specific to your project:
-
--   🌟 **Innovative Approach:** *Does your project use a unique technology, methodology, or approach to knowledge management or learning? (e.g., "Leverages cutting-edge AI for personalized learning paths.")*
--   🧩 **Comprehensive & Centralized:** *Does it bring together scattered information or offer a wide array of tools in one place? (e.g., "Offers a one-stop platform for accessing diverse academic resources and collaborative tools.")*
--   🤝 **Community-Focused & Collaborative:** *Is a strong community aspect a core part of the project? (e.g., "Fosters a vibrant, community-driven ecosystem for knowledge sharing, peer review, and collaborative research.")*
--   🚀 **Modern & Scalable Architecture:** *Is the project built with future growth and modern practices in mind? (e.g., "Built with a robust, modern tech stack (React & Spring Boot) designed for scalability, maintainability, and seamless integration of future enhancements.")*
--   💡 **Addresses a Specific Niche/Problem:** *Does it solve a particular problem better than existing solutions or cater to a specific underserved audience? (e.g., "Specifically designed to bridge the gap between theoretical knowledge and practical application in [specific field].")*
--   🎯 **User-Centric Design:** *Is the user experience a key differentiator? (e.g., "Prioritizes an intuitive and accessible user experience for learners of all backgrounds.")*
 
 **Make this section compelling!** Clearly articulate the benefits and standout features of The Knowledge Bay.
+
 # 🗺️ Roadmap
 
 Here are some of the exciting features and improvements planned for future versions of The Knowledge Bay:
@@ -359,12 +329,20 @@ Here are some of the exciting features and improvements planned for future versi
 
 This roadmap is subject to change based on community feedback and project priorities.
 
-See the [open issues](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME/issues) for a more detailed list of proposed features, ongoing discussions, and known issues. (Please replace `YOUR_USERNAME/YOUR_REPOSITORY_NAME` with the actual repository path).
+See the [open issues](https://github.com/diegnghtmr/the-knowledge-bay/issues) for a more detailed list of proposed features, ongoing discussions, and known issues.
 # 🧑‍💻 Contributors
 
 A big thanks to all the wonderful people who have contributed their time and expertise to The Knowledge Bay! ✨ Every contribution, big or small, is greatly appreciated.
 
 You can recognize our contributors here:
+
+```html
+<a href="https://github.com/diegnghtmr">
+  <img src="Image URL (e.g., GitHub avatar)" width="100px;" alt="Diego Flores"/>
+  <br />
+  <sub><b>Contributor Name</b></sub>
+</a>
+```
 
 -   [Your Name Here](https://github.com/yourusername) - Project Lead / Initial Creator
 -   *[Contributor Name 2](GitHub Profile URL 2) - Feature Developer / Bug Fixer]*
