@@ -348,38 +348,52 @@ You can recognize our contributors here:
 
 # 📸 Screenshots
 
-Here's a sneak peek of The Knowledge Bay in action! This section is intended to showcase the look and feel of the application.
+Here's a sneak peek of The Knowledge Bay in action! This section showcases the look and feel of the application.
 
 ---
 
-`![Login Page](docs/screenshots/placeholder_login.png)`
-_Caption: The login and registration page._
+![Landing Page](docs/screenshots/placeholder_landing.png)
+_Caption: The landing page that welcomes users to The Knowledge Bay platform._
 
 ---
 
-`![Main Dashboard / Home Page](docs/screenshots/placeholder_dashboard.png)`
-_Caption: The main dashboard or home page after a user logs in, showing key information or navigation elements._
+![Login and Registration Page](docs/screenshots/placeholder_login-register.png)
+_Caption: The authentication interface for user login and registration._
 
 ---
 
-`![Content Browsing View](docs/screenshots/placeholder_content_browsing.png)`
-_Caption: An example of how users can browse or search for content within the platform._
+![User Profile Page](docs/screenshots/placeholder_profile.png)
+_Caption: A user's profile page, showcasing their information, followers/following, and contributions._
 
 ---
 
-`![Content Creation/Editing Interface](docs/screenshots/placeholder_content_creation.png)`
-_Caption: The interface for creating or editing an article, resource, or other content type._
+![Study Groups](docs/screenshots/placeholder_groups.png)
+_Caption: The study groups interface where users can join and participate in collaborative learning._
 
 ---
 
-`![User Profile Page](docs/screenshots/placeholder_profile.png)`
-_Caption: A user's profile page, showcasing their information, activity, or contributions._
+![Chat Interface](docs/screenshots/placeholder_chat.png)
+_Caption: The chat system for communication between users._
 
 ---
 
-**Note to Project Maintainers:**
-Please replace the placeholder paths and captions above with actual screenshots of your application.
-A good practice is to create a dedicated folder for these images, for example, `docs/screenshots/`, and then update the paths accordingly (e.g., `![Dashboard View](docs/screenshots/dashboard_view.png)`). Ensure your captions accurately describe what each screenshot depicts.
+![Help Requests](docs/screenshots/placeholder_requests.png)
+_Caption: The help request system where users can ask for assistance and offer help to others._
+
+---
+
+![Users Directory](docs/screenshots/placeholder_users.png)
+_Caption: The users directory for discovering and connecting with other members of the community._
+
+---
+
+![Affinity Graph](docs/screenshots/placeholder_affinity-graph.png)
+_Caption: The interactive affinity graph showing relationships and connections between users._
+
+---
+
+![Analytical Panel](docs/screenshots/placeholder_analytical-panel.png)
+_Caption: The administrative analytical dashboard providing insights into platform usage and metrics._
 
 # ⚡ Quick Start
 
