@@ -3,27 +3,6 @@
   <br/>
 </div>
 
-# Table of Contents
-
-- [Introduction](#-introduction)
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Prerequisites](#-prerequisites)
-- [Installation and Setup](#-installation-and-setup)
-- [Usage](#-usage)
-- [API Endpoints](#-api-endpoints)
-- [Testing](#-testing)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Acknowledgements](#-acknowledgements)
-- [Contact](#-contact)
-- [Roadmap](#-roadmap)
-- [Contributors](#-contributors)
-- [Screenshots](#-screenshots)
-- [Quick Start](#-quick-start)
-- [Tips & Tricks](#-tips--tricks)
-
 # 📖 Introduction
 
 Welcome to The Knowledge Bay! 🌟 This project is a centralized platform designed to empower users by providing easy access to a vast repository of information and resources. In a world overflowing with data, finding reliable and relevant knowledge can be challenging. The Knowledge Bay aims to solve this by curating and organizing information, making it readily available and digestible. Our main goal is to foster a community of learners and knowledge-sharers, enabling users to explore diverse topics, contribute their expertise, and collaborate effectively.
