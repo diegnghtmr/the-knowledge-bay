@@ -387,8 +387,8 @@ Follow these steps to get The Knowledge Bay up and running quickly on your local
 
 **1. Clone the Repository:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git # Replace with your actual repository URL
-cd YOUR_REPOSITORY_NAME # Or your project's directory name
+git clone https://github.com/diegnghtmr/the-knowledge-bay
+cd the-knowledge-bay
 ```
 
 **2. Set Up and Run the Back-End (Server):**
@@ -404,19 +404,15 @@ Wait until the server has started successfully. You should see log messages indi
 **3. Set Up and Run the Front-End (Client):**
 Open another new terminal window for the client.
 ```bash
-# If you are in the server directory from the previous step:
 cd ../client 
-# Or, if you are in the project root directory:
-# cd client
-
 npm install
 npm run dev
-# The client will typically be accessible at http://localhost:5173 (Vite's default)
+# The client will typically be accessible at http://localhost:3000
 ```
 The client development server will usually open the application in your default web browser automatically, or it will display the URL in the terminal.
 
 **4. Open in Browser:**
-If it doesn't open automatically, navigate to `http://localhost:5173` (or the port indicated in your client terminal) in your web browser.
+If it doesn't open automatically, navigate to `http://localhost:3000` (or the port indicated in your client terminal) in your web browser.
 
 You should now have The Knowledge Bay running locally! For more detailed setup instructions, refer to the [Installation and Setup](#-installation-and-setup) section.
 # 💡 Tips & Tricks
