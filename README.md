@@ -1,4 +1,3 @@
-<!-- # Logo Placeholder -->
 <div align="center">
   <img src="https://github.com/user-attachments/assets/489523ff-e121-46d9-969d-b1945df34790" alt="Logo TKB" width="700"/>
   <br/>
@@ -19,7 +18,6 @@
 - [License](#-license)
 - [Acknowledgements](#-acknowledgements)
 - [Contact](#-contact)
-- [Why The Knowledge Bay?](#-why-the-knowledge-bay)
 - [Roadmap](#-roadmap)
 - [Contributors](#-contributors)
 - [Screenshots](#-screenshots)
@@ -337,44 +335,38 @@ A big thanks to all the wonderful people who have contributed their time and exp
 
 You can recognize our contributors here:
 
-```html
-<a href="https://github.com/diegnghtmr">
-  <img src="Image URL (e.g., GitHub avatar)" width="100px;" alt="Diego Flores"/>
-  <br />
-  <sub><b>Contributor Name</b></sub>
-</a>
-```
+<p align="center">
+  <a href="https://github.com/diegnghtmr" target="_blank" rel="noopener">
+    <img
+      src="https://github.com/user-attachments/assets/13eed87f-d2e2-4ab2-8b03-606ef11ac35e"
+      alt="Diego Flores"
+      width="100"
+      height="100"
+      style="border-radius: 50%; border: 1px solid #e1e4e8; object-fit: cover;"
+    />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/Jorge-ivan-aa" target="_blank" rel="noopener">
+    <img
+      src="https://github.com/user-attachments/assets/997a9147-0a46-499d-85b6-dac5a7592a9e"
+      alt="Jorge Acosta"
+      width="100"
+      height="100"
+      style="border-radius: 50%; border: 1px solid #e1e4e8; object-fit: cover;"
+    />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/tatianacartagena" target="_blank" rel="noopener">
+    <img
+      src="https://github.com/user-attachments/assets/e6f3946d-6d3d-42bc-84c6-df909820bc4e"
+      alt="July Cartagena"
+      width="100"
+      height="100"
+      style="border-radius: 50%; border: 1px solid #e1e4e8; object-fit: cover;"
+    />
+  </a>
+</p>
 
--   [Your Name Here](https://github.com/yourusername) - Project Lead / Initial Creator
--   *[Contributor Name 2](GitHub Profile URL 2) - Feature Developer / Bug Fixer]*
--   *[Contributor Name 3](GitHub Profile URL 3) - Documentation / UI Design]*
-
-*(Please replace the above with actual contributors as your project grows!)*
-
-## Adding Yourself or Other Contributors
-
-If you've contributed, feel free to add yourself to this list in your pull request!
-
-### Visual Showcase (Optional)
-
-To visually showcase contributors with images, you can use HTML within this Markdown file. Here's an example structure for each contributor:
-
-```html
-<a href="GitHub Profile URL">
-  <img src="Image URL (e.g., GitHub avatar)" width="100px;" alt="Contributor Name"/>
-  <br />
-  <sub><b>Contributor Name</b></sub>
-</a>
-```
-Place these side-by-side or in a list.
-
-## Automated Contributor Recognition
-
-For a more dynamic and automated way to showcase contributors, consider using services like:
--   [All Contributors](https://allcontributors.org/): A bot to recognize all types of contributions.
--   [contrib.rocks](https://contrib.rocks/): Generates a dynamic image wall of your GitHub contributors.
-
-Simply follow their setup instructions to integrate them into your repository.
 # 📸 Screenshots
 
 Here's a sneak peek of The Knowledge Bay in action! This section is intended to showcase the look and feel of the application.
@@ -409,6 +401,7 @@ _Caption: A user's profile page, showcasing their information, activity, or cont
 **Note to Project Maintainers:**
 Please replace the placeholder paths and captions above with actual screenshots of your application.
 A good practice is to create a dedicated folder for these images, for example, `docs/screenshots/`, and then update the paths accordingly (e.g., `![Dashboard View](docs/screenshots/dashboard_view.png)`). Ensure your captions accurately describe what each screenshot depicts.
+
 # ⚡ Quick Start
 
 Follow these steps to get The Knowledge Bay up and running quickly on your local machine. This guide assumes you have all prerequisites installed (see the [Prerequisites](#-prerequisites) section).
