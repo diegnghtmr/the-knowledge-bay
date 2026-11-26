@@ -30,4 +30,8 @@ export default [
       ],
     },
   },
+  {
+    files: ['tests/**/*.spec.js'],
+    languageOptions: { globals: globals.node },
+  },
 ]
