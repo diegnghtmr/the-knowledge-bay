@@ -443,14 +443,31 @@ async function run(browser, http, directory) {
   const attachmentPath = `/api/content/${resource.contentId}/attachment`;
   await api(http, attachmentPath, { status: 401 });
   await openGroup(secondPage, attachmentTitle);
+  // The anchor is detached, so its click does not bubble to the document.
+  await secondPage.evaluate(() => {
+    const originalClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.protocol === 'blob:' && this.hasAttribute('download')) {
+        window.__kbAuditDownloadName = this.getAttribute('download');
+        HTMLAnchorElement.prototype.click = originalClick;
+      }
+      return originalClick.call(this);
+    };
+  });
   const downloadedFile = secondPage.waitForEvent('download');
   const downloadResponse = response(secondPage, attachmentPath, 'GET');
   await button(secondPage, `Descargar ${attachment.name}`).click();
   const [downloaded, served] = await Promise.all([downloadedFile, downloadResponse]);
-  assert.equal(downloaded.suggestedFilename(), attachment.name);
   assert.equal(served.status(), 200);
-  assert.equal(served.headers()['x-content-type-options'], 'nosniff');
-  assert.match(served.headers()['content-disposition'], /^attachment;/i);
+  const headers = served.headers();
+  assert.equal(headers['content-type'], attachment.mimeType);
+  assert.equal(headers['x-content-type-options'], 'nosniff');
+  const disposition = headers['content-disposition'];
+  assert.match(disposition, /^attachment;/i);
+  const filename = /;\s*filename\*=UTF-8''([^;]+)(?:;|$)/i.exec(disposition);
+  assert.ok(filename, 'attachment should advertise an RFC 5987 UTF-8 filename');
+  assert.equal(decodeURIComponent(filename[1]), attachment.name);
+  assert.equal(await secondPage.evaluate(() => window.__kbAuditDownloadName), attachment.name);
   assert.deepEqual(await readFile(await downloaded.path()), attachment.buffer);
   confirm('resource uploaded in the picker downloads the same bytes through the group after restart');
 

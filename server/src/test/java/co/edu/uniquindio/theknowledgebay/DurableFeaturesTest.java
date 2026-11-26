@@ -184,8 +184,65 @@ class DurableFeaturesTest {
         }
     }
 
-    private ServletWebServerApplicationContext launch(String ttl, String moderatorPassword) {
-        var context = (ServletWebServerApplicationContext) new SpringApplicationBuilder(App.class).run(
+    @Test
+    void relativeStaticRootDoesNotPreventStartup() throws Exception {
+        try (var app = launch("PT8H", PASSWORD,
+                "spring.web.resources.static-locations=file:./web/")) {
+            assertTrue(json("GET", "/api/interests", null, null, 200).isArray());
+        }
+    }
+
+    @Test
+    void relativeStaticRootStillProtectsTheUploadDirectory() throws Exception {
+        var relative = Path.of("").toAbsolutePath().relativize(scratch);
+        Files.writeString(scratch.resolve("index.html"), "Static fixture");
+        try (var app = launch("PT8H", PASSWORD,
+                "spring.web.resources.static-locations=file:" + relative + "/")) {
+            var index = http.send(request("/index.html", null).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, index.statusCode());
+            assertEquals("Static fixture", index.body());
+            var moderator = login(MOD_EMAIL, PASSWORD);
+            json("POST", "/api/interests", moderator.token(), Map.of("name", "Pruebas"), 200);
+            var student = register("ada", STUDENT);
+            upload(student, "blocked.png", "image/png", PNG, 500, "Error al publicar el contenido.");
+            assertTrue(json("GET", "/api/content", student.token(), null, 200).isEmpty());
+            assertFalse(Files.exists(scratch.resolve("private-uploads")));
+        }
+    }
+
+    @Test
+    void streamLimitIsPerStudentNotPerToken() throws Exception {
+        try (var app = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=1")) {
+            var a = register("ada", STUDENT);
+            var b = register("bea", "bea@example.invalid");
+            var secondToken = login(STUDENT, PASSWORD);
+            var path = "/api/chat/" + b.id() + "/events";
+            try (var first = stream(path, a)) {
+                assertEquals("event:ready", nextEvent(first));
+                var result = http.send(request(path, secondToken.token())
+                        .header("Accept", "text/event-stream").build(),
+                        HttpResponse.BodyHandlers.ofInputStream());
+                try (var body = result.body()) {
+                    if (result.statusCode() == 200) assertEquals(-1, body.read());
+                    else assertEquals(429, result.statusCode());
+                }
+                try (var other = stream("/api/chat/" + a.id() + "/events", b)) {
+                    assertEquals("event:ready", nextEvent(other));
+                    json("POST", "/api/auth/logout", a.token(), null, 200);
+                    var sent = json("POST", "/api/chat/send", b.token(),
+                            Map.of("receiverId", a.id(), "text", "REST sigue activo"), 200);
+                    assertNull(nextEvent(first));
+                    assertEquals(sent, json("GET", "/api/chat/" + b.id() + "/messages", secondToken.token(), null, 200).get(0));
+                    try (var reopened = stream(path, secondToken)) {
+                        assertEquals("event:ready", nextEvent(reopened));
+                    }
+                }
+            }
+        }
+    }
+
+    private ServletWebServerApplicationContext launch(String ttl, String moderatorPassword, String... properties) {
+        var context = (ServletWebServerApplicationContext) new SpringApplicationBuilder(App.class).properties(properties).run(
                 "--spring.config.location=optional:classpath:/durable-test.properties", "--server.port=0",
                 "--server.address=127.0.0.1", "--server.shutdown=immediate", "--spring.datasource.driver-class-name=org.sqlite.JDBC",
                 "--spring.datasource.url=jdbc:sqlite:" + scratch.resolve("durable.db") + "?foreign_keys=on&busy_timeout=5000",

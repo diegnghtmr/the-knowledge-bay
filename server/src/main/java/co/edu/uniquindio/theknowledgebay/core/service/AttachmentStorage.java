@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -45,16 +44,15 @@ public class AttachmentStorage {
     }
 
     private static Stream<Path> fileRoot(String location) {
-        if (location.startsWith("file:")) return Stream.of(Path.of(URI.create(location)).toAbsolutePath().normalize());
-        if (location.startsWith("classpath:")) {
-            var resource = new DefaultResourceLoader().getResource(location);
-            try {
-                if (resource.isFile()) return Stream.of(resource.getFile().toPath().toAbsolutePath().normalize());
-            } catch (IOException ignored) {
-                // Packaged classpath resources are inside the JAR and cannot contain filesystem uploads.
-            }
+        if (!location.startsWith("file:") && !location.startsWith("classpath:")) return Stream.empty();
+        var resource = new DefaultResourceLoader().getResource(location);
+        try {
+            // Spring's file resources also resolve relative locations such as file:./web/.
+            return resource.isFile() ? Stream.of(resource.getFile().toPath().toAbsolutePath().normalize()) : Stream.empty();
+        } catch (IOException ignored) {
+            // A missing or packaged classpath resource has no filesystem directory to protect.
+            return Stream.empty();
         }
-        return Stream.empty();
     }
 
     public Attachment store(MultipartFile file) throws IOException {

@@ -5,11 +5,13 @@ import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager.SessionKey;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -26,14 +28,19 @@ public class ChatEvents {
     private final ObjectMapper json;
     private final Map<ThreadKey, Set<Subscription>> threads = new ConcurrentHashMap<>();
     private final Semaphore capacity = new Semaphore(256);
+    private final Map<String, Integer> streamsByUser = new HashMap<>();
+    private final int maxStreamsPerUser;
 
-    ChatEvents(SessionManager sessions, ObjectMapper json) {
+    ChatEvents(SessionManager sessions, ObjectMapper json,
+               @Value("${app.chat.max-streams-per-user:${APP_CHAT_MAX_STREAMS_PER_USER:3}}") int maxStreamsPerUser) {
+        if (maxStreamsPerUser < 1) throw new IllegalArgumentException("The per-user chat stream limit must be positive.");
         this.sessions = sessions;
         this.json = json;
+        this.maxStreamsPerUser = maxStreamsPerUser;
     }
 
     void stream(AuthenticatedUser actor, String peer, SessionKey session, OutputStream output) {
-        if (!capacity.tryAcquire()) return;
+        if (!acquire(actor.id())) return;
         var key = ThreadKey.of(actor.id(), peer);
         var sub = new Subscription();
         try {
@@ -60,8 +67,20 @@ public class ChatEvents {
                 subscribers.remove(sub);
                 return subscribers.isEmpty() ? null : subscribers;
             });
-            capacity.release();
+            release(actor.id());
         }
+    }
+
+    private synchronized boolean acquire(String userId) {
+        int count = streamsByUser.getOrDefault(userId, 0);
+        if (count >= maxStreamsPerUser || !capacity.tryAcquire()) return false;
+        streamsByUser.put(userId, count + 1);
+        return true;
+    }
+
+    private synchronized void release(String userId) {
+        streamsByUser.computeIfPresent(userId, (key, count) -> count == 1 ? null : count - 1);
+        capacity.release();
     }
 
     private boolean isActive(AuthenticatedUser actor, SessionKey session) {
