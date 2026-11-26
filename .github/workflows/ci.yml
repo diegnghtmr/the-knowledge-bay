@@ -8,11 +8,9 @@ permissions:
   contents: read
 
 jobs:
-  client:
+  verify:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,23 +18,22 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: client/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npx playwright install --with-deps chromium
-      - run: npm test
-      - run: npm run build
-
-  server:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - uses: actions/checkout@v4
+      - name: Install and verify the client
+        working-directory: client
+        run: |
+          npm ci
+          npm run lint
+          npx playwright install --with-deps chromium
+          npm test
+          npm run build
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
           cache-dependency-path: server/pom.xml
-      - run: ./mvnw -B verify
+      - name: Verify and package the server
+        working-directory: server
+        run: ./mvnw -B verify
+      - name: Exercise the packaged app with Chromium and SQLite
+        run: node client/tests/production-audit.mjs

@@ -13,7 +13,7 @@ let origin;
 
 beforeAll(async () => {
   cacheDir = await mkdtemp(join(tmpdir(), 'kb-auth-'));
-  vite = await createServer({ cacheDir, configLoader: 'runner', envFile: false, server: { host: '127.0.0.1', port: 0 } });
+  vite = await createServer({ cacheDir, configLoader: 'runner', envFile: false, server: { host: '127.0.0.1', port: 0, hmr: false } });
   await vite.listen();
   origin = `http://127.0.0.1:${vite.httpServer.address().port}`;
   const executablePath = process.env.CHROMIUM_PATH ?? (!process.env.CI && existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
@@ -44,10 +44,40 @@ async function sessionValues(page) {
 
 async function withPage(width, run) {
   const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 }, reducedMotion: 'reduce' });
-  await page.route('**/*', (route) => new URL(route.request().url()).origin === origin ? route.fallback() : route.abort());
+  await page.route('**/*', async (route) => {
+    const { origin: source, pathname } = new URL(route.request().url());
+    if (source !== origin || pathname.startsWith('/api/')) return route.abort();
+
+    // Chromium can drop cold module requests on host interface changes.
+    // Serve Vite's real responses through Playwright's HTTP client; the
+    // separately run production audit still uses the browser network.
+    const response = await route.fetch({ maxRedirects: 0 });
+    try { await route.fulfill({ response }); } finally { await response.dispose(); }
+  });
   page.setDefaultTimeout(7000);
+  const diagnostics = [];
+  page.on('response', (response) => {
+    const path = new URL(response.url()).pathname;
+    if (response.request().resourceType() === 'document' || path === '/api/auth/session' ||
+        (response.request().resourceType() === 'script' && response.status() >= 400)) {
+      diagnostics.push(`${response.status()} ${path}`);
+    }
+  });
+  page.on('requestfailed', (request) => {
+    if (request.resourceType() === 'script' || new URL(request.url()).pathname === '/api/auth/session') {
+      diagnostics.push(`${request.failure()?.errorText} ${new URL(request.url()).pathname}`);
+    }
+  });
+  page.on('pageerror', (error) => diagnostics.push(error.message));
   try {
     await run(page);
+  } catch (error) {
+    console.error('SPA diagnostics:', diagnostics, await page.evaluate(() => ({
+      route: location.pathname,
+      mounted: Boolean(document.querySelector('#root > *')),
+      tokenPresent: Boolean(sessionStorage.getItem('token')),
+    })).catch(() => null));
+    throw error;
   } finally {
     await page.close();
   }
@@ -74,9 +104,10 @@ describe.each([390, 1440])('authentication at %ipx', (width) => {
         }
         return route.fulfill({ status: 403, json: {} });
       });
-      await page.goto(`${origin}/admin/interests`);
-      await browserExpect(page).toHaveURL(`${origin}/landing`);
+      const shell = await page.goto(`${origin}/admin/interests`);
+      expect(shell?.status()).toBe(200);
       await browserExpect(page.getByRole('button', { name: 'Ya tengo cuenta' })).toBeVisible();
+      await browserExpect(page).toHaveURL(`${origin}/landing`);
       const form = await signIn(page);
       await form.getByRole('button', { name: 'Ingresar' }).click();
       await browserExpect(page.getByText('Credenciales inválidas', { exact: true })).toBeVisible();
@@ -92,9 +123,14 @@ describe.each([390, 1440])('authentication at %ipx', (width) => {
       await browserExpect(page).toHaveURL(`${origin}/`);
       expect(sessionHeaders.length).toBeGreaterThan(0);
       expect(await sessionValues(page)).toEqual(['fixture-session', 'student', identity.userId]);
+      await browserExpect(page.getByRole('heading', { name: '¡Bienvenido a The Knowledge Bay!' })).toBeVisible();
       const checksBeforeRevocation = sessionHeaders.length;
       revoked = true;
-      await page.reload();
+      const denied = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === '/api/auth/session' && response.status() === 401);
+      const [reloaded] = await Promise.all([page.reload(), denied]);
+      expect(reloaded?.status()).toBe(200);
+      await browserExpect(page.getByRole('button', { name: 'Ya tengo cuenta' })).toBeVisible();
       await browserExpect(page).toHaveURL(`${origin}/landing`);
       // StrictMode may start and abort a check before the live check completes.
       expect(sessionHeaders.length).toBeGreaterThan(checksBeforeRevocation);
@@ -169,6 +205,26 @@ it.each([
     await browserExpect.poll(async () => (await description.boundingBox()).height).toBeGreaterThan(initial);
     await description.clear();
     await browserExpect.poll(async () => (await description.boundingBox()).height).toBe(initial);
+  });
+}, 30_000);
+
+it('preserves the publication description size when switching formats', async () => {
+  await withPage(1440, async (page) => {
+    await page.route('**/api/auth/session', (route) => route.fulfill({ json: identity }));
+    await page.route('**/api/interests', (route) => route.fulfill({ json: [] }));
+    await page.addInitScript(() => sessionStorage.setItem('token', 'fixture-session'));
+    await page.goto(`${origin}/publish-content`);
+    const description = page.locator('textarea#body');
+    const format = page.locator('#contentType');
+    await browserExpect(description).toBeVisible();
+    const articleHeight = (await description.boundingBox()).height;
+    expect(articleHeight).toBeGreaterThan(300);
+    await format.selectOption('QUESTION');
+    expect((await description.boundingBox()).height).toBe(Math.min(articleHeight, 400));
+    for (const type of ['LINK', 'VIDEO', 'RESOURCE']) {
+      await format.selectOption(type);
+      expect((await description.boundingBox()).height).toBe(300);
+    }
   });
 }, 30_000);
 

@@ -77,7 +77,15 @@ Register and sign in with `POST /api/auth/register` and `POST /api/auth/login`. 
 (cd client && npm run lint && npm test && npm run build)
 ```
 
-Maven tests use isolated SQLite databases and need no moderator or datasource overrides. They cover restart persistence, concurrent writes, bearer authorization, role gates and integrated API contracts. Client tests use Vitest and Playwright Chromium with local HTTP fixtures. Set `CHROMIUM_PATH` if you need a specific local Chromium executable. CI runs client lint, tests and build, and runs `./mvnw -B verify` on Temurin 21.
+Maven tests use isolated SQLite databases and need no moderator or datasource overrides. They cover restart persistence, concurrent writes, bearer authorization, role gates and integrated API contracts. Client tests use Vitest and Playwright Chromium with local HTTP fixtures. Set `CHROMIUM_PATH` to use a specific local Chromium executable.
+
+After building the client and packaging the server, run the same packaged browser check as CI:
+
+```sh
+node client/tests/production-audit.mjs
+```
+
+It starts the JAR on loopback with the production profile, disposable SQLite and generated accounts, exercises the real API and bearer filter in Chromium, then stops the server and removes the test database. No moderator credentials, database settings, or running development server are needed. The portfolio audit can also pass `--shots` to capture the 40 states at both viewports in `../shots-final/` for comparison with its separately stored baseline.
 
 ## Team and license
 
