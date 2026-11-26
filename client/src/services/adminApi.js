@@ -1,5 +1,4 @@
 import sampleData from "../data/sample-data.json";
-import * as Json from "postcss";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
@@ -448,20 +447,11 @@ export const updateContentAdmin = async (contentId, contentData) => {
       body: JSON.stringify(contentData),
     });
 
-    if (!response.ok) {
-      let errorMessage = `Error: ${response.status}`;
-      try {
-        const errorBody = await response.json();
-        errorMessage = errorBody.message || errorMessage;
-      } catch {
-        // Si no es JSON, intenta leer como texto
-        const errorText = await response.text();
-        errorMessage = errorText || errorMessage;
-      }
-      throw new Error(errorMessage);
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.success !== true) {
+      throw new Error(result?.message || 'Error al actualizar el contenido.');
     }
-
-    return await response.json();
+    return result;
   } catch (error) {
     console.error("Error updating content:", error);
     throw error;

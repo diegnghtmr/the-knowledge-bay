@@ -54,7 +54,7 @@ const GroupView = ({
             </button>
           </div>
           
-          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-full">
+          <div className="mt-3 w-full text-center max-sm:wrap-anywhere sm:mt-0 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
             <h1 className="text-xl sm:text-3xl font-bold text-[var(--deep-sea)]">
               {group.name}
             </h1>

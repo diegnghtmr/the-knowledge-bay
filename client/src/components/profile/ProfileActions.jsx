@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-const ProfileActions = ({ isOwnProfile, isFollowing, onEditProfile, onFollowToggle }) => {
+const ProfileActions = ({ isOwnProfile, isFollowing, followPending = false, onEditProfile, onFollowToggle }) => {
   return (
     <div className="flex justify-center md:justify-end mb-8">
       {isOwnProfile ? (
@@ -17,6 +17,7 @@ const ProfileActions = ({ isOwnProfile, isFollowing, onEditProfile, onFollowTogg
       ) : (
         <button
           onClick={onFollowToggle}
+          disabled={followPending}
           className={`flex items-center px-6 py-3 ${isFollowing ? 'bg-gray-200 text-gray-700' : 'bg-[var(--coastal-sea)] text-white'} rounded-lg transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[var(--coastal-sea)] focus:ring-opacity-50 shadow-sm`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -36,6 +37,7 @@ const ProfileActions = ({ isOwnProfile, isFollowing, onEditProfile, onFollowTogg
 ProfileActions.propTypes = {
   isOwnProfile: PropTypes.bool.isRequired,
   isFollowing: PropTypes.bool,
+  followPending: PropTypes.bool,
   onEditProfile: PropTypes.func,
   onFollowToggle: PropTypes.func
 };

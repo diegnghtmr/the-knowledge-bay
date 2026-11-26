@@ -1,5 +1,6 @@
 import React from 'react';
 import ContentTable from '../content-publication/ContentTable';
+import TableErrorBoundary from './TableErrorBoundary';
 
 /**
  * Dashboard de gestión de contenidos
@@ -14,7 +15,9 @@ const ContentDashboard = () => {
       </div>
 
       {/* Tabla de contenidos */}
-      <ContentTable />
+      <TableErrorBoundary>
+        <ContentTable />
+      </TableErrorBoundary>
     </div>
   );
 };
