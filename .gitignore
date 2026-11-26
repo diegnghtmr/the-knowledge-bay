@@ -5,5 +5,12 @@
 mvnw
 *.cmd
 *.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
 **/.idea
 **/node_modules

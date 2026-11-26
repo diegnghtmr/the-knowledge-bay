@@ -9,7 +9,6 @@ import co.edu.uniquindio.theknowledgebay.core.model.User;
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
-import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser.Role;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
@@ -40,7 +39,6 @@ public class ContentController {
     private static final int MAX_URL_LENGTH = 2_048;
 
     private final TheKnowledgeBay theKnowledgeBay;
-    private final SessionManager sessionManager;
 
     @PostMapping
     public ResponseEntity<AuthResponseDTO> createContent(
@@ -158,13 +156,9 @@ public class ContentController {
 
     @GetMapping("/my-content")
     public ResponseEntity<List<ContentResponseDTO>> getMyContent(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            // Default to user id "1" if no valid token (development stub)
-            currentUserId = "1";
-        }
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        String currentUserId = actor.id();
 
         try {
             DoublyLinkedList<Content> allContent = theKnowledgeBay.getAllContent();
@@ -247,9 +241,10 @@ public class ContentController {
 
     @GetMapping
     public ResponseEntity<List<ContentResponseDTO>> getAllContent(
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
-            String currentUserId = sessionManager.getCurrentUserId(token);
+            String currentUserId = actor.id();
             DoublyLinkedList<Content> contents = theKnowledgeBay.getAllContent();
             List<ContentResponseDTO> response = new ArrayList<>();
 
@@ -325,9 +320,10 @@ public class ContentController {
     @GetMapping("/{id}")
     public ResponseEntity<ContentResponseDTO> getContentById(
             @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
-            String currentUserId = sessionManager.getCurrentUserId(token);
+            String currentUserId = actor.id();
             Content content = theKnowledgeBay.getContentById(id);
             
             if (content == null) {
@@ -398,13 +394,10 @@ public class ContentController {
     @PostMapping("/{id}/like")
     public ResponseEntity<AuthResponseDTO> likeContent(
             @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // Default to user id "1" if no valid token (development stub)
-        if (currentUserId == null) {
-            currentUserId = "1";
-        }
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (actor.role() != Role.STUDENT) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String currentUserId = actor.id();
 
         try {
             // First check if content exists
@@ -455,13 +448,10 @@ public class ContentController {
     @DeleteMapping("/{id}/like")
     public ResponseEntity<AuthResponseDTO> unlikeContent(
             @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // Default to user id "1" if no valid token (development stub)  
-        if (currentUserId == null) {
-            currentUserId = "1";
-        }
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (actor.role() != Role.STUDENT) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String currentUserId = actor.id();
 
         try {
             boolean unliked = theKnowledgeBay.unlikeContent(id, currentUserId);

@@ -26,6 +26,11 @@ import org.springframework.web.cors.CorsConfigurationSource;
 @EnableAutoConfiguration(exclude = UserDetailsServiceAutoConfiguration.class)
 public class SecurityConfig {
     public static final String DEV_TOOLS_PROFILE = "dev & !prod & !production";
+    // Public HTML and Vite assets only. All protected data remains behind the /api allowlist below.
+    private static final String[] SPA_PATHS = { "/", "/landing", "/login", "/register", "/register/steps", "/terms",
+            "/profile", "/user/{userId}", "/chat", "/study-groups", "/help-request", "/publish-content", "/users-dashboard",
+            "/content-dashboard", "/affinity-graph", "/admin/analytics", "/admin/interests", "/admin/help-requests", "/admin/stats",
+            "/index.html", "/assets/**", "/img/favicon.ico" };
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, SessionManager sessions, Environment environment,
@@ -46,7 +51,9 @@ public class SecurityConfig {
                 .addFilterBefore(new BearerSessionFilter(sessions), AnonymousAuthenticationFilter.class)
                 .authorizeHttpRequests(routes -> {
                     routes.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-                            .requestMatchers(HttpMethod.GET, "/", "/index.html", "/login", "/register", "/api/interests").permitAll()
+                            .requestMatchers(HttpMethod.GET, SPA_PATHS).permitAll()
+                            .requestMatchers(HttpMethod.HEAD, SPA_PATHS).permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/interests").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/admin/stats", "/api/admin/users", "/api/admin/content", "/api/admin/help-requests",
                                     "/api/affinity-graph/data", "/api/affinity-graph/shortest-path", "/api/analytics/dashboard",
                                     "/api/analytics/topic-activity", "/api/analytics/participation-levels", "/api/analytics/community-detection").hasRole("MODERATOR")
@@ -65,7 +72,8 @@ public class SecurityConfig {
                                     "/api/studygroups/{id}/posts").authenticated()
                             .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                             .requestMatchers(HttpMethod.PUT, "/api/profile").authenticated()
-                            .requestMatchers(HttpMethod.GET, "/api/chat/contacts", "/api/chat/{contactId}/messages").hasRole("STUDENT")
+                            .requestMatchers(HttpMethod.GET, "/api/chat/contacts", "/api/chat/contacts/search",
+                                    "/api/chat/{contactId}/messages").hasRole("STUDENT")
                             .requestMatchers(HttpMethod.POST, "/api/chat/send", "/api/content", "/api/content/{id}/like",
                                     "/api/help-requests", "/api/users/{id}/follow", "/api/studygroups/{groupId}/posts/{postId}/like",
                                     "/api/studygroups/{groupId}/posts/{postId}/comments").hasRole("STUDENT")

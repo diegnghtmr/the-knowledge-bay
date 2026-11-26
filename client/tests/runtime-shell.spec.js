@@ -13,17 +13,19 @@ let origin;
 
 beforeAll(async () => {
   cacheDir = await mkdtemp(join(tmpdir(), 'kb-shell-'));
-  vite = await createServer({ cacheDir, server: { host: '127.0.0.1', port: 0 } });
+  vite = await createServer({ cacheDir, configLoader: 'runner', envFile: false, server: { host: '127.0.0.1', port: 0 } });
   await vite.listen();
   origin = `http://127.0.0.1:${vite.httpServer.address().port}`;
-  const executablePath = existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
+  const executablePath = process.env.CHROMIUM_PATH ?? (!process.env.CI && existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
   browser = await chromium.launch({ executablePath });
 }, 30_000);
 
 afterAll(async () => {
-  await browser?.close();
-  await vite?.close();
-  if (cacheDir) await rm(cacheDir, { recursive: true, force: true });
+  try { await browser?.close(); } finally {
+    try { await vite?.close(); } finally {
+      if (cacheDir) await rm(cacheDir, { recursive: true, force: true });
+    }
+  }
 });
 
 async function withPage(width, run) {

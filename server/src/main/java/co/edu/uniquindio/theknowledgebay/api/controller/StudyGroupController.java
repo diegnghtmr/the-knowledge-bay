@@ -1,29 +1,24 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
 import co.edu.uniquindio.theknowledgebay.api.dto.CommentDTO;
+import co.edu.uniquindio.theknowledgebay.api.dto.CommentRequest;
 import co.edu.uniquindio.theknowledgebay.api.dto.PostDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.StudyGroupDTO;
-// Assuming CommentRequest will be a top-level DTO in the correct package
-import co.edu.uniquindio.theknowledgebay.api.dto.CommentRequest;
 import co.edu.uniquindio.theknowledgebay.core.service.StudyGroupService;
-import org.springframework.beans.factory.annotation.Autowired;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/studygroups")
 public class StudyGroupController {
-
+    private static final int MAX_PAGE_SIZE = 100;
     private final StudyGroupService studyGroupService;
-
-    @Autowired
-    public StudyGroupController(StudyGroupService studyGroupService) {
-        this.studyGroupService = studyGroupService;
-    }
 
     @GetMapping
     public ResponseEntity<List<StudyGroupDTO>> getAllGroups() {
@@ -32,49 +27,37 @@ public class StudyGroupController {
 
     @GetMapping("/{groupId}")
     public ResponseEntity<StudyGroupDTO> getGroupById(@PathVariable String groupId) {
-        return studyGroupService.getGroupById(groupId)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.of(studyGroupService.getGroupById(groupId));
     }
 
     @GetMapping("/{groupId}/posts")
     public ResponseEntity<List<PostDTO>> getPostsByGroup(
-        @PathVariable String groupId,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(studyGroupService.getPostsByGroupId(groupId, page, size));
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable String groupId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(studyGroupService.getPostsByGroupId(groupId, actor.id(), page, size));
     }
 
     @PostMapping("/{groupId}/posts/{postId}/like")
-    public ResponseEntity<PostDTO> likePost(
-        @PathVariable String groupId, 
-        @PathVariable String postId,
-        @RequestBody Map<String, String> payload) { // Simple payload for userId
-        String userId = payload.get("userId"); // In a real app, get from SecurityContext
-        if (userId == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        try {
-            return ResponseEntity.ok(studyGroupService.likePost(groupId, postId, userId));
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<PostDTO> likePost(@AuthenticationPrincipal AuthenticatedUser actor,
+                                             @PathVariable String groupId, @PathVariable String postId) {
+        return ResponseEntity.of(studyGroupService.setLike(groupId, postId, actor.id(), true));
+    }
+
+    @DeleteMapping("/{groupId}/posts/{postId}/like")
+    public ResponseEntity<PostDTO> unlikePost(@AuthenticationPrincipal AuthenticatedUser actor,
+                                               @PathVariable String groupId, @PathVariable String postId) {
+        return ResponseEntity.of(studyGroupService.setLike(groupId, postId, actor.id(), false));
     }
 
     @PostMapping("/{groupId}/posts/{postId}/comments")
-    public ResponseEntity<CommentDTO> addComment(
-        @PathVariable String groupId, 
-        @PathVariable String postId,
-        @RequestBody CommentRequest commentRequest) {
-        // In a real app, authorId and authorName would come from authenticated user context
-        String authorId = commentRequest.getAuthorId() != null ? commentRequest.getAuthorId() : "defaultUser";
-        String authorName = commentRequest.getAuthorName() != null ? commentRequest.getAuthorName() : "Default User";
-        try {
-            CommentDTO newComment = studyGroupService.addCommentToPost(groupId, postId, authorId, authorName, commentRequest.getText());
-            return ResponseEntity.ok(newComment);
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<CommentDTO> addComment(@AuthenticationPrincipal AuthenticatedUser actor,
+                                                  @PathVariable String groupId, @PathVariable String postId,
+                                                  @RequestBody CommentRequest request) {
+        String text = request.getText();
+        if (text == null || text.isBlank()) return ResponseEntity.badRequest().build();
+        return ResponseEntity.of(studyGroupService.addCommentToPost(groupId, postId, actor.id(), text));
     }
-    // The inner class CommentRequest has been moved to its own DTO file.
-} 
+}

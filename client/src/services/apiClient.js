@@ -28,4 +28,10 @@ apiClient.interceptors.response.use(
   },
 );
 
+export async function requireData(request, fallback) {
+  const response = await request;
+  if (!response.success) throw new Error(response.data?.message || fallback);
+  return response.data;
+}
+
 export default apiClient;

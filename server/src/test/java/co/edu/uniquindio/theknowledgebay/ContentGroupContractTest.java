@@ -2,24 +2,18 @@ package co.edu.uniquindio.theknowledgebay;
 
 import co.edu.uniquindio.theknowledgebay.api.controller.ContentController;
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
-import co.edu.uniquindio.theknowledgebay.core.model.Moderator;
-import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
-import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser.Role;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Spy;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,13 +21,13 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-import static org.mockito.Mockito.lenient;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -41,31 +35,32 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
-@ExtendWith(MockitoExtension.class)
 class ContentGroupContractTest {
     private static final String TEST_AUTHORIZATION = "Bearer fixture-session";
-    private static final AuthenticatedUser STUDENT = new AuthenticatedUser("student-fixture", Role.STUDENT);
-    private static final AuthenticatedUser MODERATOR = new AuthenticatedUser("moderator-fixture", Role.MODERATOR);
+    private static final AuthenticatedUser STUDENT = new AuthenticatedUser("101", Role.STUDENT);
+    private static final AuthenticatedUser MODERATOR = new AuthenticatedUser("moderator@example.invalid", Role.MODERATOR);
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    @Spy
-    private TheKnowledgeBay domain = new TheKnowledgeBay(null, null);
-    @Mock
-    private SessionManager legacySessions;
-    @InjectMocks
-    private ContentController controller;
+    @TempDir Path scratch;
+    private AnnotationConfigApplicationContext application;
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = standaloneSetup(controller)
+        application = PersistenceContractTest.open(scratch.resolve("content.db"));
+        var domain = application.getBean(TheKnowledgeBay.class);
+        var topic = new Interest("11", "Álgebra");
+        domain.addInterest(topic);
+        PersistenceContractTest.createStudent(application, STUDENT.id(), "alfa", PersistenceContractTest.topics(topic));
+        mvc = standaloneSetup(new ContentController(domain))
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
     }
 
     @AfterEach
-    void clearPrincipal() {
+    void closeFixture() {
         SecurityContextHolder.clearContext();
+        if (application != null) application.close();
     }
 
     @Test
@@ -144,18 +139,6 @@ class ContentGroupContractTest {
     private void setActor(AuthenticatedUser actor) {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(actor, null, List.of()));
-        lenient().when(legacySessions.getCurrentUserId(TEST_AUTHORIZATION)).thenReturn(actor.id());
-        if (actor.role() == Role.STUDENT) {
-            lenient().doReturn(Student.builder().id(actor.id()).username("alfa").build())
-                    .when(domain).getUserById(actor.id());
-            lenient().doReturn(Interest.builder().name("Álgebra").build())
-                    .when(domain).findInterestByName("Álgebra");
-        } else {
-            Moderator moderator = new Moderator();
-            moderator.setId(actor.id());
-            moderator.setUsername("moderador");
-            lenient().doReturn(moderator).when(domain).getUserById(actor.id());
-        }
     }
 
     private static Map<String, Object> validArticle() {
@@ -191,6 +174,7 @@ class ContentGroupContractTest {
     }
 
     private void assertEmptyFeed() throws Exception {
+        setActor(STUDENT);
         mvc.perform(get("/api/content")).andExpect(status().isOk()).andExpect(content().json("[]"));
     }
 

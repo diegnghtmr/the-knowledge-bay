@@ -1,11 +1,11 @@
-/* global process */
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-import { after, before, test } from 'node:test';
+import { existsSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { chromium, expect as browserExpect } from '@playwright/test';
+import { afterAll, beforeAll, test } from 'vitest';
 import { createServer } from 'vite';
-
-const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PW || 'playwright');
 const contacts = [
   { contactId: '102', username: 'ben', lastMessageText: 'Ben preview', lastMessageTimestamp: '2025-05-03T08:30:00' },
   { contactId: '103', username: 'cy', lastMessageText: 'Cy preview', lastMessageTimestamp: '2025-05-03T08:29:00' },
@@ -15,25 +15,33 @@ const message = (id, text, senderId = '101') => ({ id, text, senderId, timestamp
 let browser;
 let server;
 let origin;
+let cacheDir;
 
-before(async () => {
+beforeAll(async () => {
+  cacheDir = await mkdtemp(join(tmpdir(), 'kb-chat-'));
   server = await createServer({
     configLoader: 'runner',
     envFile: false,
+    cacheDir,
     server: { host: '127.0.0.1', port: 0 },
   });
   await server.listen();
   origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-  browser = await chromium.launch({ executablePath: process.env.CHROMIUM });
-});
+  const executablePath = process.env.CHROMIUM_PATH ?? (!process.env.CI && existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+  browser = await chromium.launch({ executablePath });
+}, 30_000);
 
-after(async () => {
-  try { await browser?.close(); } finally { await server?.close(); }
+afterAll(async () => {
+  try { await browser?.close(); } finally {
+    try { await server?.close(); } finally {
+      if (cacheDir) await rm(cacheDir, { recursive: true, force: true });
+    }
+  }
 });
 
 async function openChat(t, handlers, viewport = { width: 1440, height: 900 }) {
   const context = await browser.newContext({ viewport });
-  t.after(() => context.close());
+  t.onTestFinished(() => context.close());
   const page = await context.newPage();
   page.setDefaultTimeout(3000);
   await page.addInitScript(() => {
@@ -43,7 +51,9 @@ async function openChat(t, handlers, viewport = { width: 1440, height: 900 }) {
   });
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
-    if (url.pathname.startsWith('/api/chat/')) {
+    if (url.pathname === '/api/auth/session') {
+      await route.fulfill({ json: { userId: '101', role: 'STUDENT' } });
+    } else if (url.pathname.startsWith('/api/chat/')) {
       const result = await (handlers[url.pathname]?.(route.request(), url) ?? { status: 404, json: {} });
       await route.fulfill(result);
     } else if (url.origin === origin) {
@@ -128,7 +138,7 @@ test('distinct IDs with identical text both render before and after reload', asy
 test('a late history response never replaces the currently selected thread', { timeout: 15_000 }, async t => {
   const oldRequest = Promise.withResolvers();
   const deliverOld = Promise.withResolvers();
-  t.after(() => deliverOld.resolve());
+  t.onTestFinished(() => deliverOld.resolve());
   const page = await openChat(t, {
     '/api/chat/contacts': () => ({ json: contacts }),
     '/api/chat/102/messages': async () => {
@@ -161,7 +171,7 @@ test('a failed send preserves the draft and transcript without logging message t
   await page.getByText('Historial visible', { exact: true }).waitFor();
   await composer(page).fill(text);
   await composer(page).press('Enter');
-  assert.equal(await page.getByRole('alert').textContent(), 'No se pudo enviar el mensaje.');
+  await browserExpect(page.getByRole('alert')).toHaveText('No se pudo enviar el mensaje.');
   assert.equal(await composer(page).inputValue(), text);
   assert.ok(await page.getByText('Historial visible', { exact: true }).isVisible());
   assert.ok(!JSON.stringify(await Promise.all(logs)).includes(text));

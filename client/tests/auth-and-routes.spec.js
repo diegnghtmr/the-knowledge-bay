@@ -13,17 +13,19 @@ let origin;
 
 beforeAll(async () => {
   cacheDir = await mkdtemp(join(tmpdir(), 'kb-auth-'));
-  vite = await createServer({ cacheDir, server: { host: '127.0.0.1', port: 0 } });
+  vite = await createServer({ cacheDir, configLoader: 'runner', envFile: false, server: { host: '127.0.0.1', port: 0 } });
   await vite.listen();
   origin = `http://127.0.0.1:${vite.httpServer.address().port}`;
-  const executablePath = existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
+  const executablePath = process.env.CHROMIUM_PATH ?? (!process.env.CI && existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
   browser = await chromium.launch({ executablePath });
 }, 30_000);
 
 afterAll(async () => {
-  await browser?.close();
-  await vite?.close();
-  if (cacheDir) await rm(cacheDir, { recursive: true, force: true });
+  try { await browser?.close(); } finally {
+    try { await vite?.close(); } finally {
+      if (cacheDir) await rm(cacheDir, { recursive: true, force: true });
+    }
+  }
 });
 
 const identity = { userId: 'student-123', role: 'STUDENT' };
@@ -41,7 +43,8 @@ async function sessionValues(page) {
 }
 
 async function withPage(width, run) {
-  const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 } });
+  const page = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 900 }, reducedMotion: 'reduce' });
+  await page.route('**/*', (route) => new URL(route.request().url()).origin === origin ? route.fallback() : route.abort());
   page.setDefaultTimeout(7000);
   try {
     await run(page);
@@ -73,6 +76,7 @@ describe.each([390, 1440])('authentication at %ipx', (width) => {
       });
       await page.goto(`${origin}/admin/interests`);
       await browserExpect(page).toHaveURL(`${origin}/landing`);
+      await browserExpect(page.getByRole('button', { name: 'Ya tengo cuenta' })).toBeVisible();
       const form = await signIn(page);
       await form.getByRole('button', { name: 'Ingresar' }).click();
       await browserExpect(page.getByText('Credenciales inválidas', { exact: true })).toBeVisible();
@@ -80,6 +84,7 @@ describe.each([390, 1440])('authentication at %ipx', (width) => {
       validLogin = true;
       await form.getByRole('button', { name: 'Ingresar' }).click();
       await browserExpect(page).toHaveURL(`${origin}/`);
+      await browserExpect(page.getByRole('heading', { name: '¡Bienvenido a The Knowledge Bay!' })).toBeVisible();
       expect(loginOrigins).toEqual([origin]);
       expect(await sessionValues(page)).toEqual(['fixture-session', 'student', identity.userId]);
       await page.evaluate(() => sessionStorage.setItem('role', 'moderator'));

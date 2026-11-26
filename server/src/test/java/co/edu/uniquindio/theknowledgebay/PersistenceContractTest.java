@@ -12,11 +12,13 @@ import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
 import co.edu.uniquindio.theknowledgebay.core.service.ImportService;
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import co.edu.uniquindio.theknowledgebay.infrastructure.config.ModeratorProperties;
+import co.edu.uniquindio.theknowledgebay.infrastructure.config.WebConfig;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -206,12 +208,13 @@ class PersistenceContractTest {
         source.setUrl("jdbc:sqlite:" + database);
         new ResourceDatabasePopulator(new ClassPathResource("schema.sql")).execute(source);
         var application = new AnnotationConfigApplicationContext();
+        application.getBeanFactory().setConversionService(ApplicationConversionService.getSharedInstance());
         application.registerBean(JdbcTemplate.class, () -> new JdbcTemplate(source));
         application.registerBean(PasswordEncoder.class, () -> new BCryptPasswordEncoder(4));
         application.registerBean(ModeratorProperties.class,
                 () -> new ModeratorProperties("moderator", "moderator@example.invalid", UUID.randomUUID().toString()));
         application.register(StudentRepository.class, InterestRepository.class, DomainRepository.class, ChatRepository.class,
-                TheKnowledgeBay.class, AuthService.class, SessionManager.class, ImportService.class);
+                TheKnowledgeBay.class, AuthService.class, SessionManager.class, ImportService.class, WebConfig.class);
         application.refresh();
         return application;
     }

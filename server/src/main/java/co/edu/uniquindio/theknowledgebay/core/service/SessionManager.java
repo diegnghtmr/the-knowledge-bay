@@ -2,7 +2,6 @@ package co.edu.uniquindio.theknowledgebay.core.service;
 
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -56,12 +55,6 @@ public class SessionManager {
 
     public void revokeUser(String id) {
         activeSessions.values().removeIf(session -> session.user().id().equals(id));
-    }
-
-    // Transitional bridge for the content and chat controllers. The filter is the only token parser.
-    public String getCurrentUserId(String ignoredAuthorizationHeader) {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user ? user.id() : null;
     }
 
     private record Session(AuthenticatedUser user, Instant expiresAt) {

@@ -1,18 +1,13 @@
-const CHAT_URL = `${(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')}/api/chat`;
+import apiClient from './apiClient.js';
+
+const CHAT_URL = '/api/chat';
 
 async function request(path, body) {
-  const headers = new Headers({ Accept: 'application/json' });
-  const token = sessionStorage.getItem('token');
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (body) headers.set('Content-Type', 'application/json');
-
+  const url = `${CHAT_URL}${path}`;
+  const result = await (body ? apiClient.post(url, body) : apiClient.get(url));
   // Do not forward response bodies or request details to console/error handlers.
-  const response = await fetch(`${CHAT_URL}${path}`, {
-    headers,
-    ...(body && { method: 'POST', body: JSON.stringify(body) }),
-  });
-  if (!response.ok) throw new Error('Chat request failed');
-  return response.json();
+  if (!result.success) throw new Error('Chat request failed');
+  return result.data;
 }
 
 function toContact({ contactId, username, lastMessageText, lastMessageTimestamp }) {

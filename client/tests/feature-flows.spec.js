@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { env } from 'node:process';
-import { after, before, test } from 'node:test';
+import { chromium } from '@playwright/test';
+import { afterAll, beforeAll, test } from 'vitest';
 import { build, preview } from 'vite';
-
-const require = createRequire(import.meta.url);
 
 const topic = 'Sistemas de prueba';
 const groupName = `Grupo de ${topic}`;
@@ -16,23 +14,24 @@ let browser;
 let scratch;
 let origin;
 
-before(async () => {
-  const { chromium } = require(env.PW ?? 'playwright');
+beforeAll(async () => {
   scratch = await mkdtemp(join(tmpdir(), 'kb-feature-flows-'));
   const config = {
     configLoader: 'runner',
+    envFile: false,
     cacheDir: join(scratch, 'vite'),
     build: { outDir: join(scratch, 'dist'), emptyOutDir: false },
-    preview: { host: '127.0.0.1', port: 43143, strictPort: true },
+    preview: { host: '127.0.0.1', port: 0, strictPort: true },
     logLevel: 'warn',
   };
   await build(config);
   app = await preview(config);
   origin = `http://127.0.0.1:${app.httpServer.address().port}`;
-  browser = await chromium.launch({ executablePath: env.CHROMIUM_PATH ?? '/usr/bin/chromium' });
-});
+  const executablePath = process.env.CHROMIUM_PATH ?? (!process.env.CI && existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+  browser = await chromium.launch({ executablePath });
+}, 30_000);
 
-after(async () => {
+afterAll(async () => {
   try {
     await browser?.close();
   } finally {
@@ -46,7 +45,7 @@ after(async () => {
 
 async function visit(t, path, { role = 'student', width = 1440, api = {} } = {}) {
   const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } });
-  t.after(() => context.close());
+  t.onTestFinished(() => context.close());
   await context.addInitScript((role) => {
     sessionStorage.setItem('role', role);
     sessionStorage.setItem('userId', 'alfa');
@@ -67,6 +66,9 @@ async function visit(t, path, { role = 'student', width = 1440, api = {} } = {})
       'access-control-allow-headers': 'authorization, content-type',
     };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (url.pathname === '/api/auth/session') {
+      return route.fulfill({ json: { userId: 'alfa', role: role.toUpperCase() }, headers });
+    }
     const fixture = api[`${request.method()} ${url.pathname}`];
     const reply = typeof fixture === 'function' ? await fixture(request) : { json: fixture ?? [] };
     return route.fulfill({ ...reply, headers });
@@ -91,7 +93,7 @@ async function fillPublication(page) {
 
 test('publication is awaited and rapid submissions send exactly one request', async (t) => {
   const pending = gate();
-  t.after(pending.release);
+  t.onTestFinished(pending.release);
   const submissions = [];
   const page = await visit(t, '/publish-content', { api: {
     'GET /api/interests': [{ id: 'topic', name: topic }],
@@ -266,6 +268,42 @@ test('peer follow sends POST and DELETE, and a rejected mutation preserves state
   await follow.waitFor();
   assert.match(await followers.innerText(), /^0\s/);
   assert.deepEqual(mutations, ['POST', 'POST', 'DELETE']);
+});
+
+test('group reads and writes use the same bearer session and canonical post', async (t) => {
+  const post = {
+    id: 'content-7', type: 'markdown', actualContentType: 'ARTICLE', author: { name: 'Autora' },
+    title: 'Notas del grupo', content: 'Texto', likes: 0, likedByMe: false, comments: [],
+  };
+  const seen = [];
+  const track = (response) => (request) => {
+    seen.push([request.method(), new URL(request.url()).pathname, request.headers().authorization, request.postDataJSON()]);
+    return { json: response };
+  };
+  const page = await visit(t, '/study-groups', { api: {
+    'GET /api/studygroups': track([{ id: 'topic', name: groupName, interest: topic, members: 2 }]),
+    'GET /api/studygroups/topic/posts': track([post]),
+    'POST /api/studygroups/topic/posts/content-7/like': track({ ...post, likes: 1, likedByMe: true }),
+    'DELETE /api/studygroups/topic/posts/content-7/like': track(post),
+    'POST /api/studygroups/topic/posts/content-7/comments': track({ id: '1', author: { name: 'Alfa' }, text: 'Comentario' }),
+  } });
+  await page.getByRole('button', { name: 'Ver Grupo' }).click();
+  await page.getByRole('heading', { name: post.title }).waitFor();
+  await page.getByRole('button', { name: '0 Me gusta' }).click();
+  await page.getByRole('button', { name: '1 Me gusta' }).click();
+  await page.getByRole('button', { name: '0 Me gusta' }).waitFor();
+  await page.getByRole('button', { name: '0 Comentarios' }).click();
+  await page.getByPlaceholder('Escribe un comentario...').fill('Comentario');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByText('Comentario', { exact: true }).waitFor();
+  const reads = seen.filter(([method]) => method === 'GET');
+  assert.deepEqual([...new Set(reads.map(([, path]) => path))], ['/api/studygroups', '/api/studygroups/topic/posts']);
+  assert.ok(seen.every(([, , bearer]) => bearer === 'Bearer fixture-session'));
+  assert.deepEqual(seen.filter(([method]) => method !== 'GET'), [
+    ['POST', '/api/studygroups/topic/posts/content-7/like', 'Bearer fixture-session', null],
+    ['DELETE', '/api/studygroups/topic/posts/content-7/like', 'Bearer fixture-session', null],
+    ['POST', '/api/studygroups/topic/posts/content-7/comments', 'Bearer fixture-session', { text: 'Comentario' }],
+  ]);
 });
 
 for (const width of [390, 1440]) {

@@ -1,10 +1,11 @@
 import sampleData from "../data/sample-data.json";
+import { getSessionToken } from "../context/session.js";
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "/api";
 
 // Función helper para incluir headers de autorización
 const getHeaders = () => {
-  const token = sessionStorage.getItem("token");
+  const token = getSessionToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -243,8 +244,6 @@ export const loadSampleInterests = async () => {
     },
     body: JSON.stringify(sampleData),
   });
-
-  console.log("Response:", JSON.stringify(sampleData));
 
   if (!response.ok) throw new Error("Error al importar datos");
 

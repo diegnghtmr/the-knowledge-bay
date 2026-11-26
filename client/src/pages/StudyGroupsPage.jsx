@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import NavigationBar from "../components/layout/NavigationBar";
 import StudyGroupsList from "../components/study-groups/StudyGroupsList";
 import GroupView from "../components/study-groups/GroupView";
@@ -8,8 +8,8 @@ import {
   getPostsByGroupId,
   likePost,
   addCommentToPost,
-} from "../services/studyGroupApi"; // Updated import path
-import { useLocation } from 'react-router-dom'; // Import useLocation
+} from "../services/studyGroupApi";
+import { useLocation } from 'react-router-dom';
 
 const StudyGroupsPage = () => {
   const [allAvailableGroups, setAllAvailableGroups] = useState([]); // Store all groups fetched from API
@@ -20,123 +20,104 @@ const StudyGroupsPage = () => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [postsPage, setPostsPage] = useState(0);
   const [hasMorePosts, setHasMorePosts] = useState(true);
-  const location = useLocation(); // Get location object
+  const [error, setError] = useState(null);
+  const groupIdFromState = useLocation().state?.groupId;
+  const pendingPosts = useRef(null);
+  const selectedGroupRef = useRef(null);
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        setIsLoading(true);
-        const fetchedGroups = await getAllGroups();
-        setAllAvailableGroups(fetchedGroups); // Store all fetched groups
-
-        // Check for groupId from route state
-        const groupIdFromState = location.state?.groupId;
-        if (groupIdFromState && fetchedGroups.length > 0) {
-          const groupToSelect = fetchedGroups.find(g => g.id === groupIdFromState);
-          if (groupToSelect) {
-            handleSelectGroup(groupToSelect); // Automatically select the group
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching groups:", error);
-        setAllAvailableGroups([]); // Ensure it's an array in case of error
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchGroups();
-  }, []);
-
-  const fetchPostsForGroup = async (groupId, page = 0, loadMore = false) => {
-    if (isLoadingPosts && loadMore) return;
-    
+  const fetchPostsForGroup = useCallback(async (groupId, page = 0, loadMore = false) => {
+    if (loadMore && pendingPosts.current) return;
+    pendingPosts.current?.abort();
+    const controller = new AbortController();
+    pendingPosts.current = controller;
     setIsLoadingPosts(true);
     try {
-      const fetchedPosts = await getPostsByGroupId(groupId, page);
-      if (fetchedPosts.length > 0) {
-        setCurrentGroupPosts(prev => loadMore ? [...prev, ...fetchedPosts] : fetchedPosts);
-        setPostsPage(page);
-        setHasMorePosts(fetchedPosts.length === 10); 
-      } else {
-        if (!loadMore) { 
-            setCurrentGroupPosts([]);
-        }
-        setHasMorePosts(false);
-      }
+      const posts = await getPostsByGroupId(groupId, page, 10, controller.signal);
+      if (controller.signal.aborted) return;
+      setCurrentGroupPosts(previous => loadMore ? [...previous, ...posts] : posts);
+      setPostsPage(page);
+      setHasMorePosts(posts.length === 10);
     } catch (error) {
-      console.error(`Error fetching posts for group ${groupId}:`, error);
-      setHasMorePosts(false); 
+      if (controller.signal.aborted) return;
+      setError(error.message);
+      setHasMorePosts(false);
     } finally {
-      setIsLoadingPosts(false);
+      if (pendingPosts.current === controller) {
+        pendingPosts.current = null;
+        setIsLoadingPosts(false);
+      }
     }
-  };
+  }, []);
 
-  const handleSelectGroup = (group) => {
+  const handleSelectGroup = useCallback((group) => {
+    selectedGroupRef.current = group;
     setSelectedGroup(group);
-    setCurrentGroupPosts([]); 
-    setPostsPage(0);        
-    setHasMorePosts(true);  
-    if (group) {
-        // Simplification: always fetch posts for selected group for now.
-        // Caching strategy can be added later if needed.
-        fetchPostsForGroup(group.id, 0); 
-    }
-  };
+    setCurrentGroupPosts([]);
+    setPostsPage(0);
+    setHasMorePosts(true);
+    setError(null);
+    fetchPostsForGroup(group.id);
+  }, [fetchPostsForGroup]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsLoading(true);
+    getAllGroups(controller.signal).then((groups) => {
+      if (controller.signal.aborted) return;
+      setAllAvailableGroups(groups);
+      const group = groups.find(({ id }) => id === groupIdFromState);
+      if (group) handleSelectGroup(group);
+      setIsLoading(false);
+    });
+    return () => {
+      controller.abort();
+      const posts = pendingPosts.current;
+      pendingPosts.current = null;
+      posts?.abort();
+      selectedGroupRef.current = null;
+    };
+  }, [groupIdFromState, handleSelectGroup]);
 
   const handleGoBack = () => {
+    const posts = pendingPosts.current;
+    pendingPosts.current = null;
+    posts?.abort();
+    selectedGroupRef.current = null;
     setSelectedGroup(null);
     setSearchTerm("");
     setCurrentGroupPosts([]);
+    setError(null);
   };
 
-  const handleLikePost = async (groupId, postId) => {
-    try {
-      const response = await likePost(groupId, postId);
-      
-      // Check if the like was successful
-      if (response && response.success) {
-        // Update only the like-related properties of the post
-        const updatePostInState = (postsList) => 
-          postsList.map((post) => {
-            if (post.id === postId) {
-              // Toggle the like status and update count
-              const newLikedByMe = !post.likedByMe;
-              const newLikeCount = newLikedByMe ? 
-                (post.likes || 0) + 1 : 
-                Math.max((post.likes || 0) - 1, 0);
-              
-              return {
-                ...post,
-                likedByMe: newLikedByMe,
-                likes: newLikeCount
-              };
-            }
-            return post;
-          });
-        
-        setCurrentGroupPosts(prevPosts => updatePostInState(prevPosts));
-      }
+  const updatePost = (postId, update) => {
+    setCurrentGroupPosts(posts => posts.map(post => post.id === postId ? update(post) : post));
+  };
 
+  const handleLikePost = async (groupId, postId, liked) => {
+    const group = selectedGroupRef.current;
+    setError(null);
+    try {
+      const result = await likePost(groupId, postId, liked);
+      if (selectedGroupRef.current === group) {
+        updatePost(postId, post => ({ ...post, likedByMe: result.likedByMe, likes: result.likes }));
+      }
     } catch (error) {
-      console.error("Error liking post:", error);
+      if (selectedGroupRef.current === group) setError(error.message);
     }
   };
 
   const handleAddComment = async (groupId, postId, commentText) => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim()) return false;
+    const group = selectedGroupRef.current;
+    setError(null);
     try {
-      const newComment = await addCommentToPost(groupId, postId, commentText);
-      const updatePostInState = (postsList) => postsList.map((post) => {
-        if (post.id === postId) {
-          return { ...post, comments: [...(post.comments || []), newComment] };
-        }
-        return post;
-      });
-      
-      setCurrentGroupPosts(prevPosts => updatePostInState(prevPosts));
-
+      const comment = await addCommentToPost(groupId, postId, commentText);
+      if (selectedGroupRef.current !== group) return false;
+      updatePost(postId, post => ({ ...post, comments: [...(post.comments || []), comment] }));
+      return true;
     } catch (error) {
-      console.error("Error adding comment:", error);
+      if (selectedGroupRef.current === group) setError(error.message);
+      return false;
     }
   };
 
@@ -172,8 +153,10 @@ const StudyGroupsPage = () => {
       <div className="flex-grow">
         {selectedGroup ? (
           <GroupView
+            key={selectedGroup.id}
             group={selectedGroup}
             posts={currentGroupPosts}
+            error={error}
             onBack={handleGoBack}
             onLike={handleLikePost}
             onComment={handleAddComment}
