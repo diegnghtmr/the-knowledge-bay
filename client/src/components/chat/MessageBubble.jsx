@@ -17,7 +17,7 @@ const MessageBubble = ({ message, isCurrentUser }) => {
           boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
         }}
       >
-        <p className="text-sm leading-relaxed" style={{ color: 'inherit' }}>{message.text}</p>
+        <p className="text-sm leading-relaxed wrap-anywhere" style={{ color: 'inherit' }}>{message.text}</p>
         <div className="flex justify-end mt-1">
           <span className="text-xs" style={{ color: isCurrentUser ? 'var(--open-sea)' : 'rgba(255,255,255,0.8)' }}>
             {formatTime(message.timestamp)}

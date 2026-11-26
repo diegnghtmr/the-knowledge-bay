@@ -1,0 +1,194 @@
+/* global process */
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { after, before, test } from 'node:test';
+import { createServer } from 'vite';
+
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.PW || 'playwright');
+const contacts = [
+  { contactId: '102', username: 'ben', lastMessageText: 'Ben preview', lastMessageTimestamp: '2025-05-03T08:30:00' },
+  { contactId: '103', username: 'cy', lastMessageText: 'Cy preview', lastMessageTimestamp: '2025-05-03T08:29:00' },
+];
+const message = (id, text, senderId = '101') => ({ id, text, senderId, timestamp: '2025-05-03T08:30:00' });
+
+let browser;
+let server;
+let origin;
+
+before(async () => {
+  server = await createServer({
+    configLoader: 'runner',
+    envFile: false,
+    server: { host: '127.0.0.1', port: 0 },
+  });
+  await server.listen();
+  origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM });
+});
+
+after(async () => {
+  try { await browser?.close(); } finally { await server?.close(); }
+});
+
+async function openChat(t, handlers, viewport = { width: 1440, height: 900 }) {
+  const context = await browser.newContext({ viewport });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  page.setDefaultTimeout(3000);
+  await page.addInitScript(() => {
+    sessionStorage.setItem('token', 'synthetic-chat-fixture');
+    sessionStorage.setItem('role', 'student');
+    sessionStorage.setItem('userId', '101');
+  });
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith('/api/chat/')) {
+      const result = await (handlers[url.pathname]?.(route.request(), url) ?? { status: 404, json: {} });
+      await route.fulfill(result);
+    } else if (url.origin === origin) {
+      await route.continue();
+    } else {
+      await route.abort();
+    }
+  });
+  await page.goto(`${origin}/chat`);
+  // The first navigation also compiles Vite's cold module graph.
+  await page.getByPlaceholder('Buscar conversaciones').waitFor({ timeout: 15_000 });
+  return page;
+}
+
+function peer(page, name) {
+  return page.getByText(name, { exact: true }).first();
+}
+
+function composer(page) {
+  return page.getByPlaceholder('Escribe un mensaje...');
+}
+
+function thread(page) {
+  return page.getByRole('heading', { level: 2 }).locator('xpath=../..');
+}
+
+test('an empty chat list can discover and message a student; clearing search shows the new conversation', async t => {
+  let sent = false;
+  const page = await openChat(t, {
+    '/api/chat/contacts': () => ({ json: sent ? contacts.slice(0, 1) : [] }),
+    '/api/chat/contacts/search': (request, url) => {
+      assert.equal(url.searchParams.get('query'), 'ben@example.invalid');
+      assert.equal(request.headers().authorization, 'Bearer synthetic-chat-fixture');
+      return { json: [{ contactId: '102', username: 'ben' }] };
+    },
+    '/api/chat/102/messages': () => ({ json: sent ? [message(1, 'Primer mensaje')] : [] }),
+    '/api/chat/send': request => {
+      assert.deepEqual(request.postDataJSON(), { receiverId: '102', text: 'Primer mensaje' });
+      sent = true;
+      return { json: message(1, 'Primer mensaje') };
+    },
+  });
+  const search = page.getByPlaceholder('Buscar conversaciones');
+  await search.fill('ben@example.invalid');
+  await peer(page, 'ben').click();
+  await page.getByText('No hay mensajes aún. ¡Comienza la conversación!', { exact: true }).waitFor();
+  await composer(page).fill('Primer mensaje');
+  await composer(page).press('Enter');
+  await thread(page).getByText('Primer mensaje', { exact: true }).waitFor();
+  await search.clear();
+  await peer(page, 'ben').waitFor();
+});
+
+test('distinct IDs with identical text both render before and after reload', async t => {
+  let persisted = [];
+  const text = 'Dos mensajes iguales';
+  const page = await openChat(t, {
+    '/api/chat/contacts': () => ({ json: contacts }),
+    '/api/chat/102/messages': () => ({ json: [...persisted, ...persisted.slice(0, 1)] }),
+    '/api/chat/send': request => {
+      const value = message(persisted.length + 1, request.postDataJSON().text);
+      persisted = [...persisted, value];
+      return { json: value };
+    },
+  });
+  await page.getByText('No hay mensajes aún. ¡Comienza la conversación!', { exact: true }).waitFor();
+  assert.ok(await page.getByPlaceholder('Buscar conversaciones').isVisible());
+  assert.equal((await thread(page).boundingBox()).x, 352);
+  assert.equal(await page.getByRole('button', { name: 'Volver a conversaciones' }).isVisible(), false);
+  for (const count of [1, 2]) {
+    await composer(page).fill(text);
+    await composer(page).press('Enter');
+    await thread(page).getByText(text, { exact: true }).nth(count - 1).waitFor();
+  }
+  await page.reload();
+  const bubbles = thread(page).getByText(text, { exact: true });
+  await bubbles.nth(1).waitFor();
+  assert.equal(await bubbles.count(), 2);
+  assert.deepEqual(persisted.map(value => value.id), [1, 2]);
+});
+
+test('a late history response never replaces the currently selected thread', { timeout: 15_000 }, async t => {
+  const oldRequest = Promise.withResolvers();
+  const deliverOld = Promise.withResolvers();
+  t.after(() => deliverOld.resolve());
+  const page = await openChat(t, {
+    '/api/chat/contacts': () => ({ json: contacts }),
+    '/api/chat/102/messages': async () => {
+      oldRequest.resolve();
+      await deliverOld.promise;
+      return { json: [message(1, 'Historial anterior', '102')] };
+    },
+    '/api/chat/103/messages': () => ({ json: [message(2, 'Historial actual', '103')] }),
+  });
+  await oldRequest.promise;
+  await peer(page, 'cy').click();
+  await page.getByText('Historial actual', { exact: true }).waitFor();
+  const finished = page.waitForResponse(response => response.url().endsWith('/api/chat/102/messages'));
+  deliverOld.resolve();
+  await (await finished).finished();
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.equal(await page.getByText('Historial anterior', { exact: true }).count(), 0);
+  assert.ok(await page.getByText('Historial actual', { exact: true }).isVisible());
+});
+
+test('a failed send preserves the draft and transcript without logging message text', async t => {
+  const text = 'Mensaje privado de prueba';
+  const page = await openChat(t, {
+    '/api/chat/contacts': () => ({ json: contacts }),
+    '/api/chat/102/messages': () => ({ json: [message(1, 'Historial visible')] }),
+    '/api/chat/send': () => ({ status: 400, json: { message: 'Error sending message' } }),
+  });
+  const logs = [];
+  page.on('console', entry => logs.push(Promise.all(entry.args().map(arg => arg.jsonValue().catch(() => null)))));
+  await page.getByText('Historial visible', { exact: true }).waitFor();
+  await composer(page).fill(text);
+  await composer(page).press('Enter');
+  assert.equal(await page.getByRole('alert').textContent(), 'No se pudo enviar el mensaje.');
+  assert.equal(await composer(page).inputValue(), text);
+  assert.ok(await page.getByText('Historial visible', { exact: true }).isVisible());
+  assert.ok(!JSON.stringify(await Promise.all(logs)).includes(text));
+});
+
+test('at 390px list, thread, composer and back control fit without overlap', async t => {
+  const longName = 'estudiante-con-un-nombre-que-no-debe-desbordar-el-viewport-móvil';
+  const page = await openChat(t, {
+    '/api/chat/contacts': () => ({ json: [{ ...contacts[0], username: longName }] }),
+    '/api/chat/102/messages': () => ({ json: [message(1, 'palabra'.repeat(60))] }),
+  }, { width: 390, height: 844 });
+  const search = page.getByPlaceholder('Buscar conversaciones');
+  await search.waitFor();
+  assert.equal(await composer(page).isVisible(), false);
+  await peer(page, longName).click();
+  const back = page.getByRole('button', { name: 'Volver a conversaciones' });
+  const heading = page.getByRole('heading', { name: longName, level: 2 });
+  await back.waitFor();
+  const bubble = page.getByText('palabra'.repeat(60), { exact: true });
+  await bubble.waitFor();
+  assert.ok(await bubble.evaluate(node => node.scrollWidth <= node.clientWidth), 'long words must wrap within the bubble');
+  const [backBox, headingBox, inputBox] = await Promise.all([back.boundingBox(), heading.boundingBox(), composer(page).boundingBox()]);
+  assert.ok(backBox.x + backBox.width <= headingBox.x, 'back control must not overlap the thread title');
+  assert.ok(inputBox.y + inputBox.height <= 844 && inputBox.height >= 36, 'composer must stay usable inside the viewport');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
+  assert.equal(await search.isVisible(), false);
+  await back.click();
+  await search.waitFor();
+  assert.equal(await composer(page).isVisible(), false);
+});

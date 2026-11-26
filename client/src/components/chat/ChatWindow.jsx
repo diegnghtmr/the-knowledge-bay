@@ -1,193 +1,105 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import { getChatMessages, sendMessage } from '../../services/chatApi';
 
-const ChatWindow = ({ contact, onMessageSent }) => {
+const ChatWindow = ({ contact, onBack, onMessageSent }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const messagesEndRef = useRef(null);
+  const [historyError, setHistoryError] = useState(false);
+  const [sendError, setSendError] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  
-  // Cargar mensajes cuando cambia el contacto seleccionado
+  const sending = useRef(false);
+  const messagesArea = useRef(null);
+
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        setLoading(true);
-        const response = await getChatMessages(contact.id);
-        if (response.success) {
-          setMessages(response.data);
-          setError(null);
-        } else {
-          setError(response.message || 'Error al cargar los mensajes');
-        }
-      } catch (err) {
-        setError('Error al cargar los mensajes. Por favor, intente de nuevo más tarde.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchMessages();
+    // Each contact selection has its own request generation and component key.
+    let current = true;
+    getChatMessages(contact.id).then(history => {
+      if (current) setMessages([...new Map(history.map(message => [message.id, message])).values()]);
+    }).catch(() => {
+      if (current) setHistoryError(true);
+    }).finally(() => {
+      if (current) setLoading(false);
+    });
+    return () => { current = false; };
   }, [contact.id]);
-  
-  // Hacer scroll al mensaje más reciente cuando se cargan mensajes o se envía uno nuevo
+
   useEffect(() => {
-    scrollToBottom();
+    const element = messagesArea.current;
+    element?.scrollTo({ top: element.scrollHeight });
   }, [messages]);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-  
-  const handleSendMessage = async (text) => {
-    if (!text.trim() || isSending) return;
-    
+
+  const handleSendMessage = async text => {
+    if (sending.current || loading || !text.trim()) return false;
+    sending.current = true;
+    setIsSending(true);
+    setSendError(false);
     try {
-      setIsSending(true);
-      
-      // Obtener el ID del usuario actual del sessionStorage
-      const currentUserId = sessionStorage.getItem('userId') || 'unknown_user';
-      
-      // Crear un mensaje temporal optimista con un ID único temporal
-      const tempId = `temp-${Date.now()}`;
-      const optimisticMessage = {
-        id: tempId,
-        senderId: currentUserId, // ID real del usuario actual (email)
-        receiverId: contact.id,
-        text,
-        timestamp: new Date(),
-        isOptimistic: true // Marca para reconocer que es temporal
-      };
-      
-      // Agregar el mensaje optimista a la UI inmediatamente
-      setMessages(prevMessages => [...prevMessages, optimisticMessage]);
-      
-      // Enviar el mensaje a la API
-      const response = await sendMessage(contact.id, text);
-      
-      if (response.success) {
-        // Reemplazar el mensaje optimista con el real
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.id === tempId ? response.data : msg
-          )
-        );
-        
-        // Notificar al componente padre para actualizar la lista de contactos
-        onMessageSent(response.data);
-      } else {
-        // En caso de error, eliminar el mensaje optimista
-        setMessages(prevMessages => 
-          prevMessages.filter(msg => msg.id !== tempId)
-        );
-        setError(response.message || 'Error al enviar el mensaje');
-      }
-    } catch (err) {
-      // En caso de error, eliminar el mensaje optimista si existe
-      setMessages(prevMessages => 
-        prevMessages.filter(msg => !msg.isOptimistic)
-      );
-      setError('Error al enviar el mensaje. Por favor, intente de nuevo más tarde.');
-      console.error(err);
+      const saved = await sendMessage(contact.id, text);
+      setMessages(previous => previous.some(message => message.id === saved.id) ? previous : [...previous, saved]);
+      onMessageSent(saved);
+      return true;
+    } catch {
+      setSendError(true);
+      return false;
     } finally {
+      sending.current = false;
       setIsSending(false);
     }
   };
 
-  // Función para mostrar la fecha en formato "10 de marzo de 2025"
-  const formatDateHeader = (timestamp) => {
-    if (!timestamp) return '';
-    
-    const date = new Date(timestamp);
-    const options = { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    };
-    
-    // Si es del 10/3/2025, mostrar "10 de marzo de 2025"
-    if (date.getFullYear() === 2025 && date.getMonth() === 2 && date.getDate() === 10) {
-      return '10 de marzo de 2025';
-    }
-    
-    return date.toLocaleDateString('es-ES', options);
-  };
-  
-  // Para la imagen compartida, solo tenemos mensajes del 10 de marzo de 2025
-  const dateHeaderShown = messages.length > 0 ? true : false;
-  
-  // Filtrar posibles mensajes duplicados (mismo texto y mismo timestamp)
-  const uniqueMessages = messages.reduce((acc, current) => {
-    const x = acc.find(item => 
-      item.text === current.text && 
-      !item.isOptimistic &&
-      Math.abs(new Date(item.timestamp) - new Date(current.timestamp)) < 1000
-    );
-    if (!x) {
-      return acc.concat([current]);
-    } else {
-      return acc;
-    }
-  }, []);
-  
+  const dateHeader = messages.length ? new Date(messages[0].timestamp).toLocaleDateString('es-ES', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  }) : null;
+
   return (
     <div className="flex flex-col h-full rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--sand)' }}>
-      {/* Cabecera - Fondo coastal-sea, texto deep-sea */}
-      <div className="py-4 flex items-center justify-center shadow-sm" style={{ backgroundColor: 'var(--coastal-sea)' }}>
-        <h2 className="text-xl font-medium" style={{ color: 'var(--deep-sea)' }}>{contact.username}</h2>
+      <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center md:flex md:justify-center py-4 shadow-sm" style={{ backgroundColor: 'var(--coastal-sea)' }}>
+        <button
+          type="button"
+          className="md:hidden flex justify-center items-center h-11 -my-2"
+          style={{ color: 'var(--deep-sea)' }}
+          aria-label="Volver a conversaciones"
+          onClick={onBack}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m14 6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <h2 className="text-xl font-medium text-center min-w-0 truncate" style={{ color: 'var(--deep-sea)' }}>{contact.username}</h2>
       </div>
-      
-      {/* Área de mensajes - Fondo sand (heredado), padding */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div ref={messagesArea} className="flex-1 min-h-0 overflow-y-auto p-4" role="log" aria-label="Mensajes">
         {loading ? (
           <div className="flex justify-center items-center h-full">
             <p className="opacity-70" style={{ color: 'var(--deep-sea)' }}>Cargando mensajes...</p>
           </div>
-        ) : error ? (
+        ) : historyError ? (
           <div className="flex justify-center items-center h-full">
-            <p className="text-red-500">{error}</p>
+            <p role="alert" className="text-red-500">No se pudieron cargar los mensajes.</p>
           </div>
-        ) : uniqueMessages.length === 0 ? (
+        ) : messages.length === 0 ? (
           <div className="flex justify-center items-center h-full">
             <p className="opacity-70" style={{ color: 'var(--deep-sea)' }}>No hay mensajes aún. ¡Comienza la conversación!</p>
           </div>
         ) : (
           <>
-            {dateHeaderShown && (
-              <div className="flex justify-center mb-6">
-                <span className="inline-block px-3 py-1 rounded-full text-xs" 
-                  style={{ backgroundColor: 'white', opacity: '0.6', color: 'var(--deep-sea)' }}>
-                  {formatDateHeader(uniqueMessages[0].timestamp)}
-                </span>
-              </div>
-            )}
-            {uniqueMessages.map(message => {
-              // Obtener el ID del usuario actual del sessionStorage
-              const currentUserId = sessionStorage.getItem('userId') || 'unknown_user';
-              
-              // Comprobar si el mensaje es del usuario actual
-              const isCurrentUser = message.senderId === currentUserId;
-              
-              return (
-                <MessageBubble 
-                  key={message.id} 
-                  message={message} 
-                  isCurrentUser={isCurrentUser}
-                />
-              );
-            })}
-            <div ref={messagesEndRef} />
+            <div className="flex justify-center mb-6">
+              <span className="inline-block px-3 py-1 rounded-full text-xs"
+                style={{ backgroundColor: 'white', opacity: '0.6', color: 'var(--deep-sea)' }}>
+                {dateHeader}
+              </span>
+            </div>
+            {messages.map(message => (
+              <MessageBubble key={message.id} message={message} isCurrentUser={message.senderId !== contact.id} />
+            ))}
           </>
         )}
       </div>
-      
-      {/* Área de entrada de mensaje */}
-      <MessageInput onSendMessage={handleSendMessage} disabled={isSending} />
+      {sendError && <p className="px-4 text-sm text-red-500" role="alert">No se pudo enviar el mensaje.</p>}
+      <MessageInput onSendMessage={handleSendMessage} disabled={isSending || loading || historyError} />
     </div>
   );
 };
 
-export default ChatWindow; 
+export default ChatWindow;

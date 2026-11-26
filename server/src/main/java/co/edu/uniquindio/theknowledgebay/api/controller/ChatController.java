@@ -1,132 +1,76 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
-import co.edu.uniquindio.theknowledgebay.api.dto.ChatContactDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.MessageDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.SendMessageRequestDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Message;
 import co.edu.uniquindio.theknowledgebay.core.service.ChatService;
-import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
-
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/chat")
-@Slf4j
 public class ChatController {
-
     private final ChatService chatService;
-    private final SessionManager sessionManager;
 
-    /**
-     * Endpoint for sending a message to another user.
-     *
-     * @param token      Authorization token
-     * @param requestDTO The message request containing receiver ID and text
-     * @return The created message
-     */
     @PostMapping("/send")
-    public ResponseEntity<?> sendMessage(
-            @RequestHeader("Authorization") String token,
-            @RequestBody SendMessageRequestDTO requestDTO) {
-        
-        // Validate token and get current user
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            log.warn("Unauthorized attempt to send message");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    public ResponseEntity<?> sendMessage(@AuthenticationPrincipal AuthenticatedUser actor,
+                                         @RequestBody SendMessageRequestDTO request) {
+        var denied = accessDenied(actor);
+        if (denied != null) return denied;
 
-        // Send message
-        Message message = chatService.sendMessage(currentUserId, requestDTO.getReceiverId(), requestDTO.getText());
-        if (message == null) {
-            log.error("Error sending message from {} to {}", currentUserId, requestDTO.getReceiverId());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error sending message");
-        }
+        Message message = chatService.sendMessage(actor.id(), request.getReceiverId(), request.getText());
+        if (message == null) return ResponseEntity.badRequest().body("Error sending message");
+        return ResponseEntity.ok(toDto(message));
+    }
 
-        // Convert message to DTO
-        MessageDTO messageDTO = MessageDTO.builder()
+    @GetMapping("/{contactId}/messages")
+    public ResponseEntity<?> getMessages(@AuthenticationPrincipal AuthenticatedUser actor,
+                                         @PathVariable String contactId) {
+        var denied = accessDenied(actor);
+        if (denied != null) return denied;
+
+        var messages = chatService.getMessagesForChat(actor.id(), contactId);
+        return ResponseEntity.ok(messages.stream().map(ChatController::toDto).toList());
+    }
+
+    @GetMapping("/contacts")
+    public ResponseEntity<?> getContacts(@AuthenticationPrincipal AuthenticatedUser actor) {
+        var denied = accessDenied(actor);
+        if (denied != null) return denied;
+        return ResponseEntity.ok(chatService.getChatContactsWithLastMessage(actor.id()));
+    }
+
+    @GetMapping("/contacts/search")
+    public ResponseEntity<?> searchStudents(@AuthenticationPrincipal AuthenticatedUser actor,
+                                            @RequestParam(defaultValue = "") String query) {
+        var denied = accessDenied(actor);
+        if (denied != null) return denied;
+        return ResponseEntity.ok(chatService.searchStudents(actor.id(), query));
+    }
+
+    private static ResponseEntity<Void> accessDenied(AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (actor.role() != AuthenticatedUser.Role.STUDENT) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return null;
+    }
+
+    private static MessageDTO toDto(Message message) {
+        return MessageDTO.builder()
                 .id(message.getMessageId())
                 .senderId(message.getSender().getId())
                 .text(message.getText())
                 .timestamp(message.getTimestamp())
                 .build();
-
-        return ResponseEntity.ok(messageDTO);
-    }
-
-    /**
-     * Endpoint for getting messages between the current user and a contact.
-     *
-     * @param token     Authorization token
-     * @param contactId Contact's ID to get messages with
-     * @return List of messages between the users
-     */
-    @GetMapping("/{contactId}/messages")
-    public ResponseEntity<?> getMessages(
-            @RequestHeader("Authorization") String token,
-            @PathVariable String contactId) {
-        
-        // Validate token and get current user
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            log.warn("Unauthorized attempt to get messages");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        DoublyLinkedList<Message> messages = chatService.getMessagesForChat(currentUserId, contactId);
-        
-        List<MessageDTO> messageDTOs = new ArrayList<>();
-        DoublyLinkedNode<Message> current = messages.getHead();
-        while (current != null) {
-            Message message = current.getData();
-            MessageDTO messageDTO = MessageDTO.builder()
-                    .id(message.getMessageId())
-                    .senderId(message.getSender().getId())
-                    .text(message.getText())
-                    .timestamp(message.getTimestamp())
-                    .build();
-            messageDTOs.add(messageDTO);
-            current = current.getNext();
-        }
-
-        return ResponseEntity.ok(messageDTOs);
-    }
-
-    /**
-     * Endpoint for getting all contacts (users with whom the current user has chats).
-     *
-     * @param token Authorization token
-     * @return List of contacts with last message information
-     */
-    @GetMapping("/contacts")
-    public ResponseEntity<?> getContacts(@RequestHeader("Authorization") String token) {
-        // Validate token and get current user
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            log.warn("Unauthorized attempt to get contacts");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        DoublyLinkedList<ChatContactDTO> contacts = chatService.getChatContactsWithLastMessage(currentUserId);
-        
-        // Convert to list for JSON serialization
-        List<ChatContactDTO> contactsList = new ArrayList<>();
-        DoublyLinkedNode<ChatContactDTO> current = contacts.getHead();
-        while (current != null) {
-            contactsList.add(current.getData());
-            current = current.getNext();
-        }
-
-        return ResponseEntity.ok(contactsList);
     }
 }
