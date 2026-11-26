@@ -6,15 +6,18 @@ import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.http.ContentDisposition;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -33,6 +36,8 @@ import java.util.concurrent.TimeoutException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 class DurableFeaturesTest {
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -219,13 +224,24 @@ class DurableFeaturesTest {
             var path = "/api/chat/" + b.id() + "/events";
             try (var first = stream(path, a)) {
                 assertEquals("event:ready", nextEvent(first));
-                var result = http.send(request(path, secondToken.token())
-                        .header("Accept", "text/event-stream").build(),
-                        HttpResponse.BodyHandlers.ofInputStream());
-                try (var body = result.body()) {
-                    if (result.statusCode() == 200) assertEquals(-1, body.read());
-                    else assertEquals(429, result.statusCode());
+                var port = URI.create(origin).getPort();
+                try (var socket = new Socket("127.0.0.1", port)) {
+                    socket.setSoTimeout(3000);
+                    var raw = "GET " + path + " HTTP/1.1\r\n"
+                            + "Host: 127.0.0.1:" + port + "\r\n"
+                            + "Accept: text/event-stream\r\nAccept-Encoding: identity\r\n"
+                            + "Authorization: Bearer " + secondToken.token() + "\r\n\r\n";
+                    socket.getOutputStream().write(raw.getBytes(StandardCharsets.US_ASCII));
+                    var reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
+                    var status = reader.readLine();
+                    assertNotNull(status, "Excess stream closed before sending an HTTP response");
+                    assertTrue(status.startsWith("HTTP/1.1 429"), status);
                 }
+                var result = http.send(request(path, secondToken.token())
+                        .header("Accept", "text/event-stream").build(), HttpResponse.BodyHandlers.ofString());
+                assertEquals(429, result.statusCode());
+                assertEquals("2", result.headers().firstValue("Retry-After").orElseThrow());
+                assertEquals("Too many active chat streams.", result.body());
                 try (var other = stream("/api/chat/" + a.id() + "/events", b)) {
                     assertEquals("event:ready", nextEvent(other));
                     json("POST", "/api/auth/logout", a.token(), null, 200);
@@ -237,6 +253,26 @@ class DurableFeaturesTest {
                         assertEquals("event:ready", nextEvent(reopened));
                     }
                 }
+            }
+        }
+    }
+
+    @Test
+    void aSlotIsReleasedWhenMvcCannotStartAsyncProcessing() throws Exception {
+        try (var app = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=1")) {
+            var a = register("ada", STUDENT);
+            var b = register("bea", "bea@example.invalid");
+            var path = "/api/chat/" + b.id() + "/events";
+            var mvc = MockMvcBuilders.webAppContextSetup(app).apply(springSecurity()).build();
+            var failure = assertThrows(ServletException.class, () -> mvc.perform(get(path)
+                    .header("Authorization", "Bearer " + a.token()).accept("text/event-stream")
+                    .with(request -> {
+                        request.setAsyncSupported(false);
+                        return request;
+                    })));
+            assertInstanceOf(IllegalStateException.class, failure.getCause());
+            try (var admitted = stream(path, a)) {
+                assertEquals("event:ready", nextEvent(admitted));
             }
         }
     }

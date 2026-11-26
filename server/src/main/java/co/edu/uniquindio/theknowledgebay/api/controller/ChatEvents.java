@@ -5,8 +5,12 @@ import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager.SessionKey;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.context.request.async.CallableProcessingInterceptor;
+import org.springframework.web.context.request.async.WebAsyncUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -15,15 +19,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Component
 public class ChatEvents {
     private static final long STREAM_NANOS = Duration.ofMinutes(5).toNanos();
+    private static final String SLOT_ATTRIBUTE = ChatEvents.class.getName() + ".streamSlot";
     private final SessionManager sessions;
     private final ObjectMapper json;
     private final Map<ThreadKey, Set<Subscription>> threads = new ConcurrentHashMap<>();
@@ -39,8 +46,31 @@ public class ChatEvents {
         this.maxStreamsPerUser = maxStreamsPerUser;
     }
 
-    void stream(AuthenticatedUser actor, String peer, SessionKey session, OutputStream output) {
-        if (!acquire(actor.id())) return;
+    StreamSlot reserve(String userId, HttpServletRequest request) {
+        if (!acquire(userId)) return null;
+        var slot = new StreamSlot(userId);
+        try {
+            request.setAttribute(SLOT_ATTRIBUTE, slot);
+            WebAsyncUtils.getAsyncManager(request).registerCallableInterceptor(SLOT_ATTRIBUTE, new CallableProcessingInterceptor() {
+                @Override
+                public <T> void afterCompletion(NativeWebRequest webRequest, Callable<T> task) {
+                    slot.cancelUnstarted();
+                }
+            });
+            return slot;
+        } catch (RuntimeException e) {
+            slot.cancelUnstarted();
+            throw e;
+        }
+    }
+
+    // Called when MVC fails before starting async processing, or finishes the async redispatch.
+    public static void cancelUnstarted(HttpServletRequest request) {
+        if (request.getAttribute(SLOT_ATTRIBUTE) instanceof StreamSlot slot) slot.cancelUnstarted();
+    }
+
+    void stream(StreamSlot slot, AuthenticatedUser actor, String peer, SessionKey session, OutputStream output) {
+        if (!slot.start()) return;
         var key = ThreadKey.of(actor.id(), peer);
         var sub = new Subscription();
         try {
@@ -67,7 +97,7 @@ public class ChatEvents {
                 subscribers.remove(sub);
                 return subscribers.isEmpty() ? null : subscribers;
             });
-            release(actor.id());
+            slot.finish();
         }
     }
 
@@ -81,6 +111,25 @@ public class ChatEvents {
     private synchronized void release(String userId) {
         streamsByUser.computeIfPresent(userId, (key, count) -> count == 1 ? null : count - 1);
         capacity.release();
+    }
+
+    private enum SlotState { RESERVED, STREAMING, RELEASED }
+
+    final class StreamSlot {
+        private final String userId;
+        private final AtomicReference<SlotState> state = new AtomicReference<>(SlotState.RESERVED);
+
+        private StreamSlot(String userId) { this.userId = userId; }
+
+        private boolean start() { return state.compareAndSet(SlotState.RESERVED, SlotState.STREAMING); }
+
+        private void cancelUnstarted() { releaseFrom(SlotState.RESERVED); }
+
+        private void finish() { releaseFrom(SlotState.STREAMING); }
+
+        private void releaseFrom(SlotState expected) {
+            if (state.compareAndSet(expected, SlotState.RELEASED)) release(userId);
+        }
     }
 
     private boolean isActive(AuthenticatedUser actor, SessionKey session) {

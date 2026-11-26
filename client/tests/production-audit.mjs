@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { get as httpGet } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -14,6 +15,7 @@ const viewports = [{ width: 1440, height: 900 }, { width: 390, height: 844 }];
 const moderator = { email: 'audit-moderator@example.invalid', password: randomUUID() };
 const author = { email: 'audit-student@example.invalid', password: randomUUID(), username: 'auditstudent' };
 const peer = { email: 'audit-peer@example.invalid', password: randomUUID(), username: 'auditpeer' };
+const capProbe = { email: 'audit-cap@example.invalid', password: randomUUID(), username: 'auditcap' };
 const topics = ['Sistemas de prueba', 'Matemáticas de prueba'];
 const title = 'Bitácora de prueba: café & álgebra';
 const editedTitle = `${title} — editado`;
@@ -27,13 +29,14 @@ const helpText = 'Prueba de solicitud: ¿cómo comparar árboles?';
 const biography = 'Biografía sintética para validar la aplicación académica.';
 const opener = 'Inicio de conversación sintética';
 const repeated = 'Mensaje de auditoría idéntico';
-const secrets = [moderator.password, author.password, peer.password];
+const secrets = [moderator.password, author.password, peer.password, capProbe.password];
 const confirmed = [];
 const captures = [];
 const captureFailures = [];
 const pageErrors = [];
 let origin;
 let server;
+let tomcatHeaderException = false;
 
 function safe(message) {
   return secrets.reduce((value, key) => value.replaceAll(key, '[redacted]'), String(message))
@@ -62,9 +65,12 @@ async function launch(directory, port = 0) {
   });
   server = child;
   let output = '';
-  child.stderr.resume();
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (part) => { output = (output + part).slice(-16_384); });
+  const captureOutput = (part) => {
+    output = (output + part).slice(-16_384);
+    tomcatHeaderException ||= /org\.apache\.tomcat\.util\.http\.MimeHeaders|ArrayIndexOutOfBoundsException/.test(output);
+  };
+  child.stdout.setEncoding('utf8').on('data', captureOutput);
+  child.stderr.setEncoding('utf8').on('data', captureOutput);
   await once(child, 'spawn');
   for (let n = 0; n < 200; n += 1) {
     if (child.exitCode !== null) throw new Error(`Packaged server exited ${child.exitCode} before readiness`);
@@ -99,6 +105,48 @@ async function api(http, path, { method = 'GET', data, token, status = 200 } = {
   });
   assert.equal(result.status(), status, `${method} ${path} HTTP status`);
   return status === 200 ? result.json() : null;
+}
+
+// A fresh HTTP/1.1 connection for each attempt; do not retry missing responses.
+function probeStreamStatus(path, token) {
+  return new Promise((resolve, reject) => {
+    const probe = httpGet(origin + path, {
+      agent: false, headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream', 'Accept-Encoding': 'identity' },
+    }, (response) => {
+      response.on('error', reject);
+      response.on('end', () => resolve([response.statusCode, response.headers['retry-after']]));
+      response.resume();
+    });
+    probe.setTimeout(3000, () => probe.destroy(new Error('Over-cap HTTP probe timed out')));
+    probe.on('error', reject);
+  });
+}
+
+async function verifyStreamCap(http, contactId) {
+  await api(http, '/api/auth/register', { method: 'POST', data: capProbe });
+  const actor = await api(http, '/api/auth/login', { method: 'POST', data: capProbe });
+  const path = `/api/chat/${contactId}/events`;
+  const open = new AbortController();
+  try {
+    for (let i = 0; i < 3; i += 1) {
+      const response = await fetch(origin + path, {
+        headers: { Authorization: `Bearer ${actor.token}`, Accept: 'text/event-stream' },
+        signal: AbortSignal.any([open.signal, AbortSignal.timeout(30_000)]),
+      });
+      assert.equal(response.status, 200, `admitted stream ${i + 1}`);
+      const reader = response.body.getReader();
+      try {
+        assert.match(new TextDecoder().decode((await reader.read()).value), /^event:ready/);
+      } finally {
+        reader.releaseLock();
+      }
+    }
+    for (let i = 0; i < 20; i += 1) {
+      assert.deepEqual(await probeStreamStatus(path, actor.token), [429, '2'], `over-cap stream ${i + 1}`);
+    }
+  } finally {
+    open.abort();
+  }
 }
 
 async function open(browser, viewport) {
@@ -586,6 +634,9 @@ async function run(browser, http, directory) {
   await firstPage.waitForURL('**/landing');
   await api(http, '/api/auth/session', { token: signed.token, status: 401 });
   confirm('logout revokes the bearer token and guards a reloaded deep route');
+  await verifyStreamCap(http, recipient.userId);
+  assert.equal(tomcatHeaderException, false, 'Tomcat must not log a response-header exception');
+  confirm('20/20 fresh over-cap HTTP connections returned 429 with Retry-After and no Tomcat header exception');
   assert.deepEqual(pageErrors, [], 'browser page errors');
 }
 

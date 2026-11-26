@@ -63,6 +63,7 @@ export function watchChatMessages(contactId, onMessage, sync) {
     let stable = false;
     let reader;
     let idle;
+    let retryAfterMs = 0;
     const resetIdle = () => {
       clearTimeout(idle);
       idle = setTimeout(() => controller.abort(), 45_000);
@@ -86,7 +87,13 @@ export function watchChatMessages(contactId, onMessage, sync) {
         if (!stable && connectedBefore && !stopped) sync();
       } else {
         await response.body?.cancel();
-        if (connectedBefore && !stopped) sync(); // An unavailable SSE route still has HTTP history.
+        if (response.status === 429) {
+          const header = response.headers.get('retry-after');
+          retryAfterMs = /^\d+$/.test(header) ? Math.min(Number(header) * 1000, 60_000) : 2000;
+          if (!stopped) sync();
+        } else if (connectedBefore && !stopped) {
+          sync(); // An unavailable SSE route still has HTTP history.
+        }
       }
     } catch {
       // Network or proxy disconnected. Retry without logging request details.
@@ -98,7 +105,7 @@ export function watchChatMessages(contactId, onMessage, sync) {
     if (stopped) return;
     connectedBefore = true;
     if (stable && Date.now() - started > 5000) backoff = 500;
-    retry = setTimeout(connect, backoff);
+    retry = setTimeout(connect, Math.max(backoff, retryAfterMs));
     backoff = Math.min(backoff * 2, 8000);
   }
 
