@@ -56,7 +56,7 @@ const Signup = ({ data }) => {
       firstName: formData.firstName,
       lastName: formData.lastName,
       dateOfBirth: formatDate(formData.dateOfBirth),
-      bio: formData.bio,
+      biography: formData.bio,
       interests: formData.interests,
     };
 

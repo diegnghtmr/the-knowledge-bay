@@ -170,7 +170,6 @@ const StudyGroupsPage = () => {
             onSelectGroup={handleSelectGroup}
             searchTerm={searchTerm}
             onSearchChange={(e) => setSearchTerm(e.target.value)}
-            originalGroupsCount={allAvailableGroups.length} // Pass the count of all groups
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import FormField from '../help/FormField';
 
 /**
@@ -24,32 +24,15 @@ const AutoResizingTextarea = ({
 }) => {
   const textareaRef = useRef(null);
   
-  const autoResize = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      // Reset height to calculate new height
-      textarea.style.height = minHeight;
-      
-      // Set to scroll height but respect max height
-      const scrollHeight = textarea.scrollHeight;
-      const maxHeightValue = parseInt(maxHeight);
-      const newHeight = Math.min(scrollHeight, maxHeightValue);
-      
-      textarea.style.height = `${newHeight}px`;
-    }
-  }, [minHeight, maxHeight]);
-
   useEffect(() => {
-    autoResize();
-  }, [autoResize, value]);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
 
-  const handleChange = (e) => {
-    if (onChange) {
-      onChange(e);
-    }
-    // Pequeño delay para asegurar que el valor se haya actualizado
-    setTimeout(autoResize, 0);
-  };
+    // When the format changes but the draft does not, retain the height
+    // and let CSS clamp it to the new format's bounds.
+    textarea.style.height = '0px';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value]);
 
   // Determinar si usar FormField o renderizar directamente
   if (label || icon) {
@@ -76,7 +59,7 @@ const AutoResizingTextarea = ({
           id={id}
           name={name}
           value={value}
-          onChange={handleChange}
+          onChange={onChange}
           onBlur={onBlur}
           placeholder={placeholder}
           className={`w-full border rounded-md p-2 resize-none overflow-hidden focus:outline-none focus:ring-2 ${
@@ -109,7 +92,7 @@ const AutoResizingTextarea = ({
       id={id}
       name={name}
       value={value}
-      onChange={handleChange}
+      onChange={onChange}
       onBlur={onBlur}
       placeholder={placeholder}
       className={`w-full border rounded-md p-2 resize-none overflow-hidden focus:outline-none focus:ring-2 border-[var(--coastal-sea)]/20 focus:ring-[var(--coastal-sea)]/50 ${className}`}

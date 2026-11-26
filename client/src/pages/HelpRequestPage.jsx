@@ -2,14 +2,12 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HelpRequestForm from "../components/help/HelpRequestForm";
 import NavigationBar from "../components/layout/NavigationBar";
-import { useAuth } from "../context/AuthContext";
 import { helpRequestApi } from "../services/helpRequestApi";
 
 /**
  * Página del formulario de solicitud de ayuda
  */
 const HelpRequestPage = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,11 +22,7 @@ const HelpRequestPage = () => {
         urgency: formData.urgency,
       };
 
-      console.log("Enviando datos de solicitud:", helpRequestData);
-
       const response = await helpRequestApi.createHelpRequest(helpRequestData);
-
-      console.log("Respuesta del servidor:", response);
 
       if (response.success) {
         alert("Solicitud de ayuda creada exitosamente");
