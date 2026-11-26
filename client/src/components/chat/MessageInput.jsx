@@ -1,39 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 
 const MessageInput = ({ onSendMessage, disabled }) => {
   const [message, setMessage] = useState('');
-  const textareaRef = useRef(null);
-  
-  // Función para ajustar automáticamente la altura del textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto'; // Resetear altura
-      const scrollHeight = textarea.scrollHeight;
-      // Establecer una altura máxima para evitar que el área de texto sea demasiado grande
-      textarea.style.height = `${Math.min(scrollHeight, 150)}px`;
-    }
-  }, [message]);
-  
-  const handleInputChange = (e) => {
-    setMessage(e.target.value);
-  };
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (message.trim() && !disabled) {
-      onSendMessage(message);
-      setMessage('');
-    }
-  };
-  
-  // Manejar envío al presionar Enter (sin Shift)
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !disabled) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
+
+  const handleSubmit = async event => {
+    event.preventDefault();
+    if (message.trim() && !disabled && await onSendMessage(message)) setMessage('');
   };
   
   const hasText = message.trim().length > 0;
@@ -48,14 +20,13 @@ const MessageInput = ({ onSendMessage, disabled }) => {
           }}
         >
           <input
-            ref={textareaRef}
             type="text"
+            aria-label="Escribe un mensaje"
             placeholder="Escribe un mensaje..."
             value={message}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
+            onChange={event => setMessage(event.target.value)}
             disabled={disabled}
-            className="w-full p-2 px-4 rounded-full text-sm focus:outline-none"
+            className="w-full min-h-9 p-2 px-4 rounded-full text-sm focus:outline-none"
             style={{ 
               borderColor: 'transparent', 
               color: 'var(--deep-sea)',
@@ -67,7 +38,8 @@ const MessageInput = ({ onSendMessage, disabled }) => {
         </div>
         
         <button 
-          type="submit" 
+          type="submit"
+          aria-label="Enviar mensaje"
           className="absolute right-0 flex items-center justify-center rounded-full transition-all duration-300 ease-in-out"
           disabled={!hasText || disabled}
           style={{ 
