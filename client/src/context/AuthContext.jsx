@@ -1,157 +1,72 @@
-// client/src/context/AuthContext.jsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { login as apiLogin, register as apiRegister, logout as apiLogout } from '../services/authApi';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { getSession, login as apiLogin, logout as apiLogout, register } from '../services/authApi.js';
+import { clearSession, getSessionToken, saveSession, subscribeToSession } from './session.js';
 
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-  // Inicializar con valores de sessionStorage, con student como fallback
-  const [token, setToken] = useState(sessionStorage.getItem('token'));
-  const [userRole, setUserRole] = useState(sessionStorage.getItem('role') || 'student');
-  const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem('token'));
+export function AuthProvider({ children }) {
+  const [auth, setAuth] = useState(() => ({
+    session: null,
+    status: getSessionToken() ? 'checking' : 'ready',
+  }));
 
-  // Información de depuración para el contexto de autenticación
-  console.log("AuthContext - Initial userRole:", userRole);
-  console.log("AuthContext - Role from sessionStorage:", sessionStorage.getItem('role'));
-
-  // Effect to sync state with sessionStorage on initial load
   useEffect(() => {
-    const storedToken = sessionStorage.getItem('token');
-    const storedRole = sessionStorage.getItem('role');
-    
-    console.log("AuthContext - useEffect storedRole:", storedRole);
-    
-    if (storedToken) {
-      setToken(storedToken);
-      // Garantizar que siempre haya un rol válido y normalizado
-      const originalRole = storedRole || 'student';
-      const normalizedRole = originalRole.toLowerCase();
-      
-      console.log("AuthContext - Original stored role:", originalRole);
-      console.log("AuthContext - Normalized role:", normalizedRole);
-      
-      setUserRole(normalizedRole);
-      // Asegurar que el rol esté también en sessionStorage y normalizado
-      if (!storedRole || storedRole !== normalizedRole) {
-        sessionStorage.setItem('role', normalizedRole);
-        console.log("AuthContext - Updated sessionStorage with normalized role");
-      }
-      setIsAuthenticated(true);
-      
-      console.log("AuthContext - useEffect authenticated with role:", normalizedRole);
-    } else {
-      // Ensure state is clear if sessionStorage is empty
-      setToken(null);
-      setUserRole('student'); // Default role
-      setIsAuthenticated(false);
-      
-      console.log("AuthContext - useEffect not authenticated, reset to student");
+    const unsubscribe = subscribeToSession((session) => setAuth({ session, status: 'ready' }));
+    const token = getSessionToken();
+    const controller = new AbortController();
+
+    if (token) {
+      getSession(controller.signal).then((response) => {
+        if (controller.signal.aborted || getSessionToken() !== token) return;
+        if (!response.success || !saveSession(token, response.data)) {
+          setAuth({ session: null, status: 'unavailable' });
+        }
+      });
     }
+
+    return () => {
+      controller.abort();
+      unsubscribe();
+    };
   }, []);
 
-  const login = async (credentials) => {
-    try {
-      const response = await apiLogin(credentials); // Call the updated API
+  async function login(credentials) {
+    const response = await apiLogin(credentials);
+    if (!response.success) return response;
 
-      if (response.success) {
-        const { token: responseToken, role: responseRole } = response.data; // Destructure from data
-        
-        // Asegurar que haya un rol válido y normalizar a minúsculas
-        const originalRole = responseRole || 'student';
-        const normalizedRole = originalRole.toLowerCase();
-        
-        console.log("AuthContext - Login successful with original role:", originalRole);
-        console.log("AuthContext - Normalized role for consistency:", normalizedRole);
-        
-        // Obtener el perfil del usuario para conseguir su ID real
-        let userId = credentials.email; // Fallback al email
-        try {
-          // Hacer una llamada adicional para obtener el perfil con el token
-          const profileResponse = await fetch('http://localhost:8080/api/profile', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${responseToken}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (profileResponse.ok) {
-            const profileData = await profileResponse.json();
-            if (profileData.id) {
-              userId = profileData.id; // Usar el ID real del usuario
-              console.log("AuthContext - Real user ID obtained:", userId);
-            }
-          }
-        } catch (profileError) {
-          console.warn("AuthContext - Could not fetch user profile, using email as fallback:", profileError);
-        }
-        
-        // Guardar en sessionStorage
-        sessionStorage.setItem('token', responseToken);
-        sessionStorage.setItem('role', normalizedRole);
-        sessionStorage.setItem('userId', userId); // Guardar el ID real
-        
-        // Actualizar estado
-        setToken(responseToken);
-        setUserRole(normalizedRole);
-        setIsAuthenticated(true);
-        
-        return { success: true, role: normalizedRole }; // Return success and role
-      } else {
-        // API call was successful but login failed (e.g., bad credentials)
-        console.log("AuthContext - Login failed:", response.message);
-        setIsAuthenticated(false); // Ensure state reflects failed login
-        // Return the response which contains { success: false, message: '...' }
-        return response;
-      }
-    } catch (error) {
-      console.error("AuthContext - Login error:", error);
-      return { success: false, message: "Error de conexión al intentar iniciar sesión" };
-    }
-  };
+    const session = saveSession(response.data?.token, response.data);
+    if (!session) return { success: false, message: 'No pudimos verificar tu sesión.' };
 
-  const register = async (userData) => {
-    // Directly return the result from apiRegister, which matches the desired structure
-    const response = await apiRegister(userData);
-    return response;
-  };
+    return { success: true, role: session.userRole, data: { userId: session.userId, role: session.userRole } };
+  }
 
-  const logout = async () => {
-    try {
-      // Attempt API logout, but don't strictly depend on its success for client cleanup
-      await apiLogout();
-    } catch (error) {
-      // Log if the API call itself failed unexpectedly (e.g., network issue)
-      // authApi should ideally catch internal errors, so this might be rare.
-      console.error("Logout API call failed unexpectedly:", error);
-    } finally {
-      // Always clear session storage and reset state regardless of API call outcome
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('role');
-      sessionStorage.removeItem('userId');
-      setToken(null);
-      setUserRole('student'); // Reset to default role
-      setIsAuthenticated(false);
-    }
-  };
+  async function logout() {
+    const token = getSessionToken();
+    if (!token) return;
+    const request = apiLogout();
+    clearSession(token);
+    await request;
+  }
 
+  const { session, status } = auth;
   const value = {
-    token,
-    userRole,
-    isAuthenticated,
+    status,
+    token: session?.token ?? null,
+    userId: session?.userId ?? null,
+    userRole: session?.userRole ?? 'student',
+    isAuthenticated: Boolean(session),
     login,
     register,
-    logout
+    logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+}
 
-// Custom hook to use the auth context
-export const useAuth = () => {
+// Preserve the public hook path used by feature modules.
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
-};
+}

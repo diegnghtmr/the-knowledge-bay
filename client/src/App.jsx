@@ -1,182 +1,80 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom"; // Removed BrowserRouter as it's in index.jsx
-import { useAuth } from "./context/AuthContext"; // Import useAuth
+import { createElement, lazy, Suspense } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import BodyClassManager from './components/layout/BodyClassManager';
+import RouteErrorBoundary from './components/layout/RouteErrorBoundary';
+import { useAuth } from './context/AuthContext';
+import Home from './pages/Home';
+import Landing from './pages/Landing.jsx';
+import Terms from './pages/Terms.jsx';
 
-import Landing from "./pages/Landing.jsx";
-import ProfilePage from "./pages/profile/ProfilePage";
-import UserProfileViewPage from "./pages/profile/UserProfileViewPage";
-import ChatPage from "./pages/chat/ChatPage";
-import UserDashboardPage from "./pages/UserDashboardPage";
-import ContentDashboardPage from "./pages/ContentDashboardPage";
-import AffinityGraphPage from "./pages/AffinityGraphPage";
-import HelpRequestPage from "./pages/HelpRequestPage";
-import PublishContentPage from "./pages/PublishContentPage";
-import StudyGroupsPage from "./pages/StudyGroupsPage";
-import BodyClassManager from "./components/layout/BodyClassManager";
-import Home from "./pages/Home";
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
+const UserProfileViewPage = lazy(() => import('./pages/profile/UserProfileViewPage'));
+const ChatPage = lazy(() => import('./pages/chat/ChatPage'));
+const HelpRequestPage = lazy(() => import('./pages/HelpRequestPage'));
+const PublishContentPage = lazy(() => import('./pages/PublishContentPage'));
+const StudyGroupsPage = lazy(() => import('./pages/StudyGroupsPage'));
 
-// Admin pages
-import DashboardAnalyticsPage from "./pages/admin/DashboardAnalyticsPage";
-import InterestManagementPage from "./pages/admin/InterestManagementPage";
-import HelpRequestsPage from "./pages/admin/HelpRequestsPage";
-import AdminDashboardStatsPage from "./pages/admin/AdminDashboardStatsPage";
+const moderatorRoutes = [
+  ['/users-dashboard', lazy(() => import('./pages/UserDashboardPage'))],
+  ['/content-dashboard', lazy(() => import('./pages/ContentDashboardPage'))],
+  ['/affinity-graph', lazy(() => import('./pages/AffinityGraphPage'))],
+  ['/admin/analytics', lazy(() => import('./pages/admin/DashboardAnalyticsPage'))],
+  ['/admin/interests', lazy(() => import('./pages/admin/InterestManagementPage'))],
+  ['/admin/help-requests', lazy(() => import('./pages/admin/HelpRequestsPage'))],
+  ['/admin/stats', lazy(() => import('./pages/admin/AdminDashboardStatsPage'))],
+];
 
-import Terms from "./pages/Terms.jsx";
+function RouteLoading() {
+  return <p role="status" className="p-6 text-center text-(--deep-sea)">Cargando...</p>;
+}
 
-// Componente personalizado para rutas protegidas por rol
-const RoleRoute = ({ element, allowedRoles }) => {
-  const { userRole, isAuthenticated } = useAuth();
+export default function App() {
+  const { status, isAuthenticated, userRole } = useAuth();
+  const location = useLocation();
+  const home = isAuthenticated ? '/' : '/landing';
 
-  // Convertir roles a minúsculas para la comparación
-  const userRoleLowerCase = userRole ? userRole.toLowerCase() : "";
-  const allowedRolesLowerCase = allowedRoles.map((role) => role.toLowerCase());
-
-  // Depuración de rutas protegidas
-  console.log("RoleRoute - Checking access:", {
-    userRole,
-    userRoleLowerCase,
-    allowedRoles,
-    allowedRolesLowerCase,
-    isAllowed: allowedRolesLowerCase.includes(userRoleLowerCase),
-    isAuthenticated,
-  });
-
-  // Verificar si el usuario está autenticado
-  if (!isAuthenticated) {
-    console.log("RoleRoute - User not authenticated, redirecting to landing");
-    return <Navigate to="/landing" replace />;
+  if (status === 'checking') return <RouteLoading />;
+  if (status === 'unavailable') {
+    return (
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center text-(--deep-sea)">
+        <p role="alert">No pudimos verificar tu sesión.</p>
+        <button type="button" className="underline" onClick={() => window.location.reload()}>Reintentar</button>
+      </main>
+    );
   }
-
-  // Verificar si el rol del usuario está permitido para esta ruta
-  if (allowedRolesLowerCase.includes(userRoleLowerCase)) {
-    console.log("RoleRoute - Access granted");
-    return element;
-  } else {
-    // Redirigir a la página principal si el usuario no tiene acceso
-    console.log("RoleRoute - Access denied, redirecting to home");
-    return <Navigate to="/" replace />;
-  }
-};
-
-function App() {
-  const { isAuthenticated, userRole } = useAuth();
 
   return (
     <>
-      {/* Componente que gestiona las clases del body según la ruta */}
       <BodyClassManager />
-
-      <Routes>
-        {isAuthenticated ? (
-          <>
-            {/* Rutas para todos los usuarios autenticados */}
-            <Route path="/" element={<Home />} />
-            {/* Redireccionar /dashboard a la página principal */}
-            <Route path="/dashboard" element={<Navigate to="/" replace />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/user/:userId" element={<UserProfileViewPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/study-groups" element={<StudyGroupsPage />} />
+      <RouteErrorBoundary locationKey={location.key} home={home}>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
             <Route path="/terms" element={<Terms />} />
-
-            {/* Rutas protegidas por rol - Solo Moderador */}
-            <Route
-              path="/users-dashboard"
-              element={
-                <RoleRoute
-                  element={<UserDashboardPage />}
-                  allowedRoles={["moderator"]}
-                />
-              }
-            />
-
-            {/* Rutas protegidas por rol - Solo Moderador */}
-            <Route
-              path="/content-dashboard"
-              element={
-                <RoleRoute
-                  element={<ContentDashboardPage />}
-                  allowedRoles={["moderator"]}
-                />
-              }
-            />
-
-            {/* Rutas protegidas por rol - Solo Moderador */}
-            <Route
-              path="/affinity-graph"
-              element={
-                <RoleRoute
-                  element={<AffinityGraphPage />}
-                  allowedRoles={["moderator"]}
-                />
-              }
-            />
-
-            {/* Nuevas rutas de administrador */}
-            <Route
-              path="/admin/analytics"
-              element={
-                <RoleRoute
-                  element={<DashboardAnalyticsPage />}
-                  allowedRoles={["moderator"]}
-                />
-              }
-            />
-
-            <Route
-              path="/admin/interests"
-              element={
-                <RoleRoute
-                  element={<InterestManagementPage />}
-                  allowedRoles={["moderator"]}
-                />
-              }
-            />
-
-            <Route
-              path="/admin/help-requests"
-              element={
-                <RoleRoute
-                  element={<HelpRequestsPage />}
-                  allowedRoles={["moderator"]}
-                />
-              }
-            />
-
-            <Route
-              path="/admin/stats"
-              element={
-                <RoleRoute
-                  element={<AdminDashboardStatsPage />}
-                  allowedRoles={["moderator"]}
-                />
-              }
-            />
-
-            {/* Rutas para estudiantes y moderadores */}
-            <Route path="/help-request" element={<HelpRequestPage />} />
-            <Route path="/publish-content" element={<PublishContentPage />} />
-
-            {/* Redirigir cualquier otra ruta a la página principal */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        ) : (
-          <>
-            {/* If not authenticated, show public routes */}
-            <Route path="/register" element={<Landing />} />
-            <Route path="/register/steps" element={<Landing />} />
-            <Route path="/login" element={<Landing />} />
-            <Route path="/landing" element={<Landing />} />
-            <Route path="/terms" element={<Terms />} />
-            {/* Default redirect for root path when not authenticated */}
-            <Route path="/" element={<Navigate to="/landing" replace />} />
-            {/* Redirect any other unknown path to landing */}
-            <Route path="*" element={<Navigate to="/landing" replace />} />
-          </>
-        )}
-      </Routes>
+            {isAuthenticated ? (
+              <>
+                <Route path="/" element={<Home />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/user/:userId" element={<UserProfileViewPage />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/study-groups" element={<StudyGroupsPage />} />
+                <Route path="/help-request" element={<HelpRequestPage />} />
+                <Route path="/publish-content" element={<PublishContentPage />} />
+                {moderatorRoutes.map(([path, Page]) => (
+                  <Route key={path} path={path} element={userRole === 'moderator' ? createElement(Page) : <Navigate to="/" replace />} />
+                ))}
+              </>
+            ) : (
+              <>
+                <Route path="/register" element={<Landing />} />
+                <Route path="/register/steps" element={<Landing />} />
+                <Route path="/login" element={<Landing />} />
+                <Route path="/landing" element={<Landing />} />
+              </>
+            )}
+            <Route path="*" element={<Navigate to={home} replace />} />
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
     </>
   );
 }
-
-export default App;

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import FormField from '../help/FormField';
 
 /**
@@ -24,8 +24,7 @@ const AutoResizingTextarea = ({
 }) => {
   const textareaRef = useRef(null);
   
-  // Función para auto-redimensionar
-  const autoResize = () => {
+  const autoResize = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       // Reset height to calculate new height
@@ -38,17 +37,11 @@ const AutoResizingTextarea = ({
       
       textarea.style.height = `${newHeight}px`;
     }
-  };
+  }, [minHeight, maxHeight]);
 
-  // Auto-resize cuando cambia el valor
   useEffect(() => {
     autoResize();
-  }, [value]);
-
-  // Auto-resize inicial
-  useEffect(() => {
-    autoResize();
-  }, []);
+  }, [autoResize, value]);
 
   const handleChange = (e) => {
     if (onChange) {

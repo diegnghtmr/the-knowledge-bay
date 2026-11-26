@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Home, Users, BookOpen, Network, HelpCircle, UserPlus, ChevronRight, ChevronLeft, User, MessageCircle, FileText, BarChart2, Tag, Headphones, PieChart } from 'lucide-react';
+import { LogOut, Home, Users, BookOpen, Network, HelpCircle, ChevronRight, ChevronLeft, User, MessageCircle, FileText, BarChart2, Tag, PieChart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/img/logoAlt.webp';
 
@@ -17,11 +17,6 @@ const NavigationBar = ({ title }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  
-  // Debugging mejorado para seguimiento de roles
-  console.log("NavigationBar - Current user role:", userRole);
-  console.log("NavigationBar - Role type:", typeof userRole);
-  console.log("NavigationBar - Role from sessionStorage:", sessionStorage.getItem('role'));
   
   // Definir elementos específicos para cada rol
   const studentItems = [
@@ -90,44 +85,19 @@ const NavigationBar = ({ title }) => {
     },
   ];
   
-  // Seleccionar los elementos según el rol
-  const role = userRole || 'student';
-  let navItems = [];
-  
-  // Convertir a minúsculas para la comparación
-  const roleLowerCase = role.toLowerCase();
-  console.log("NavigationBar - Role normalized for comparison:", roleLowerCase);
-  
-  if (roleLowerCase === 'student') {
-    navItems = studentItems;
-    console.log("NavigationBar - Using student items");
-  } else if (roleLowerCase === 'moderator') {
-    navItems = moderatorItems;
-    console.log("NavigationBar - Using moderator items");
-  } else {
-    // Fallback a elementos de estudiante para cualquier otro rol
-    navItems = studentItems;
-    console.log("NavigationBar - Using fallback student items for unknown role:", role);
-  }
-  
-  console.log("NavigationBar - Selected items:", navItems.map(item => item.label));
+  const filteredNavItems = userRole === 'moderator' ? moderatorItems : studentItems;
 
-  // No es necesario filtrar más, ya que hemos seleccionado el conjunto correcto de elementos
-  const filteredNavItems = navItems;
-  
   // Guardar la posición de scroll entre renderizados
   useEffect(() => {
-    // Recuperar la posición de scroll guardada al cargar
+    const navElement = navRef.current;
+    if (!navElement) return;
     const savedScrollPosition = sessionStorage.getItem('navScrollPosition');
-    if (savedScrollPosition && navRef.current) {
-      navRef.current.scrollLeft = parseInt(savedScrollPosition, 10);
+    if (savedScrollPosition) {
+      navElement.scrollLeft = parseInt(savedScrollPosition, 10);
     }
-    
-    // Función para guardar la posición de scroll actual
+
     const saveScrollPosition = () => {
-      if (navRef.current) {
-        sessionStorage.setItem('navScrollPosition', navRef.current.scrollLeft.toString());
-      }
+      sessionStorage.setItem('navScrollPosition', navElement.scrollLeft.toString());
     };
     
     // Guardar al desmontar o cuando cambie la posición
@@ -356,6 +326,7 @@ const NavigationBar = ({ title }) => {
             </Link>
             
             <button
+              aria-label="Cerrar Sesión"
               style={{ 
                 transitionDelay: `${(filteredNavItems.length + 1) * 50}ms`,
               }}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AuthComponent from "../components/auth/Auth.jsx";
 import SignupComponent from "../components/auth/Signup.jsx";
@@ -10,93 +10,61 @@ const scrollToTopSmooth = (duration = 2000, multiplier = 1) => {
   const start = window.scrollY;
   const targetScroll = Math.max(start - window.innerHeight * multiplier, 0);
   const startTime = performance.now();
+  let frame;
 
   const animateScroll = (currentTime) => {
-    const elapsed = currentTime - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 2); // easing: easeOutQuad
-
-    const currentScroll = start - (start - targetScroll) * ease;
-    window.scrollTo(0, currentScroll);
-
-    if (progress < 1) {
-      requestAnimationFrame(animateScroll);
-    }
+    const progress = duration === 0 ? 1 : Math.min((currentTime - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 2);
+    window.scrollTo(0, start - (start - targetScroll) * ease);
+    if (progress < 1) frame = requestAnimationFrame(animateScroll);
   };
 
-  requestAnimationFrame(animateScroll);
+  frame = requestAnimationFrame(animateScroll);
+  return () => cancelAnimationFrame(frame);
 };
 
 const Landing = () => {
-  const [data, setData] = useState({
-    username: "",
-    email: "",
-    password: "",
-  });
-
-  const [showSignup, setShowSignup] = useState(false);
-
+  const [data, setData] = useState(null);
+  const cancelTransition = useRef(() => {});
   const navigate = useNavigate();
-  const location = useLocation();
-  const [showAuth, setShowAuth] = useState(false);
-  const [authType, setAuthType] = useState(null);
-
-  const handleAuthShow = (type) => {
-    setAuthType(type);
-    setShowAuth(true);
-  };
+  const { pathname, key } = useLocation();
+  const authType = pathname === "/login" ? "login" : "register";
 
   useEffect(() => {
-    if (location.pathname === "/register") {
-      window.scrollTo(0, document.body.scrollHeight);
-      handleAuthShow("register");
-      scrollToTopSmooth(0, 2);
-    } else if (location.pathname === "/login") {
-      window.scrollTo(0, document.body.scrollHeight);
-      handleAuthShow("login");
-      scrollToTopSmooth(0, 2);
-    } else if (location.pathname === "/register/steps") {
-      handleAuthShow("steps");
-      window.scrollTo(0, document.body.scrollHeight);
-      scrollToTopSmooth(0, 3);
-    } else {
-      window.scrollTo(0, document.body.scrollHeight);
-      setTimeout(() => {
-        scrollToTopSmooth(2300);
+    window.scrollTo(0, document.body.scrollHeight);
+    if (pathname === "/landing") {
+      const timer = setTimeout(() => {
+        cancelTransition.current = scrollToTopSmooth(2300);
       }, 500);
-    }
-  }, [location.pathname]);
-
-  function stepsHandler(duration = 1500, data = null) {
-    if (data) {
-      scrollToTopSmooth(duration);
-      setTimeout(() => {
-        handleAuthShow("steps");
-        navigate("/register/steps");
-      }, 1600);
-
-      setData((prev) => ({
-        ...prev,
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        confirmPassword: data.confirmPassword,
-      }));
+      cancelTransition.current = () => clearTimeout(timer);
     } else {
-      console.log("Error en el paso de registro");
+      cancelTransition.current = scrollToTopSmooth(0, pathname === "/register/steps" ? 3 : 2);
     }
+    return () => cancelTransition.current();
+  }, [pathname, key]);
+
+  function transitionTo(path, duration = 1500, delay = duration, draft) {
+    cancelTransition.current();
+    const cancelScroll = scrollToTopSmooth(duration);
+    const timer = setTimeout(() => {
+      if (draft) setData(draft);
+      navigate(path);
+    }, delay);
+    cancelTransition.current = () => {
+      clearTimeout(timer);
+      cancelScroll();
+    };
   }
 
   return (
     <main className="flex flex-col justify-between bg-linear-to-t from-10% from-(--open-sea) to-(--coastal-sea)">
       <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-white"></section>
-      <SignupComponent data={data} state={showSignup} />
+      <SignupComponent data={data} />
       <section className="h-dvh flex flex-col gap-4 justify-center items-center bg-linear-to-t from-10% from-(--sand) to-white"></section>
       <AuthComponent
-        isVisible={showAuth}
+        isVisible={pathname !== "/landing"}
         initialView={authType}
-        showSignup={setShowSignup}
-        onContinue={stepsHandler}
+        onContinue={(duration, draft) => transitionTo("/register/steps", duration, 1600, draft)}
       />
       <article className="h-dvh flex flex-col gap-4 justify-center items-center">
         <div className="w-full">
@@ -115,25 +83,13 @@ const Landing = () => {
         </header>
         <nav className="z-10">
           <button
-            onClick={() => {
-              scrollToTopSmooth(1500);
-              setTimeout(() => {
-                handleAuthShow("register");
-                navigate("/register");
-              }, 1500);
-            }}
+            onClick={() => transitionTo("/register")}
             className="bg-(--coastal-sea) hover:bg-(--sand) text-white hover:text-[var(--deep-sea)] font-workSans-bold py-3 px-6 rounded-2xl shadow-lg transition duration-300 mr-7"
           >
             ¡Unirse ahora!
           </button>
           <button
-            onClick={() => {
-              scrollToTopSmooth(1500);
-              setTimeout(() => {
-                handleAuthShow("login");
-                navigate("/login");
-              }, 1500);
-            }}
+            onClick={() => transitionTo("/login")}
             className="border border-(--sand) hover:bg-[var(--sand)] text-[var(--sand)] hover:text-[var(--deep-sea)] font-workSans-bold py-3 px-6 rounded-2xl transition duration-300"
           >
             Ya tengo cuenta
