@@ -1,12 +1,13 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
 
+import co.edu.uniquindio.theknowledgebay.api.config.ApiFailure;
 import co.edu.uniquindio.theknowledgebay.api.dto.AuthResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.ContentResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.HelpRequestResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.*;
-import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
+import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import lombok.RequiredArgsConstructor;
@@ -22,25 +23,10 @@ import java.util.*;
 public class AdminController {
 
     private final TheKnowledgeBay theKnowledgeBay;
-    private final SessionManager sessionManager;
+    private final AuthService authService;
 
-    // Admin statistics endpoints
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getAdminStats(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // For development, allow access without authentication
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default admin user for development
-        }
-
-        // For development, skip moderator verification or create one if doesn't exist
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            // Allow access for development - in production this should be stricter
-            System.out.println("Admin access granted for development purposes");
-        }
+    public ResponseEntity<Map<String, Object>> getAdminStats() {
 
         try {
             Map<String, Object> stats = new HashMap<>();
@@ -62,26 +48,14 @@ public class AdminController {
             
             return ResponseEntity.ok(stats);
 
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (RuntimeException e) {
+            ApiFailure.report("admin.stats.read");
+            return ResponseEntity.internalServerError().build();
         }
     }
 
     @GetMapping("/users")
-    public ResponseEntity<List<ProfileResponseDTO>> getAllUsers(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // For development, allow access without authentication
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default admin user for development
-        }
-
-        // For development, skip moderator verification
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access granted for development purposes");
-        }
+    public ResponseEntity<List<ProfileResponseDTO>> getAllUsers() {
 
         try {
             List<ProfileResponseDTO> users = new ArrayList<>();
@@ -113,30 +87,19 @@ public class AdminController {
             
             return ResponseEntity.ok(users);
 
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (RuntimeException e) {
+            ApiFailure.report("admin.users.list");
+            return ResponseEntity.internalServerError().build();
         }
     }
 
     @PutMapping("/users/{userId}")
     public ResponseEntity<AuthResponseDTO> updateUser(
             @PathVariable String userId,
-            @RequestBody ProfileResponseDTO updatedUser,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // For development, allow access without authentication
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default admin user for development
-        }
-
-        // For development, skip moderator verification
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access granted for development purposes");
-        } else if (!(user instanceof Moderator)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new AuthResponseDTO(false, "Access denied. Only moderators can update users."));
+            @RequestBody ProfileResponseDTO updatedUser) {
+        if (!(authService.findUserById(userId).orElse(null) instanceof Student)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AuthResponseDTO(false, "User not found or update failed."));
         }
         
         try {
@@ -148,26 +111,12 @@ public class AdminController {
                         .body(new AuthResponseDTO(false, "User not found or update failed."));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error updating user: " + e.getMessage()));
+            return failure("admin.users.update");
         }
     }
 
     @GetMapping("/content")
-    public ResponseEntity<List<ContentResponseDTO>> getAllContentAdmin(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // For development, allow access without authentication
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default admin user for development
-        }
-
-        // For development, skip moderator verification
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access granted for development purposes");
-        }
+    public ResponseEntity<List<ContentResponseDTO>> getAllContentAdmin() {
 
         try {
             DoublyLinkedList<Content> contents = theKnowledgeBay.getAllContent();
@@ -226,26 +175,14 @@ public class AdminController {
 
             return ResponseEntity.ok(response);
 
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (RuntimeException e) {
+            ApiFailure.report("admin.content.list");
+            return ResponseEntity.internalServerError().build();
         }
     }
 
     @GetMapping("/help-requests")
-    public ResponseEntity<List<HelpRequestResponseDTO>> getAllHelpRequestsAdmin(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // For development, allow access without authentication
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default admin user for development
-        }
-
-        // For development, skip moderator verification
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access granted for development purposes");
-        }
+    public ResponseEntity<List<HelpRequestResponseDTO>> getAllHelpRequestsAdmin() {
 
         try {
             DoublyLinkedList<HelpRequest> helpRequests = theKnowledgeBay.getAllHelpRequests();
@@ -281,29 +218,16 @@ public class AdminController {
 
             return ResponseEntity.ok(response);
 
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (RuntimeException e) {
+            ApiFailure.report("admin.help.list");
+            return ResponseEntity.internalServerError().build();
         }
     }
 
     @PutMapping("/content/{contentId}")
     public ResponseEntity<AuthResponseDTO> updateContent(
             @PathVariable int contentId,
-            @RequestBody ContentResponseDTO updatedContent,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default for development
-        }
-
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access for development");
-        } else if (!(user instanceof Moderator)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new AuthResponseDTO(false, "Access denied. Only moderators can update content."));
-        }
+            @RequestBody ContentResponseDTO updatedContent) {
 
         try {
             boolean success = theKnowledgeBay.updateContent(contentId, updatedContent);
@@ -314,28 +238,12 @@ public class AdminController {
                         .body(new AuthResponseDTO(false, "Content not found or update failed."));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error updating content: " + e.getMessage()));
+            return failure("admin.content.update");
         }
     }
 
     @DeleteMapping("/content/{id}")
-    public ResponseEntity<AuthResponseDTO> deleteContent(
-            @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // For development, allow access without authentication
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default admin user for development
-        }
-
-        // For development, skip moderator verification
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access granted for development purposes");
-        }
-
+    public ResponseEntity<AuthResponseDTO> deleteContent(@PathVariable int id) {
         try {
             boolean deleted = theKnowledgeBay.deleteContent(id);
             
@@ -347,29 +255,14 @@ public class AdminController {
             }
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+            return failure("admin.content.delete");
         }
     }
 
     @PutMapping("/help-requests/{requestId}")
     public ResponseEntity<AuthResponseDTO> updateHelpRequest(
             @PathVariable int requestId,
-            @RequestBody HelpRequestResponseDTO updatedHelpRequest,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default for development
-        }
-
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access for development");
-        } else if (!(user instanceof Moderator)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new AuthResponseDTO(false, "Access denied. Only moderators can update help requests."));
-        }
+            @RequestBody HelpRequestResponseDTO updatedHelpRequest) {
 
         try {
             boolean success = theKnowledgeBay.updateHelpRequest(requestId, updatedHelpRequest);
@@ -380,28 +273,12 @@ public class AdminController {
                         .body(new AuthResponseDTO(false, "Help request not found or update failed."));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error updating help request: " + e.getMessage()));
+            return failure("admin.help.update");
         }
     }
 
     @DeleteMapping("/help-requests/{id}")
-    public ResponseEntity<AuthResponseDTO> deleteHelpRequest(
-            @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // For development, allow access without authentication
-        if (currentUserId == null) {
-            currentUserId = "admin"; // Default admin user for development
-        }
-
-        // For development, skip moderator verification
-        User user = theKnowledgeBay.getUserById(currentUserId);
-        if (user == null) {
-            System.out.println("Admin access granted for development purposes");
-        }
-
+    public ResponseEntity<AuthResponseDTO> deleteHelpRequest(@PathVariable int id) {
         try {
             boolean deleted = theKnowledgeBay.deleteHelpRequest(id);
             
@@ -413,9 +290,13 @@ public class AdminController {
             }
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+            return failure("admin.help.delete");
         }
+    }
+
+    private static ResponseEntity<AuthResponseDTO> failure(String operation) {
+        ApiFailure.report(operation);
+        return ResponseEntity.internalServerError().body(new AuthResponseDTO(false, "Error interno del servidor."));
     }
 
     // Helper methods for statistics

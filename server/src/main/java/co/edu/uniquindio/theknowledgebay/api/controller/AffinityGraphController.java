@@ -1,10 +1,10 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
 
+import co.edu.uniquindio.theknowledgebay.api.config.ApiFailure;
 import co.edu.uniquindio.theknowledgebay.api.dto.AuthResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.ShortestPathDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
-import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,11 +20,9 @@ import java.util.Map;
 public class AffinityGraphController {
 
     private final TheKnowledgeBay theKnowledgeBay;
-    private final SessionManager sessionManager;
 
     @GetMapping("/data")
-    public ResponseEntity<Map<String, Object>> getAffinityGraphData(
-            @RequestHeader(value = "Authorization", required = false) String token) {
+    public ResponseEntity<Map<String, Object>> getAffinityGraphData() {
         
         try {
             List<Map<String, Object>> graphData = theKnowledgeBay.getAffinityGraphData();
@@ -39,10 +37,10 @@ public class AffinityGraphController {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            ApiFailure.report("affinity.list");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(
-                        "error", "Error interno del servidor: " + e.getMessage(),
+                        "error", "Error interno del servidor.",
                         "nodes", List.of(),
                         "links", List.of()
                     ));
@@ -52,8 +50,7 @@ public class AffinityGraphController {
     @GetMapping("/shortest-path")
     public ResponseEntity<ShortestPathDTO> findShortestPath(
             @RequestParam String student1,
-            @RequestParam String student2,
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @RequestParam String student2) {
         
         try {
             if (student1 == null || student2 == null || student1.trim().isEmpty() || student2.trim().isEmpty()) {
@@ -87,35 +84,27 @@ public class AffinityGraphController {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            ApiFailure.report("affinity.shortestPath");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ShortestPathDTO.builder()
                         .pathFound(false)
-                        .message("Error interno del servidor: " + e.getMessage())
+                        .message("Error interno del servidor.")
                         .path(List.of())
                         .build());
         }
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponseDTO> refreshAffinityGraph(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
+    public ResponseEntity<AuthResponseDTO> refreshAffinityGraph() {
         try {
-            // For development, allow access without strict authentication
-            String currentUserId = sessionManager.getCurrentUserId(token);
-            if (currentUserId == null) {
-                currentUserId = "admin"; // Default admin user for development
-            }
-
             theKnowledgeBay.refreshAffinityGraph();
             
             return ResponseEntity.ok(new AuthResponseDTO(true, "Grafo de afinidad actualizado exitosamente."));
 
         } catch (Exception e) {
-            e.printStackTrace();
+            ApiFailure.report("affinity.refresh");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+                    .body(new AuthResponseDTO(false, "Error interno del servidor."));
         }
     }
 }

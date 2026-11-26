@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.ToString;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -15,6 +16,7 @@ import java.util.List;
 public class ProfileUpdateDTO {
     private String username;
     private String email;
+    @ToString.Exclude
     private String password;
     private String firstName;
     private String lastName;
