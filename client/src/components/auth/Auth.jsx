@@ -26,11 +26,7 @@ const Auth = ({ initialView = "login", isVisible = false, onContinue }) => {
         error,
         setError,
 
-    } = useAuthHandler({
-        onLoginSuccess: (user) => {
-            console.log("Login success:", user);
-        }
-    });
+    } = useAuthHandler({});
 
     const handlerSubmit = (e) => {
         e.preventDefault();
@@ -45,7 +41,6 @@ const Auth = ({ initialView = "login", isVisible = false, onContinue }) => {
 
        } else {
            if (credentials['register-password'] !== credentials['confirm-password']) {
-               console.log("Passwords do not match.");
                setError("Passwords do not match.");
                return;
            }
@@ -54,8 +49,7 @@ const Auth = ({ initialView = "login", isVisible = false, onContinue }) => {
                username: credentials.username,
                email: credentials['register-email'],
                password: credentials['register-password'],
-               confirmPassword: credentials['confirm-password'],
-               showSignup: true
+               confirmPassword: credentials['confirm-password']
            };
 
            setActiveForm("register");
@@ -135,9 +129,10 @@ const Auth = ({ initialView = "login", isVisible = false, onContinue }) => {
                             <AuthWallSwitch
                                 isLogin={isLogin}
                                 onToggle={() => {
-                                    initialView = isLogin ? "register" : "login";
-                                    navigate("/"+initialView);
-                                    setActiveForm(isLogin ? "register" : "login")}
+                                    const nextView = isLogin ? "register" : "login";
+                                    navigate(`/${nextView}`);
+                                    setActiveForm(nextView);
+                                }
                             }
                             />
                         </div>

@@ -13,25 +13,23 @@ const ContentTable = () => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
 
-  // Cargar contenido desde la API
-  useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await getAllContentAdmin();
-        setContent(data);
-        setFiltered(data);
-      } catch (err) {
-        setError('Error al cargar el contenido');
-        console.error('Error fetching content:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchContent();
+  // Cargar contenido desde la API, también al reintentar.
+  const fetchContent = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getAllContentAdmin();
+      setContent(data);
+      setFiltered(data);
+    } catch (err) {
+      setError('Error al cargar el contenido');
+      console.error('Error fetching content:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchContent(); }, [fetchContent]);
 
   // Filtrar contenido cuando cambian los criterios de búsqueda
   useEffect(() => {

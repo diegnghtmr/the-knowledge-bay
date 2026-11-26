@@ -1,91 +1,65 @@
 package co.edu.uniquindio.theknowledgebay.core.service;
 
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Component
-@Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class SessionManager {
+    private final ConcurrentMap<String, Session> activeSessions = new ConcurrentHashMap<>();
+    private final Clock clock;
+    private final Duration ttl;
 
-    // Using ConcurrentHashMap for thread safety, although less critical in this simple setup
-    private final Map<String, String> activeSessions = new ConcurrentHashMap<>(); // Token -> UserIdentifier (Email)
+    public SessionManager(Clock clock, @Value("${app.sessions.ttl:PT8H}") Duration ttl) {
+        if (ttl.isNegative() || ttl.isZero()) {
+            throw new IllegalArgumentException("The session TTL must be positive.");
+        }
+        this.clock = clock;
+        this.ttl = ttl;
+    }
 
-    /**
-     * Creates a new session for the given user identifier.
-     * Generates a unique token, stores the mapping, and returns the token.
-     *
-     * @param userIdentifier The identifier of the user (e.g., email).
-     * @return The generated session token.
-     */
-    public String createSession(String userIdentifier) {
-        String token = UUID.randomUUID().toString();
-        activeSessions.put(token, userIdentifier);
-        System.out.println("Session created: Token " + token + " for user " + userIdentifier); // Logging for debug
+    public String createSession(AuthenticatedUser user) {
+        if (user.id() == null || user.id().isBlank() || user.role() == null) {
+            throw new IllegalArgumentException("A session requires a stored user ID and role.");
+        }
+        Instant now = clock.instant();
+        activeSessions.values().removeIf(session -> session.isExpired(now));
+        Session session = new Session(user, now.plus(ttl));
+        String token;
+        do {
+            token = UUID.randomUUID().toString();
+        } while (activeSessions.putIfAbsent(token, session) != null);
         return token;
     }
 
-    /**
-     * Checks if the given session token is currently valid (exists in the map).
-     *
-     * @param token The session token to validate.
-     * @return true if the token is valid, false otherwise.
-     */
-    public boolean isTokenValid(String token) {
-        boolean isValid = token != null && activeSessions.containsKey(token);
-        // System.out.println("Validating token " + token + ": " + isValid); // Optional: Debug logging
-        return isValid;
+    public Optional<AuthenticatedUser> authenticate(String token) {
+        if (token == null) {
+            return Optional.empty();
+        }
+        Instant now = clock.instant();
+        Session active = activeSessions.computeIfPresent(token, (key, session) -> session.isExpired(now) ? null : session);
+        return Optional.ofNullable(active).map(Session::user);
     }
 
-    /**
-     * Retrieves the user identifier associated with the given session token.
-     *
-     * @param token The session token.
-     * @return The user identifier (e.g., email) if the token is valid, null otherwise.
-     */
-    public String getUserIdentifier(String token) {
-        return activeSessions.get(token);
+    public void revoke(String token) {
+        activeSessions.remove(token);
     }
 
-    /**
-     * Removes a session, effectively logging the user out from the server's perspective.
-     *
-     * @param token The session token to remove.
-     */
-    public void removeSession(String token) {
-        if (token != null) {
-            String removedUser = activeSessions.remove(token);
-            if (removedUser != null) {
-                System.out.println("Session removed: Token " + token + " for user " + removedUser); // Logging for debug
-            }
-        }
+    public void revokeUser(String id) {
+        activeSessions.values().removeIf(session -> session.user().id().equals(id));
     }
-    /**
-     * Recupera el ID del usuario actual basado en su token de sesión.
-     *
-     * @param sessionToken El token de sesión del usuario actual
-     * @return El identificador del usuario asociado con la sesión, o null si la sesión no es válida
-     */
-    public String getCurrentUserId(String sessionToken) {
-        if (sessionToken == null) {
-            return null;
+
+    private record Session(AuthenticatedUser user, Instant expiresAt) {
+        boolean isExpired(Instant now) {
+            return !now.isBefore(expiresAt);
         }
-        
-        // Extraer el token si está en formato Bearer
-        String token = sessionToken;
-        if (sessionToken.startsWith("Bearer ")) {
-            token = sessionToken.substring(7);
-        }
-        
-        if (isTokenValid(token)) {
-            String userId = getUserIdentifier(token);
-            return userId;
-        }
-        
-        return null;
     }
 }

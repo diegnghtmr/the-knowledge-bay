@@ -1,20 +1,24 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
+import co.edu.uniquindio.theknowledgebay.api.config.ApiFailure;
 import co.edu.uniquindio.theknowledgebay.api.dto.AuthResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.LoginRequestDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.LoginResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.RegisterStudentDTO;
-import co.edu.uniquindio.theknowledgebay.core.dto.AuthResultDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.ListToDoublyLinkedList;
+import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
+import co.edu.uniquindio.theknowledgebay.infrastructure.config.BearerSessionFilter;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.StringListToInterests;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
@@ -24,6 +28,7 @@ import java.time.format.DateTimeParseException;
 public class AuthController {
 
     private final AuthService authService;
+    private final SessionManager sessions;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@RequestBody RegisterStudentDTO registerDto) {
@@ -50,43 +55,41 @@ public class AuthController {
                 .interests(StringListToInterests.convert(registerDto.getInterests()))
                 .build();
 
-        String[] registered = authService.registerStudent(newStudent);
-
-        if (registered[0].equals("true")) {
-            return ResponseEntity.ok(new AuthResponseDTO(true, registered[1]));
-        } else {
-            // Assuming failure is due to existing email based on service logic
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new AuthResponseDTO(false, registered[1]));
+        try {
+            String[] registered = authService.registerStudent(newStudent);
+            boolean success = "true".equals(registered[0]);
+            return ResponseEntity.status(success ? HttpStatus.OK : HttpStatus.BAD_REQUEST)
+                    .body(new AuthResponseDTO(success, registered[1]));
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.badRequest().body(new AuthResponseDTO(false, "Unable to register with the supplied details."));
+        } catch (RuntimeException e) {
+            ApiFailure.report("auth.register");
+            return ResponseEntity.internalServerError().body(new AuthResponseDTO(false, "Internal server error."));
         }
     }
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDTO loginDto) {
-        Optional<AuthResultDTO> resultOpt = authService.login(loginDto.getEmail(), loginDto.getPassword());
-
-        if (resultOpt.isPresent()) {
-            System.out.println("Login result: " + resultOpt.get().getToken());
-            AuthResultDTO result = resultOpt.get();
-            return ResponseEntity.ok(new LoginResponseDTO(result.getToken(), result.getRole()));
-        } else {
+        var result = authService.login(loginDto.getEmail(), loginDto.getPassword());
+        if (result.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new AuthResponseDTO(false, "Invalid email or password."));
         }
+        var session = result.get();
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(new LoginResponseDTO(session.token(), session.user().id(), session.user().role()));
     }
 
-    // Logout endpoint
-    @PostMapping("/logout")
-    public ResponseEntity<AuthResponseDTO> logout(@RequestHeader("Authorization") String authHeader) {
-        // The AuthInterceptor already validates the token before this method is called.
-        // We just need to extract it again to tell the service which session to remove.
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            authService.logout(token); // Call the service method to remove the session
-            return ResponseEntity.ok(new AuthResponseDTO(true, "Logged out successfully."));
-        }
-        // This case should ideally not be reached if the interceptor is configured correctly
-        // for this path, but included for robustness.
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new AuthResponseDTO(false, "Missing or invalid Authorization header."));
+    @GetMapping("/session")
+    public ResponseEntity<SessionResponse> session(@AuthenticationPrincipal AuthenticatedUser user) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new SessionResponse(user.id(), user.role()));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<AuthResponseDTO> logout(
+            @RequestAttribute(BearerSessionFilter.SESSION_TOKEN_ATTRIBUTE) String sessionToken) {
+        sessions.revoke(sessionToken);
+        return ResponseEntity.ok(new AuthResponseDTO(true, "Logged out successfully."));
+    }
+
+    public record SessionResponse(String userId, AuthenticatedUser.Role role) {}
 }

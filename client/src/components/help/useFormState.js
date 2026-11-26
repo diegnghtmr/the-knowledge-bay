@@ -12,11 +12,9 @@ const useFormState = (initialValues, requiredFields = [], validateForm = null) =
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
   
-  // Referencias para los campos (para focus)
-  const refs = {};
-  requiredFields.forEach(field => {
-    refs[field] = useRef(null);
-  });
+  // Stable ref objects by field name without calling a Hook for each field.
+  const fieldRefs = useRef(Object.create(null));
+  const refs = Object.fromEntries(requiredFields.map(field => [field, fieldRefs.current[field] ??= { current: null }]));
 
   // Validación básica - campos obligatorios
   const errors = {};

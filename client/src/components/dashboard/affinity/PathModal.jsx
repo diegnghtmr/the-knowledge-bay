@@ -150,7 +150,7 @@ const PathModal = ({
   };
 
   // Función personalizada para dibujar enlaces
-  const linkCanvasObject = (link, ctx, globalScale) => {
+  const linkCanvasObject = (link, ctx) => {
     // Extraer posiciones de origen y destino
     const start = link.source;
     const end = link.target;

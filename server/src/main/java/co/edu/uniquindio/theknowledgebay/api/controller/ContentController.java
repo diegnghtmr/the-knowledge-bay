@@ -9,131 +9,156 @@ import co.edu.uniquindio.theknowledgebay.core.model.User;
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
-import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser.Role;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.net.URI;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 @RequestMapping("/api/content")
 public class ContentController {
 
+    private static final int MAX_TITLE_LENGTH = 150;
+    private static final int MAX_BODY_LENGTH = 20_000;
+    private static final int MAX_URL_LENGTH = 2_048;
+
     private final TheKnowledgeBay theKnowledgeBay;
-    private final SessionManager sessionManager;
 
     @PostMapping
     public ResponseEntity<AuthResponseDTO> createContent(
-            @RequestHeader(value = "Authorization", required = false) String token,
-            @RequestPart("content") CreateContentDTO createDto,
+            @AuthenticationPrincipal AuthenticatedUser actor,
+            @RequestPart("content") CreateContentDTO request,
             @RequestPart(value = "file", required = false) MultipartFile file) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AuthResponseDTO(false, "Token de autorización requerido."));
+        if (actor == null) {
+            return publicationError(HttpStatus.UNAUTHORIZED, "Token de autorización requerido.");
+        }
+        if (actor.role() != Role.STUDENT) {
+            return publicationError(HttpStatus.FORBIDDEN, "Solo los estudiantes pueden publicar contenido.");
+        }
+        if (!(theKnowledgeBay.getUserById(actor.id()) instanceof Student student)) {
+            return publicationError(HttpStatus.NOT_FOUND, "Usuario no encontrado.");
         }
 
-        Student student = (Student) theKnowledgeBay.getUserById(currentUserId);
-        if (student == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AuthResponseDTO(false, "Usuario no encontrado."));
+        ContentType type = parseContentType(request.getContentType());
+        if (type == null) {
+            return invalidPublication("Tipo de contenido inválido.");
         }
+        String title = request.getTitle();
+        if (title == null || title.isBlank()) {
+            return invalidPublication("El título es obligatorio.");
+        }
+        if (title.length() > MAX_TITLE_LENGTH) {
+            return invalidPublication("El título no puede exceder los 150 caracteres.");
+        }
+        String body = request.getBody();
+        if (body == null || body.isBlank()) {
+            return invalidPublication("La descripción del contenido es obligatoria.");
+        }
+        if (body.length() > MAX_BODY_LENGTH) {
+            return invalidPublication("La descripción no puede exceder los 20000 caracteres.");
+        }
+        if (request.getTopics() == null || request.getTopics().isEmpty()) {
+            return invalidPublication("Selecciona al menos un tema para tu publicación.");
+        }
+        String url = switch (type) {
+            case LINK -> request.getLinkUrl();
+            case VIDEO -> request.getVideoUrl();
+            default -> null;
+        };
+        if ((type == ContentType.LINK || type == ContentType.VIDEO) && !isHttpUrl(url)) {
+            return invalidPublication("Por favor, introduce una URL válida (http/https).");
+        }
+        if (type == ContentType.RESOURCE && (file == null || file.isEmpty())) {
+            return invalidPublication("Debes adjuntar un archivo.");
+        }
+
+        DoublyLinkedList<Interest> topics = new DoublyLinkedList<>();
+        Set<String> included = new HashSet<>();
+        for (String name : request.getTopics()) {
+            Interest topic = name == null || name.isBlank() ? null : theKnowledgeBay.findInterestByName(name);
+            if (topic == null) {
+                return invalidPublication("El tema seleccionado no existe.");
+            }
+            if (included.add(topic.getName())) {
+                topics.addLast(topic);
+            }
+        }
+        String information = switch (type) {
+            case LINK -> body + "\n\nEnlace: " + url;
+            case VIDEO -> body + "\n\nVideo: " + url;
+            case RESOURCE -> body + "\n\nArchivo adjunto: " + file.getOriginalFilename();
+            default -> body;
+        };
+        Content content = Content.builder()
+                .topics(topics)
+                .title(title)
+                .contentType(type)
+                .information(information)
+                .author(student)
+                .likedBy(new DoublyLinkedList<>())
+                .comments(new DoublyLinkedList<>())
+                .date(LocalDate.now())
+                .build();
 
         try {
-            // Convert topics to Interest objects from the global list
-            DoublyLinkedList<Interest> topics = new DoublyLinkedList<>();
-            if (createDto.getTopics() != null) {
-                for (String topicName : createDto.getTopics()) {
-                    Interest existingInterest = theKnowledgeBay.findInterestByName(topicName);
-                    if (existingInterest != null) {
-                        topics.addLast(existingInterest);
-                    } else {
-                        // Option 1: Create the interest globally if it doesn't exist
-                        // Interest newGlobalInterest = Interest.builder().name(topicName).build();
-                        // theKnowledgeBay.addInterest(newGlobalInterest); // This will also assign an ID
-                        // topics.addLast(newGlobalInterest);
-                        // Option 2: Or, signal an error if interests must pre-exist
-                        // return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        //        .body(new AuthResponseDTO(false, "El tema '" + topicName + "' no existe."));
-                        // For now, let's assume interests should ideally pre-exist or be created via admin UI.
-                        // If a topic name doesn't match a global interest, we might skip it or log a warning.
-                        // To ensure association, it MUST be a known interest that could have a group.
-                        System.out.println("Warning: Topic '" + topicName + "' provided for content creation does not exist as a global interest. It will not be associated.");
-                    }
-                }
-            }
-
-            // If no valid topics were found/associated, the content might not link to any group.
-            if (topics.isEmpty() && createDto.getTopics() != null && !createDto.getTopics().isEmpty()) {
-                System.out.println("Warning: No valid global interests found for the provided topic names. Content may not be associated with any study group.");
-            }
-
-            // Parse content type
-            ContentType contentType;
-            try {
-                contentType = ContentType.valueOf(createDto.getContentType().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new AuthResponseDTO(false, "Tipo de contenido inválido."));
-            }
-
-            // Prepare content information based on type
-            String information = createDto.getBody();
-            if (contentType == ContentType.LINK && createDto.getLinkUrl() != null) {
-                information += "\n\nEnlace: " + createDto.getLinkUrl();
-            } else if (contentType == ContentType.VIDEO && createDto.getVideoUrl() != null) {
-                information += "\n\nVideo: " + createDto.getVideoUrl();
-            } else if (contentType == ContentType.RESOURCE && file != null) {
-                // Handle file upload (this would typically involve saving the file to storage)
-                information += "\n\nArchivo adjunto: " + file.getOriginalFilename();
-            }
-
-            // Create Content
-            Content content = Content.builder()
-                    .topics(topics)
-                    .title(createDto.getTitle())
-                    .contentType(contentType)
-                    .information(information)
-                    .author(student)
-                    .likedBy(new DoublyLinkedList<>())
-                    .likeCount(0)
-                    .comments(new DoublyLinkedList<>())
-                    .date(LocalDate.now())
-                    .build();
-
-            // Add to the system (this method needs to be implemented in TheKnowledgeBay)
-            boolean created = theKnowledgeBay.addContent(content);
-            
-            if (created) {
+            if (theKnowledgeBay.addContent(content)) {
                 return ResponseEntity.ok(new AuthResponseDTO(true, "Contenido publicado exitosamente."));
-            } else {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(new AuthResponseDTO(false, "Error al publicar el contenido."));
             }
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+        } catch (RuntimeException exception) {
+            log.error("Content publication failed ({})", exception.getClass().getSimpleName());
         }
+        return publicationError(HttpStatus.INTERNAL_SERVER_ERROR, "Error al publicar el contenido.");
+    }
+
+    private static ContentType parseContentType(String value) {
+        if (value == null) return null;
+        try {
+            return ContentType.valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    private static boolean isHttpUrl(String value) {
+        if (value == null || value.length() > MAX_URL_LENGTH) return false;
+        try {
+            URI uri = URI.create(value);
+            return uri.getHost() != null && ("https".equalsIgnoreCase(uri.getScheme())
+                    || "http".equalsIgnoreCase(uri.getScheme()));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private static ResponseEntity<AuthResponseDTO> invalidPublication(String message) {
+        return publicationError(HttpStatus.BAD_REQUEST, message);
+    }
+
+    private static ResponseEntity<AuthResponseDTO> publicationError(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(new AuthResponseDTO(false, message));
     }
 
     @GetMapping("/my-content")
     public ResponseEntity<List<ContentResponseDTO>> getMyContent(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            // Default to user id "1" if no valid token (development stub)
-            currentUserId = "1";
-        }
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        String currentUserId = actor.id();
 
         try {
             DoublyLinkedList<Content> allContent = theKnowledgeBay.getAllContent();
@@ -216,9 +241,10 @@ public class ContentController {
 
     @GetMapping
     public ResponseEntity<List<ContentResponseDTO>> getAllContent(
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
-            String currentUserId = sessionManager.getCurrentUserId(token);
+            String currentUserId = actor.id();
             DoublyLinkedList<Content> contents = theKnowledgeBay.getAllContent();
             List<ContentResponseDTO> response = new ArrayList<>();
 
@@ -294,9 +320,10 @@ public class ContentController {
     @GetMapping("/{id}")
     public ResponseEntity<ContentResponseDTO> getContentById(
             @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
-            String currentUserId = sessionManager.getCurrentUserId(token);
+            String currentUserId = actor.id();
             Content content = theKnowledgeBay.getContentById(id);
             
             if (content == null) {
@@ -367,13 +394,10 @@ public class ContentController {
     @PostMapping("/{id}/like")
     public ResponseEntity<AuthResponseDTO> likeContent(
             @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // Default to user id "1" if no valid token (development stub)
-        if (currentUserId == null) {
-            currentUserId = "1";
-        }
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (actor.role() != Role.STUDENT) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String currentUserId = actor.id();
 
         try {
             // First check if content exists
@@ -424,13 +448,10 @@ public class ContentController {
     @DeleteMapping("/{id}/like")
     public ResponseEntity<AuthResponseDTO> unlikeContent(
             @PathVariable int id,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        // Default to user id "1" if no valid token (development stub)  
-        if (currentUserId == null) {
-            currentUserId = "1";
-        }
+            @AuthenticationPrincipal AuthenticatedUser actor) {
+        if (actor == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (actor.role() != Role.STUDENT) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String currentUserId = actor.id();
 
         try {
             boolean unliked = theKnowledgeBay.unlikeContent(id, currentUserId);

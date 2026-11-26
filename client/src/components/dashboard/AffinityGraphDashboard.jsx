@@ -79,8 +79,6 @@ const AffinityGraphDashboard = () => {
     const label = node.name;
     const fontSize = 12/globalScale;
     ctx.font = `${fontSize}px sans-serif`;
-    const textWidth = ctx.measureText(label).width;
-    const backgroundPadding = 2;
     
     // Colores basados en el grupo
     const colors = {

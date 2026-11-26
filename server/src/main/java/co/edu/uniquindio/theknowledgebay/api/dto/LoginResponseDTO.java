@@ -1,13 +1,10 @@
 package co.edu.uniquindio.theknowledgebay.api.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser.Role;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class LoginResponseDTO {
-    private String token;
-    private String role; // e.g., "Student", "Moderator"
+public record LoginResponseDTO(String token, String userId, Role role) {
+    @Override
+    public String toString() {
+        return "LoginResponseDTO[redacted]";
+    }
 }

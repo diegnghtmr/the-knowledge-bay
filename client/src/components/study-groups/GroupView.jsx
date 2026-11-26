@@ -6,6 +6,7 @@ import LoadingSpinner from "../common/LoadingSpinner";
 const GroupView = ({
   group,
   posts,
+  error,
   onBack,
   onLike,
   onComment,
@@ -20,9 +21,11 @@ const GroupView = ({
     setCommentTexts((prev) => ({ ...prev, [postId]: text }));
   };
 
-  const submitComment = (postId) => {
-    onComment(group.id, postId, commentTexts[postId] || "");
-    setCommentTexts((prev) => ({ ...prev, [postId]: "" }));
+  const submitComment = async (postId) => {
+    const draft = commentTexts[postId] || "";
+    if (await onComment(group.id, postId, draft)) {
+      setCommentTexts((prev) => prev[postId] === draft ? { ...prev, [postId]: "" } : prev);
+    }
   };
 
   useEffect(() => {
@@ -54,7 +57,7 @@ const GroupView = ({
             </button>
           </div>
           
-          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-full">
+          <div className="mt-3 w-full text-center max-sm:wrap-anywhere sm:mt-0 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
             <h1 className="text-xl sm:text-3xl font-bold text-[var(--deep-sea)]">
               {group.name}
             </h1>
@@ -69,13 +72,14 @@ const GroupView = ({
         ref={scrollableContainerRef}
         className="container mx-auto p-4 sm:p-6 flex-grow overflow-y-auto"
       >
+        {error && <p role="alert" className="mb-4 text-center text-red-700">{error}</p>}
         {posts && posts.length > 0 ? (
           <div className="space-y-6">
             {posts.map((post) => (
               <PostItem
                 key={post.id}
                 post={post}
-                onLike={() => onLike(group.id, post.id)}
+                onLike={() => onLike(group.id, post.id, !post.likedByMe)}
                 onCommentSubmit={() => submitComment(post.id)}
                 commentText={commentTexts[post.id] || ""}
                 onCommentChange={(text) => handleCommentChange(post.id, text)}

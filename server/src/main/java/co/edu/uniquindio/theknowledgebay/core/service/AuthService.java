@@ -1,79 +1,73 @@
 package co.edu.uniquindio.theknowledgebay.core.service;
 
-import co.edu.uniquindio.theknowledgebay.core.dto.AuthResultDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Moderator;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.model.User;
+import co.edu.uniquindio.theknowledgebay.core.repository.StudentRepository;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser.Role;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
-
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired; // Keep Autowired
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.lang.reflect.MalformedParameterizedTypeException;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor // Now includes PasswordEncoder and SessionManager
-@Slf4j
+@RequiredArgsConstructor
 public class AuthService {
+    private static final int MAX_PASSWORD_BYTES = 72;
+    // Match supported BCrypt variants and reject unreasonably expensive imported hashes.
+    private static final Pattern BCRYPT_HASH = Pattern.compile("\\$2[aby]\\$(?:0[4-9]|1[0-4])\\$[./A-Za-z0-9]{53}");
 
-    @Autowired
-    private TheKnowledgeBay domain;
-
+    private final TheKnowledgeBay domain;
+    private final StudentRepository studentRepository;
     private final PasswordEncoder passwordEncoder;
-    private final SessionManager sessionManager; // Inject SessionManager
+    private final SessionManager sessionManager;
 
     public Optional<User> findUserByEmail(String email) {
-        Moderator moderator = domain.getUsers().getModerator();
-        if (moderator != null && moderator.getEmail().equalsIgnoreCase(email)) {
-            return Optional.of(moderator);
-        }
-        // Manual iteration using data from TheKnowledgeBay
-        DoublyLinkedNode<Student> current = domain.getUsers().getStudents().getHead();
-        while (current != null) {
-            Student student = current.getData();
-            if (student.getEmail().equalsIgnoreCase(email)) {
-                return Optional.of(student);
-            }
-            current = current.getNext();
-        }
-
-        return Optional.empty();
+        return findUser(user -> email != null && email.equalsIgnoreCase(user.getEmail()));
     }
 
     public Optional<User> findUserByUsername(String username) {
+        return findUser(user -> username != null && username.equalsIgnoreCase(user.getUsername()));
+    }
+
+    public Optional<User> findUserById(String id) {
+        return findUser(user -> id != null && id.equals(user.getId()));
+    }
+
+    private Optional<User> findUser(Predicate<User> matches) {
         Moderator moderator = domain.getUsers().getModerator();
-        if (moderator != null && moderator.getUsername().equalsIgnoreCase(username)) {
+        if (moderator != null && matches.test(moderator)) {
             return Optional.of(moderator);
         }
-        // Manual iteration using data from TheKnowledgeBay
-        DoublyLinkedNode<Student> current = domain.getUsers().getStudents().getHead();
+        var current = domain.getUsers().getStudents().getHead();
         while (current != null) {
             Student student = current.getData();
-            if (student.getUsername().equalsIgnoreCase(username)) {
+            if (matches.test(student)) {
                 return Optional.of(student);
             }
             current = current.getNext();
         }
-
         return Optional.empty();
     }
 
-    public String[] registerStudent(Student student) {
-
+    public synchronized String[] registerStudent(Student student) {
+        if (student.getEmail() == null || student.getEmail().isBlank() || student.getUsername() == null || student.getUsername().isBlank()) {
+            return new String[] { "false", "Email and username are required." };
+        }
+        if (!isAcceptablePassword(student.getPassword())) {
+            return new String[] { "false", "Password must be nonblank and at most 72 UTF-8 bytes." };
+        }
         if (findUserByUsername(student.getUsername()).isPresent()) {
-            log.warn("Registration attempt for existing username: {}", student.getEmail());
             return new String[] { "false", "Username already exists." };
         }
-
         if (findUserByEmail(student.getEmail()).isPresent()) {
-            log.warn("Registration attempt for existing email: {}", student.getEmail());
             return new String[] { "false", "Email already exists." };
         }
 
@@ -81,64 +75,63 @@ public class AuthService {
         if (student.getBiography() == null) {
             student.setBiography("");
         }
-        // Ensure interests list is initialized if it's null, though it should be set by controller
         if (student.getInterests() == null) {
             student.setInterests(new DoublyLinkedList<>());
         }
 
-        domain.addStudent(student); // Adds student to UserFactory and persists (if configured)
-        log.info("Registered new student: {}", student.getEmail());
-        
-        // After student is added and their initial interests are set,
-        // update/create automatic study groups.
+        domain.addStudent(student);
         domain.updateAutomaticStudyGroupsForStudent(student);
-
         return new String[] { "true", "Student registered successfully." };
     }
 
-    public Optional<AuthResultDTO> login(String email, String rawPassword) {
-        Optional<User> userOpt = findUserByEmail(email);
-
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (passwordEncoder.matches(rawPassword, user.getPassword())) {
-                String userId = user.getId() != null ? user.getId() : user.getEmail();
-                String token = sessionManager.createSession(userId);
-                String role = getUserRole(user);
-                log.info("Login successful for user: {}", email);
-                return Optional.of(new AuthResultDTO(token, role));
-            } else {
-                log.warn("Invalid password attempt for user: {}", email);
+    public Optional<LoginSession> login(String email, String rawPassword) {
+        if (!isAcceptablePassword(rawPassword)) {
+            return Optional.empty();
+        }
+        return findUserByEmail(email).flatMap(user -> {
+            synchronized (user) {
+                String id = user.getId();
+                Role role = user instanceof Moderator ? Role.MODERATOR : Role.STUDENT;
+                if (id == null || id.isBlank() || !isSupportedPasswordHash(user.getPassword())
+                        || !passwordEncoder.matches(rawPassword, user.getPassword())) {
+                    return Optional.empty();
+                }
+                AuthenticatedUser principal = new AuthenticatedUser(id, role);
+                return Optional.of(new LoginSession(sessionManager.createSession(principal), principal));
             }
-        } else {
-            log.warn("Login attempt for non-existent user: {}", email);
+        });
+    }
+
+    public void changeStudentPassword(Student student, String rawPassword) {
+        if (!isAcceptablePassword(rawPassword)) {
+            throw new IllegalArgumentException("Invalid password.");
         }
-        return Optional.empty();
-    }
-
-    public Optional<String> validateToken(String token) {
-        // Validate against the central session store
-        // Validate using SessionManager
-        return Optional.ofNullable(sessionManager.getUserIdentifier(token));
-    }
-
-    public boolean isValidToken(String token) {
-        return validateToken(token).isPresent();
-    }
-
-    public void logout(String token) {
-        sessionManager.removeSession(token);
-        log.info("Logout requested for token: {}", token);
-    }
-
-    private String getUserRole(User user) {
-        if (user instanceof Moderator) {
-            return "Moderator";
-        } else if (user instanceof Student) {
-            return "Student";
-        } else {
-            return "Unknown";
+        String hash = passwordEncoder.encode(rawPassword);
+        synchronized (student) {
+            String previous = student.getPassword();
+            student.setPassword(hash);
+            try {
+                studentRepository.update(student);
+            } catch (RuntimeException e) {
+                student.setPassword(previous);
+                throw e;
+            }
+            sessionManager.revokeUser(student.getId());
         }
     }
 
+    public static boolean isAcceptablePassword(String password) {
+        return password != null && !password.isBlank() && password.getBytes(StandardCharsets.UTF_8).length <= MAX_PASSWORD_BYTES;
+    }
+
+    public static boolean isSupportedPasswordHash(String passwordHash) {
+        return passwordHash != null && BCRYPT_HASH.matcher(passwordHash).matches();
+    }
+
+    public record LoginSession(String token, AuthenticatedUser user) {
+        @Override
+        public String toString() {
+            return "LoginSession[redacted]";
+        }
+    }
 }

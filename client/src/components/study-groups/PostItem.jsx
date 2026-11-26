@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { ThumbsUp, MessageCircle, Link as LinkIcon, HelpCircle, FileText, Video } from "lucide-react";
+import { ThumbsUp, MessageCircle, Link as LinkIcon, HelpCircle, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import ReactPlayer from 'react-player/lazy';
 
@@ -123,7 +123,7 @@ const PostItem = ({
       <div className="flex items-start mb-3">
         <div className="flex-grow">
           <p className="font-semibold text-sm sm:text-base text-[var(--deep-sea)]">
-            {post.author.name}
+            {post.author?.name || "Usuario Desconocido"}
           </p>
           <p className="text-xs text-gray-500">{post.timestamp}</p>
         </div>
@@ -134,6 +134,8 @@ const PostItem = ({
       <div className="flex items-center justify-between text-gray-500 border-t border-gray-200 pt-3">
         <button
           onClick={onLike}
+          disabled={post.type === 'helprequest'}
+          aria-pressed={Boolean(post.likedByMe)}
           className={`flex items-center space-x-1 hover:text-red-500 transition-colors p-2 rounded-md hover:bg-gray-100 ${
             post.likedByMe ? "text-red-500" : ""
           }`}

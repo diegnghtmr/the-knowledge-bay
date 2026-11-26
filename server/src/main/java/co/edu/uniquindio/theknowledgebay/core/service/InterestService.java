@@ -35,7 +35,7 @@ public class InterestService {
         return response;
     }
 
-    public AuthResponseDTO createInterest(String name, String currentUserId) {
+    public AuthResponseDTO createInterest(String name) {
         Interest interest = Interest.builder()
                 .name(name)
                 .build();
@@ -47,7 +47,7 @@ public class InterestService {
                 new AuthResponseDTO(false, "Error al crear el interés.");
     }
 
-    public AuthResponseDTO updateInterest(String id, String name, String currentUserId) {
+    public AuthResponseDTO updateInterest(String id, String name) {
         boolean updated = theKnowledgeBay.updateInterest(id, name);
 
         return updated ?
@@ -55,7 +55,7 @@ public class InterestService {
                 new AuthResponseDTO(false, "Interés no encontrado.");
     }
 
-    public AuthResponseDTO deleteInterest(String id, String currentUserId) {
+    public AuthResponseDTO deleteInterest(String id) {
         boolean deleted = theKnowledgeBay.deleteInterest(id);
 
         return deleted ?

@@ -1,6 +1,9 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
+import co.edu.uniquindio.theknowledgebay.api.config.ApiFailure;
 import co.edu.uniquindio.theknowledgebay.core.service.TestDataLoaderService;
+import co.edu.uniquindio.theknowledgebay.infrastructure.config.SecurityConfig;
+import org.springframework.context.annotation.Profile;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Profile(SecurityConfig.DEV_TOOLS_PROFILE)
 @RequestMapping("/api/test-data")
 public class TestDataController {
 
@@ -26,8 +30,8 @@ public class TestDataController {
             testDataLoaderService.loadComprehensiveTestData();
             return ResponseEntity.ok("Test data loaded successfully.");
         } catch (Exception e) {
-            e.printStackTrace(); // Log the exception
-            return ResponseEntity.internalServerError().body("Failed to load test data: " + e.getMessage());
+            ApiFailure.report("fixtures.load");
+            return ResponseEntity.internalServerError().body("Failed to load test data.");
         }
     }
     
@@ -52,7 +56,8 @@ public class TestDataController {
                 return ResponseEntity.ok("No se encontraron chats.");
             }
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error checking chats: " + e.getMessage());
+            ApiFailure.report("fixtures.chatStatus");
+            return ResponseEntity.internalServerError().body("Error checking chats.");
         }
     }
 } 

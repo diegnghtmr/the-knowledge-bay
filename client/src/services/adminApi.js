@@ -1,11 +1,11 @@
 import sampleData from "../data/sample-data.json";
-import * as Json from "postcss";
+import { getSessionToken } from "../context/session.js";
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "/api";
 
 // Función helper para incluir headers de autorización
 const getHeaders = () => {
-  const token = sessionStorage.getItem("token");
+  const token = getSessionToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -245,8 +245,6 @@ export const loadSampleInterests = async () => {
     body: JSON.stringify(sampleData),
   });
 
-  console.log("Response:", JSON.stringify(sampleData));
-
   if (!response.ok) throw new Error("Error al importar datos");
 
   return await response.json();
@@ -448,20 +446,11 @@ export const updateContentAdmin = async (contentId, contentData) => {
       body: JSON.stringify(contentData),
     });
 
-    if (!response.ok) {
-      let errorMessage = `Error: ${response.status}`;
-      try {
-        const errorBody = await response.json();
-        errorMessage = errorBody.message || errorMessage;
-      } catch {
-        // Si no es JSON, intenta leer como texto
-        const errorText = await response.text();
-        errorMessage = errorText || errorMessage;
-      }
-      throw new Error(errorMessage);
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.success !== true) {
+      throw new Error(result?.message || 'Error al actualizar el contenido.');
     }
-
-    return await response.json();
+    return result;
   } catch (error) {
     console.error("Error updating content:", error);
     throw error;

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { forceManyBody, forceCollide } from 'd3-force';
-import { colorScale, palette } from './GraphData';
+import { colorScale } from './GraphData';
 
 /**
  * Componente que renderiza el grafo principal con soporte para vista ego-céntrica
@@ -131,7 +131,7 @@ const MainGraph = ({
   };
 
   // Función personalizada para dibujar enlaces
-  const linkCanvasObject = (link, ctx, globalScale) => {
+  const linkCanvasObject = (link, ctx) => {
     // Extraer posiciones de origen y destino
     const start = link.source;
     const end = link.target;

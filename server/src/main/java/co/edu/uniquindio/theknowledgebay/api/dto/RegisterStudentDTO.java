@@ -1,9 +1,9 @@
 package co.edu.uniquindio.theknowledgebay.api.dto;
 
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import java.util.List;
 
 @Data
@@ -12,6 +12,7 @@ import java.util.List;
 public class RegisterStudentDTO {
     private String username;
     private String email;
+    @ToString.Exclude
     private String password;
     private String dateOfBirth;
     private String firstName;

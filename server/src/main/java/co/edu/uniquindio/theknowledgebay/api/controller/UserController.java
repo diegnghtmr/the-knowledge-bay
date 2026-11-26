@@ -1,17 +1,18 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
 
+import co.edu.uniquindio.theknowledgebay.api.config.ApiFailure;
 import co.edu.uniquindio.theknowledgebay.api.dto.AuthResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
-import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
-import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
+import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
+import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -23,18 +24,14 @@ import java.util.List;
 public class UserController {
 
     private final TheKnowledgeBay theKnowledgeBay;
-    private final SessionManager sessionManager;
+    private final AuthService authService;
 
     @GetMapping
     public ResponseEntity<List<ProfileResponseDTO>> getAllUsers(
-            @RequestHeader(value = "Authorization", required = false) String token,
+            @AuthenticationPrincipal AuthenticatedUser caller,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String interest) {
-        
-        String currentUserId = null;
-        if (token != null && !token.isEmpty() && !token.equals("null")) {
-            currentUserId = sessionManager.getCurrentUserId(token); // Assuming token might be the string "null"
-        }
+        String currentUserId = authService.findUserById(caller.id()).isPresent() ? caller.id() : null;
 
         try {
             List<ProfileResponseDTO> users = new ArrayList<>();
@@ -98,28 +95,22 @@ public class UserController {
             return ResponseEntity.ok(users);
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            ApiFailure.report("users.list");
+            return ResponseEntity.internalServerError().build();
         }
     }
 
     @PostMapping("/{userId}/follow")
     public ResponseEntity<AuthResponseDTO> followUser(
             @PathVariable String userId,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AuthResponseDTO(false, "Token de autorización requerido."));
-        }
-
-        if (currentUserId.equals(userId)) {
+            @AuthenticationPrincipal AuthenticatedUser caller) {
+        if (caller.id().equals(userId)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new AuthResponseDTO(false, "No puedes seguirte a ti mismo."));
         }
 
         try {
-            boolean success = theKnowledgeBay.followUser(currentUserId, userId);
+            boolean success = isStudent(caller.id()) && isStudent(userId) && theKnowledgeBay.followUser(caller.id(), userId);
             if (success) {
                 return ResponseEntity.ok(new AuthResponseDTO(true, "Usuario seguido exitosamente."));
             } else {
@@ -128,24 +119,16 @@ public class UserController {
                         .body(new AuthResponseDTO(false, "No se pudo seguir al usuario. Verifique los IDs."));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+            return failure("users.follow");
         }
     }
 
     @DeleteMapping("/{userId}/follow")
     public ResponseEntity<AuthResponseDTO> unfollowUser(
             @PathVariable String userId,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = sessionManager.getCurrentUserId(token);
-        if (currentUserId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AuthResponseDTO(false, "Token de autorización requerido."));
-        }
-
+            @AuthenticationPrincipal AuthenticatedUser caller) {
         try {
-            boolean success = theKnowledgeBay.unfollowUser(currentUserId, userId);
+            boolean success = isStudent(caller.id()) && isStudent(userId) && theKnowledgeBay.unfollowUser(caller.id(), userId);
             if (success) {
                 return ResponseEntity.ok(new AuthResponseDTO(true, "Usuario no seguido exitosamente."));
             } else {
@@ -153,20 +136,15 @@ public class UserController {
                         .body(new AuthResponseDTO(false, "No se pudo dejar de seguir al usuario. Verifique los IDs."));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponseDTO(false, "Error interno del servidor: " + e.getMessage()));
+            return failure("users.unfollow");
         }
     }
 
     @GetMapping("/search")
     public ResponseEntity<List<ProfileResponseDTO>> searchUsers(
             @RequestParam String query,
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        
-        String currentUserId = null;
-        if (token != null && !token.isEmpty() && !token.equals("null")) {
-            currentUserId = sessionManager.getCurrentUserId(token);
-        }
+            @AuthenticationPrincipal AuthenticatedUser caller) {
+        String currentUserId = authService.findUserById(caller.id()).isPresent() ? caller.id() : null;
 
         try {
             List<ProfileResponseDTO> users = new ArrayList<>();
@@ -225,7 +203,17 @@ public class UserController {
             return ResponseEntity.ok(users);
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            ApiFailure.report("users.search");
+            return ResponseEntity.internalServerError().build();
         }
+    }
+
+    private boolean isStudent(String id) {
+        return authService.findUserById(id).orElse(null) instanceof Student;
+    }
+
+    private static ResponseEntity<AuthResponseDTO> failure(String operation) {
+        ApiFailure.report(operation);
+        return ResponseEntity.internalServerError().body(new AuthResponseDTO(false, "Error interno del servidor."));
     }
 }

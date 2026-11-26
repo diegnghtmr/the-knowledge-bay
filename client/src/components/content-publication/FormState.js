@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 /**
  * Hook personalizado para manejar estados de formulario
@@ -13,6 +13,7 @@ const useFormState = (initialValues, validateForm, onSubmitFn) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const pending = useRef(false);
 
   // Validar el formulario
   const validate = () => {
@@ -34,12 +35,9 @@ const useFormState = (initialValues, validateForm, onSubmitFn) => {
   };
 
   // Establecer un valor de campo específico (útil para archivos)
-  const setFieldValue = (name, value) => {
-    setValues({
-      ...values,
-      [name]: value,
-    });
-  };
+  const setFieldValue = useCallback((name, value) => {
+    setValues((previous) => ({ ...previous, [name]: value }));
+  }, []);
 
   // Establecer todos los valores del formulario (útil para reset)
   const setAllValues = (newValues) => {
@@ -62,8 +60,9 @@ const useFormState = (initialValues, validateForm, onSubmitFn) => {
   };
 
   // Manejar envío del formulario
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (pending.current) return;
     setTouched(
       Object.keys(values).reduce((acc, key) => {
         acc[key] = true;
@@ -71,15 +70,14 @@ const useFormState = (initialValues, validateForm, onSubmitFn) => {
       }, {})
     );
 
-    setIsSubmitting(true);
-    const isValid = validate();
+    if (!validate() || !onSubmitFn) return;
 
-    if (isValid && onSubmitFn) {
-      Promise.resolve(onSubmitFn(values))
-        .finally(() => {
-          setIsSubmitting(false);
-        });
-    } else {
+    pending.current = true;
+    setIsSubmitting(true);
+    try {
+      await onSubmitFn(values);
+    } finally {
+      pending.current = false;
       setIsSubmitting(false);
     }
   };

@@ -6,7 +6,6 @@ import { getAllUsersAdmin, updateUserAdmin } from '../../../services/adminApi';
 
 const UserTable = () => {
   const [users, setUsers] = useState([]);
-  const [filtered, setFiltered] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
@@ -21,7 +20,6 @@ const UserTable = () => {
         setError(null);
         const data = await getAllUsersAdmin();
         setUsers(data);
-        setFiltered(data);
       } catch (err) {
         setError('Error al cargar los usuarios');
         console.error('Error fetching users:', err);
@@ -33,23 +31,11 @@ const UserTable = () => {
     fetchUsers();
   }, []);
 
-  // Filtrar usuarios cuando cambian los criterios de búsqueda
-  useEffect(() => {
-    const term = searchTerm.toLowerCase();
-    let result = [...users];
-    
-    // Filtrar por término de búsqueda
-    if (term) {
-      result = result.filter(user => 
-        user.username.toLowerCase().includes(term) ||
-        user.firstName.toLowerCase().includes(term) ||
-        user.lastName.toLowerCase().includes(term) ||
-        user.email.toLowerCase().includes(term)
-      );
-    }
-    
-    setFiltered(result);
-  }, [searchTerm, users]);
+  const term = searchTerm.toLowerCase();
+  const filtered = term ? users.filter((user) => (
+    [user.username, user.firstName, user.lastName, user.email]
+      .some((value) => typeof value === 'string' && value.toLowerCase().includes(term))
+  )) : users;
 
   // Iniciar edición de un usuario
   const startEdit = (user) => {
@@ -80,7 +66,6 @@ const UserTable = () => {
         user.id === editingId ? { ...users.find(u => u.id === editingId), ...form } : user
       );
       setUsers(updatedUsers);
-      setFiltered(updatedUsers); // Also update filtered data
       setEditingId(null);
     } catch (err) {
       setError('Error al actualizar el usuario: ' + (err.message || 'Error desconocido'));
@@ -112,7 +97,7 @@ const UserTable = () => {
   ];
 
   // Renderizar celdas según la columna
-  const renderCell = (row, column, index) => {
+  const renderCell = (row, column) => {
     const { key } = column;
     const isRowEditing = editingId !== null && editingId === row.id;
 
@@ -121,20 +106,20 @@ const UserTable = () => {
         return isRowEditing ? (
           <div className="space-y-2">
             <input
-              value={form.username}
+              value={form.username ?? ''}
               onChange={(e) => handleChange('username', e.target.value)}
               placeholder="Nombre de usuario"
               className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
             />
             <div className="flex gap-2">
               <input
-                value={form.firstName}
+                value={form.firstName ?? ''}
                 onChange={(e) => handleChange('firstName', e.target.value)}
                 placeholder="Nombre"
                 className="w-1/2 rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
               />
               <input
-                value={form.lastName}
+                value={form.lastName ?? ''}
                 onChange={(e) => handleChange('lastName', e.target.value)}
                 placeholder="Apellido"
                 className="w-1/2 rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
@@ -156,7 +141,7 @@ const UserTable = () => {
       case 'email':
         return isRowEditing ? (
           <input
-            value={form.email}
+            value={form.email ?? ''}
             readOnly // Make email field read-only
             disabled // Also disable it to prevent focus/interaction
             className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 bg-gray-100 cursor-not-allowed focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
@@ -173,7 +158,7 @@ const UserTable = () => {
         return isRowEditing ? (
           <input
             type="date"
-            value={form.dateBirth || form.birthDate}
+            value={form.dateBirth || form.birthDate || ''}
             onChange={(e) => handleChange('dateBirth', e.target.value)}
             className="rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           />
@@ -195,7 +180,7 @@ const UserTable = () => {
           />
         ) : (
           <div className="flex flex-wrap gap-1">
-            {row.interests.map((interest, i) => (
+            {(row.interests ?? []).map((interest, i) => (
               <span key={i} className="inline-flex items-center rounded-full bg-[var(--sand)]/50 px-2 py-0.5 text-xs font-medium text-[var(--deep-sea)]">
                 <Star size={10} className="mr-1 text-[var(--coastal-sea)]" />
                 {interest}

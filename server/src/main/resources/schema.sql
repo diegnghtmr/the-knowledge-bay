@@ -156,3 +156,26 @@ CREATE TABLE IF NOT EXISTS messages (
                                         FOREIGN KEY (sender_id) REFERENCES students(id),
                                         FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
 );
+
+-- Additive tables and indexes: existing SQLite files keep their rows and integer keys.
+CREATE TABLE IF NOT EXISTS content_types (
+    content_id INTEGER PRIMARY KEY REFERENCES contents(content_id) ON DELETE CASCADE,
+    type TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS follows (
+    follower_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    followed_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    PRIMARY KEY (follower_id, followed_id),
+    CHECK (follower_id <> followed_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS chats_unordered_students
+    ON chats(min(student_a_id, student_b_id), max(student_a_id, student_b_id));
+CREATE INDEX IF NOT EXISTS messages_by_chat ON messages(chat_id, message_id);
+CREATE INDEX IF NOT EXISTS interests_by_student_topic ON students_interests(interest_id, student_id);
+CREATE INDEX IF NOT EXISTS content_by_topic ON content_topics(interest_id, content_id);
+CREATE INDEX IF NOT EXISTS help_by_topic ON help_request_topics(interest_id, request_id);
+CREATE INDEX IF NOT EXISTS followers_by_student ON follows(followed_id, follower_id);
+CREATE INDEX IF NOT EXISTS content_by_author ON contents(author_id);
+CREATE INDEX IF NOT EXISTS help_by_student ON help_requests(student_id);

@@ -1,54 +1,26 @@
 import { useEffect, useState } from "react";
 import { useAuthHandler } from "../../hooks/useAuthHandler.jsx";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { fetchInterests } from "../../services/InterestsApi.js";
 import SignupForm from "./SignupForm.jsx";
 
-const Signup = ({ data, state }) => {
+const Signup = ({ data }) => {
   const navigate = useNavigate();
-
-  // Form state
+  const { pathname } = useLocation();
+  const isOnboarding = pathname === "/register/steps";
+  const showForm = isOnboarding && Boolean(data);
   const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
     firstName: "",
     lastName: "",
     dateOfBirth: "",
     bio: "",
     interests: [],
   });
+  const [availableInterests, setAvailableInterests] = useState([]);
 
-  // Controls form visibility based on `data`
-  const [showForm, setShowForm] = useState(false);
-
-  // Update formData and show/hide form based on incoming `data`
   useEffect(() => {
-    if (state) {
-      return;
-    }
-
-    if (
-      data &&
-      (data.username || data.email || data.password || data.confirmPassword)
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        username: data.username || "",
-        email: data.email || "",
-        password: data.password || "",
-        confirmPassword: data.confirmPassword || "",
-      }));
-
-      setShowForm(true);
-    } else {
-      setShowForm(false);
-      if (location.pathname === "/register/steps") {
-        navigate("/register"); // Redirect if data is not valid
-      }
-    }
-  }, [data]);
+    if (isOnboarding && !data) navigate("/register", { replace: true });
+  }, [isOnboarding, data, navigate]);
 
   // Custom authentication handler hook
   const { isLoading, error, handleRegister } = useAuthHandler({
@@ -68,28 +40,23 @@ const Signup = ({ data, state }) => {
     return `${year}-${pad(month)}-${pad(day)}`;
   }
 
-  // Fetch available interests from API
   useEffect(() => {
-    if (location.pathname === "/register/steps") {
-      fetchInterests()
-        .then((data) => setAvailableInterests(data))
-        .catch((err) => console.error("Failed to load interests", err));
-    }
-  }, [location.pathname]);
+    if (!showForm) return;
+    const controller = new AbortController();
+    fetchInterests(controller.signal).then((interests) => {
+      if (!controller.signal.aborted) setAvailableInterests(interests);
+    });
+    return () => controller.abort();
+  }, [showForm]);
 
-  const [availableInterests, setAvailableInterests] = useState([]);
-
-  // Final registration submit
   const handleFinalSubmit = async () => {
+    if (!data) return;
     const registrationData = {
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
-      confirmPassword: formData.confirmPassword,
+      ...data,
       firstName: formData.firstName,
       lastName: formData.lastName,
       dateOfBirth: formatDate(formData.dateOfBirth),
-      bio: formData.bio,
+      biography: formData.bio,
       interests: formData.interests,
     };
 

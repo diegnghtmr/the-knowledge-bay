@@ -5,12 +5,14 @@ import co.edu.uniquindio.theknowledgebay.core.model.Student;
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.model.Content;
 import co.edu.uniquindio.theknowledgebay.core.model.HelpRequest;
-import co.edu.uniquindio.theknowledgebay.core.model.Comment;
 import co.edu.uniquindio.theknowledgebay.core.model.Chat;
 import co.edu.uniquindio.theknowledgebay.core.model.Message;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.ContentType;
 import co.edu.uniquindio.theknowledgebay.core.model.enums.Urgency;
+import co.edu.uniquindio.theknowledgebay.core.repository.DomainRepository.PostKind;
+import co.edu.uniquindio.theknowledgebay.infrastructure.config.SecurityConfig;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -20,16 +22,15 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
+@Profile(SecurityConfig.DEV_TOOLS_PROFILE)
 public class TestDataLoaderService {
 
     private final TheKnowledgeBay theKnowledgeBay;
     private final PasswordEncoder passwordEncoder;
     private final Random random = new Random();
-    private int userIdCounter = 1; // Para IDs secuenciales
 
     public TestDataLoaderService(TheKnowledgeBay theKnowledgeBay, PasswordEncoder passwordEncoder) {
         this.theKnowledgeBay = theKnowledgeBay;
@@ -87,16 +88,6 @@ public class TestDataLoaderService {
         // Verificar que los estudiantes fueron agregados correctamente
         System.out.println("Verificando estudiantes agregados...");
         System.out.println("Total de estudiantes en el sistema: " + theKnowledgeBay.getUsers().getStudents().getSize());
-
-        // After all students are added, then update/create study groups for them
-        System.out.println("Actualizando grupos de estudio automáticos...");
-        students.forEach(student -> {
-            System.out.println("Actualizando grupos para: " + student.getUsername());
-            theKnowledgeBay.updateAutomaticStudyGroupsForStudent(student);
-        });
-
-        // Verificar grupos creados
-        System.out.println("Grupos de estudio creados: " + theKnowledgeBay.getStudyGroups().getSize());
 
         // Crear Contenido para los usuarios
         System.out.println("Creando contenidos para los estudiantes...");
@@ -276,10 +267,7 @@ public class TestDataLoaderService {
                     int randomCommentIndex = random.nextInt(comentariosArray.length);
                     String commentText = comentariosArray[randomCommentIndex];
                     
-                    // Fecha del comentario: mismo día o hasta 2 días después del contenido
-                    LocalDate commentDate = content.getDate().plusDays(random.nextInt(3));
-                    
-                    createCommentForContent(content, commenter, commentText, commentDate);
+                    createCommentForContent(content, commenter, commentText);
                 }
             }
         }
@@ -296,20 +284,12 @@ public class TestDataLoaderService {
     }
 
     private Interest createAndAddInterest(String name) {
-        Interest interest = Interest.builder()
-                .idInterest(UUID.randomUUID().toString())
-                .name(name)
-                .build();
-        theKnowledgeBay.addInterest(interest);
-        return interest;
+        Interest interest = Interest.builder().name(name).build();
+        return theKnowledgeBay.addInterest(interest) ? interest : theKnowledgeBay.findInterestByName(name);
     }
 
     private Student createStudent(String username, String email, String rawPassword, String firstName, String lastName, LocalDate dob, String bio, DoublyLinkedList<Interest> interests) {
-        String studentId = String.valueOf(userIdCounter++); // Usar ID secuencial
-        System.out.println("Creando estudiante con ID: " + studentId + ", username: " + username);
-        
-        Student student = Student.builder()
-                .id(studentId)
+        return Student.builder()
                 .username(username)
                 .email(email)
                 .password(passwordEncoder.encode(rawPassword))
@@ -318,16 +298,7 @@ public class TestDataLoaderService {
                 .dateBirth(dob)
                 .biography(bio)
                 .interests(interests)
-                .publishedContents(new DoublyLinkedList<>())
-                .helpRequests(new DoublyLinkedList<>()) 
-                .following(new DoublyLinkedList<>()) 
-                .followers(new DoublyLinkedList<>()) 
-                .studyGroups(new DoublyLinkedList<>()) 
-                .chats(new DoublyLinkedList<>()) 
                 .build();
-                
-        System.out.println("Estudiante creado exitosamente: " + student.getId() + " - " + student.getUsername());
-        return student;
     }
 
     private Content createContentForStudent(Student author, String title, ContentType type, String information, DoublyLinkedList<Interest> topics, LocalDate date) {
@@ -345,33 +316,15 @@ public class TestDataLoaderService {
                 .date(date)
                 .build();
                 
-        boolean contentAdded = theKnowledgeBay.addContent(content);
-        System.out.println("Contenido agregado al sistema: " + contentAdded + " - ID del contenido: " + content.getContentId());
-        
-        if (author.getPublishedContents() == null) {
-            author.setPublishedContents(new DoublyLinkedList<>());
-        }
-        author.getPublishedContents().addLast(content);
-        System.out.println("Contenido agregado a la lista del autor. Total contenidos del autor: " + author.getPublishedContents().getSize());
-        
-        return content; // Retornar el contenido creado
+        if (!theKnowledgeBay.addContent(content)) throw new IllegalStateException("Fixture publication was not saved.");
+        return content;
     }
 
-    // Método helper para crear comentarios
-    private void createCommentForContent(Content content, Student author, String text, LocalDate date) {
-        if (content.getComments() == null) {
-            content.setComments(new DoublyLinkedList<>());
+    private void createCommentForContent(Content content, Student author, String text) {
+        for (var group : theKnowledgeBay.getStudyGroups()) {
+            if (theKnowledgeBay.addGroupComment(group.getId(), PostKind.CONTENT, content.getContentId(),
+                    author.getId(), text) != null) return;
         }
-        
-        Comment comment = Comment.builder()
-                .commentId(random.nextInt(1000000) + 1) // ID aleatorio para comentario
-                .text(text)
-                .author(author)
-                .date(date)
-                .build();
-                
-        content.getComments().addLast(comment);
-        System.out.println("Comentario agregado al contenido '" + content.getTitle() + "' por " + author.getUsername());
     }
     
     // Método helper para agregar likes de forma realista
@@ -414,14 +367,7 @@ public class TestDataLoaderService {
                 .comments(new DoublyLinkedList<>()) 
                 .build();
                 
-        boolean requestAdded = theKnowledgeBay.addHelpRequest(helpRequest);
-        System.out.println("Solicitud de ayuda agregada al sistema: " + requestAdded + " - ID de la solicitud: " + helpRequest.getRequestId());
-        
-         if (student.getHelpRequests() == null) {
-            student.setHelpRequests(new DoublyLinkedList<>());
-        }
-        student.getHelpRequests().addLast(helpRequest);
-        System.out.println("Solicitud agregada a la lista del estudiante. Total solicitudes del estudiante: " + student.getHelpRequests().getSize());
+        if (!theKnowledgeBay.addHelpRequest(helpRequest)) throw new IllegalStateException("Fixture help request was not saved.");
     }
 
     private DoublyLinkedList<Interest> createInterestList(Interest... interests) {
@@ -455,7 +401,6 @@ public class TestDataLoaderService {
         addMessageToChat(chat1, messageIdCounter++, juan, "¡Perfecto! ¿Te parece bien en la biblioteca a las 3 PM?", chat1Base.plusMinutes(15));
         addMessageToChat(chat1, messageIdCounter++, maria, "Excelente, nos vemos ahí. Lleva tu código para revisarlo juntos", chat1Base.plusMinutes(18));
         
-        theKnowledgeBay.getChats().addLast(chat1);
         System.out.println("Chat creado entre " + juan.getUsername() + " y " + maria.getUsername() + " con " + chat1.getMessages().getSize() + " mensajes");
         
         // CHAT 2: Juan Pérez (1) y Carlos Gómez (3) - Machine Learning y Java
@@ -472,7 +417,6 @@ public class TestDataLoaderService {
         addMessageToChat(chat2, messageIdCounter++, juan, "Suena genial! ¿Tienes algún proyecto de ejemplo que pueda revisar?", chat2Base.plusMinutes(20));
         addMessageToChat(chat2, messageIdCounter++, carlos, "Claro, tengo uno de clasificación de texto. Te lo paso por email", chat2Base.plusMinutes(25));
         
-        theKnowledgeBay.getChats().addLast(chat2);
         System.out.println("Chat creado entre " + juan.getUsername() + " y " + carlos.getUsername() + " con " + chat2.getMessages().getSize() + " mensajes");
         
         // CHAT 3: María López (2) y Ana Martínez (4) - Estructuras de datos
@@ -492,7 +436,6 @@ public class TestDataLoaderService {
         addMessageToChat(chat3, messageIdCounter++, ana, "Perfecto, ¿podemos vernos después de clase para que me expliques con código?", chat3Base.plusMinutes(25));
         addMessageToChat(chat3, messageIdCounter++, maria, "¡Por supuesto! Nos vemos en el laboratorio de sistemas a las 5", chat3Base.plusMinutes(28));
         
-        theKnowledgeBay.getChats().addLast(chat3);
         System.out.println("Chat creado entre " + maria.getUsername() + " y " + ana.getUsername() + " con " + chat3.getMessages().getSize() + " mensajes");
         
         // CHAT 4: Carlos Gómez (3) y Luis Fernández (5) - Deep Learning
@@ -511,7 +454,6 @@ public class TestDataLoaderService {
         addMessageToChat(chat4, messageIdCounter++, carlos, "¿Conoces algún buen dataset para practicar clasificación?", chat4Base.plusMinutes(35));
         addMessageToChat(chat4, messageIdCounter++, luis, "El Iris dataset es clásico para empezar, y MNIST para imágenes. Te paso unos links", chat4Base.plusMinutes(40));
         
-        theKnowledgeBay.getChats().addLast(chat4);
         System.out.println("Chat creado entre " + carlos.getUsername() + " y " + luis.getUsername() + " con " + chat4.getMessages().getSize() + " mensajes");
         
         // CHAT 5: Sofía Rodríguez (6) y Juan Pérez (1) - Spring Framework
@@ -531,7 +473,6 @@ public class TestDataLoaderService {
         addMessageToChat(chat5, messageIdCounter++, sofia, "¡Sí por favor! ¿Tienes tiempo ahora? Puedo compartir pantalla", chat5Base.plusMinutes(18));
         addMessageToChat(chat5, messageIdCounter++, juan, "Claro! Dame 5 minutos que termino algo y te ayudo", chat5Base.plusMinutes(20));
         
-        theKnowledgeBay.getChats().addLast(chat5);
         System.out.println("Chat creado entre " + sofia.getUsername() + " y " + juan.getUsername() + " con " + chat5.getMessages().getSize() + " mensajes");
         
         // CHAT 6: Ana Martínez (4) y Sofía Rodríguez (6) - Entrevistas técnicas
@@ -548,7 +489,6 @@ public class TestDataLoaderService {
         addMessageToChat(chat6, messageIdCounter++, sofia, "¡Me encantaría! ¿Mañana te parece bien? Podemos hacer pair programming", chat6Base.plusMinutes(30));
         addMessageToChat(chat6, messageIdCounter++, ana, "Perfecto! ¿A las 2 PM en el laboratorio? Podemos resolver algunos problemas de arrays y strings", chat6Base.plusMinutes(35));
         
-        theKnowledgeBay.getChats().addLast(chat6);
         System.out.println("Chat creado entre " + ana.getUsername() + " y " + sofia.getUsername() + " con " + chat6.getMessages().getSize() + " mensajes");
         
         // Verificación final
@@ -566,13 +506,9 @@ public class TestDataLoaderService {
     }
     
     private void addMessageToChat(Chat chat, int messageId, Student sender, String text, LocalDateTime timestamp) {
-        Message message = Message.builder()
-                .messageId(messageId)
-                .text(text)
-                .sender(sender)
-                .timestamp(timestamp)
-                .build();
-        
+        Student peer = sender.getId().equals(chat.getStudentA().getId()) ? chat.getStudentB() : chat.getStudentA();
+        Message message = theKnowledgeBay.sendMessage(sender.getId(), peer.getId(), text);
+        if (message == null) throw new IllegalStateException("Fixture message was not saved.");
         chat.getMessages().addLast(message);
     }
 } 

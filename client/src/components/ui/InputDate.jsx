@@ -26,7 +26,7 @@ const InputDate = ({ id, label, value, onChange }) => {
     return (
         <DatePicker.Root className={"mt-6 w-full"}
                          closeOnSelect
-                         positioning={{ placement: "right-start" }}
+                         positioning={{ placement: "right-start", flip: ["top-start", "bottom-start"], strategy: "fixed" }}
                          value={selectedDate ? [selectedDate] : []}
                          onValueChange={handleDateChange}
         >

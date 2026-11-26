@@ -11,16 +11,16 @@ import ContentModal from '../../components/profile/modals/ContentModal';
 import RequestsModal from '../../components/profile/modals/RequestsModal';
 import NavigationBar from '../../components/layout/NavigationBar';
 import profileLogo from '../../assets/img/profileLogo.png';
-// Import profile API services
-import { getProfileByUserId, getFollowStatus, followUser, unfollowUser } from '../../services/profileApi';
+import { getProfileByUserId, followUser, unfollowUser } from '../../services/profileApi';
 
-const UserProfileViewPage = () => {
-  const { userId } = useParams();
+const UserProfileView = ({ userId }) => {
   const [activeModal, setActiveModal] = useState(null);
   const [userData, setUserData] = useState(null);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [followError, setFollowError] = useState(null);
+  const [followPending, setFollowPending] = useState(false);
+  const isFollowing = userData?.currentUserFollowing === true;
 
   // Datos mock para los modales (en una implementación real vendrían de la API)
   const mockFollowers = [];
@@ -30,55 +30,47 @@ const UserProfileViewPage = () => {
   const mockRequests = [];
 
   useEffect(() => {
-    // Cargar perfil del usuario y estado de seguimiento
+    let active = true;
     (async () => {
       try {
-        setLoading(true);
-        // Obtener datos del perfil
-        const profileResponse = await getProfileByUserId(userId);
-        
-        // Obtener estado de seguimiento
-        const followStatusResponse = await getFollowStatus(userId);
-        
-        if (profileResponse.success) {
-          setUserData(profileResponse.data);
-          
-          if (followStatusResponse.success) {
-            setIsFollowing(followStatusResponse.data.isFollowing);
-          }
-        } else {
-          console.error('Error fetching profile:', profileResponse.message);
-          setError('No se pudo cargar el perfil: ' + profileResponse.message);
+        const result = await getProfileByUserId(userId);
+        if (!result.success || !result.data) {
+          throw new Error(result.message || 'No se pudo cargar el perfil.');
         }
-      } catch (err) {
-        console.error('Error en la carga del perfil:', err.message);
-        setError('No se pudo cargar el perfil. Por favor, intenta de nuevo más tarde.');
+        if (active) setUserData(result.data);
+      } catch (error) {
+        if (active) setError(error.message);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
-  }, [userId]); // Se volverá a ejecutar si cambia el userId
+    return () => { active = false; };
+  }, [userId]);
 
   const openModal = (modalName) => setActiveModal(modalName);
   const closeModal = () => setActiveModal(null);
   
   const handleFollowToggle = async () => {
+    if (followPending) return;
+    setFollowPending(true);
+    setFollowError(null);
     try {
-      if (isFollowing) {
-        // Si ya lo sigue, dejar de seguir
-        const response = await unfollowUser(userId);
-        if (response.success) {
-          setIsFollowing(false);
-        }
-      } else {
-        // Si no lo sigue, seguir
-        const response = await followUser(userId);
-        if (response.success) {
-          setIsFollowing(true);
-        }
+      const mutate = isFollowing ? unfollowUser : followUser;
+      const result = await mutate(userId);
+      if (!result.success || result.data?.success !== true) {
+        throw new Error(result.message || result.data?.message || 'No se pudo actualizar el seguimiento.');
       }
+
+      const profile = await getProfileByUserId(userId);
+      if (!profile.success || !profile.data) {
+        setUserData((previous) => ({ ...previous, currentUserFollowing: !isFollowing }));
+        throw new Error('El seguimiento cambió, pero no se pudieron actualizar las estadísticas.');
+      }
+      setUserData(profile.data);
     } catch (error) {
-      console.error('Error al cambiar estado de seguimiento:', error);
+      setFollowError(error.message || 'No se pudo actualizar el seguimiento.');
+    } finally {
+      setFollowPending(false);
     }
   };
   
@@ -149,7 +141,7 @@ const UserProfileViewPage = () => {
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const year = date.getFullYear();
       return `${day}/${month}/${year}`;
-    } catch (e) {
+    } catch {
       // Si hay algún error, devolver la cadena original
       return isoDate;
     }
@@ -193,8 +185,10 @@ const UserProfileViewPage = () => {
         <ProfileActions 
           isOwnProfile={false}
           isFollowing={isFollowing}
+          followPending={followPending}
           onFollowToggle={handleFollowToggle}
         />
+        {followError && <div role="alert" className="mb-4 text-red-600"><p>{followError}</p></div>}
 
         {/* Modales */}
         {activeModal === 'followers' && <FollowersModal followers={mockFollowers} onClose={closeModal} />}
@@ -214,4 +208,7 @@ const UserProfileViewPage = () => {
   );
 };
 
-export default UserProfileViewPage;
+export default function UserProfileViewPage() {
+  const { userId } = useParams();
+  return <UserProfileView key={userId} userId={userId} />;
+}
