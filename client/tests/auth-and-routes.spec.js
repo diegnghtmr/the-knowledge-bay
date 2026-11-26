@@ -51,8 +51,17 @@ async function withPage(width, run) {
     // Chromium can drop cold module requests on host interface changes.
     // Serve Vite's real responses through Playwright's HTTP client; the
     // separately run production audit still uses the browser network.
-    const response = await route.fetch({ maxRedirects: 0 });
-    try { await route.fulfill({ response }); } finally { await response.dispose(); }
+    // Requests still in flight when the page closes reject; ignore those so
+    // they cannot surface as unhandled errors after the test has finished.
+    let response;
+    try {
+      response = await route.fetch({ maxRedirects: 0 });
+      await route.fulfill({ response });
+    } catch (error) {
+      if (!page.isClosed()) throw error;
+    } finally {
+      await response?.dispose().catch(() => {});
+    }
   });
   page.setDefaultTimeout(7000);
   const diagnostics = [];
@@ -79,6 +88,7 @@ async function withPage(width, run) {
     })).catch(() => null));
     throw error;
   } finally {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
     await page.close();
   }
 }
