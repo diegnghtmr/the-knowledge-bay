@@ -1,65 +1,68 @@
 package co.edu.uniquindio.theknowledgebay.core.repository;
 
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.converter.ListToDoublyLinkedList;
-import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 
 @Repository
 public class InterestRepository {
+    private static final RowMapper<Interest> INTEREST = (row, number) ->
+            new Interest(row.getString("id_interest"), row.getString("name"));
+    private final JdbcTemplate jdbc;
 
-    private final JdbcTemplate jdbcTemplate;
-
-    public InterestRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    // RowMapper para convertir filas de la base de datos en objetos Interest
-    private static class InterestRowMapper implements RowMapper<Interest> {
-        @Override
-        public Interest mapRow(ResultSet rs, int rowNum) throws SQLException {
-            Interest interest = new Interest();
-            interest.setIdInterest(String.valueOf(rs.getInt("id_interest")));
-            interest.setName(rs.getString("name"));
-            return interest;
-        }
+    public InterestRepository(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
     public List<Interest> findAll() {
-        String sql = "SELECT * FROM interests";
-        return jdbcTemplate.query(sql, new InterestRowMapper());
+        return jdbc.query("SELECT * FROM interests ORDER BY id_interest", INTEREST);
     }
 
     public Interest findById(int id) {
-        String sql = "SELECT * FROM interests WHERE id_interest = ?";
-        return jdbcTemplate.queryForObject(sql, new InterestRowMapper(), id);
+        return findById(Integer.toString(id));
+    }
+
+    public Interest findById(String id) {
+        if (!StudentRepository.isCanonicalId(id)) return null;
+        return jdbc.query("SELECT * FROM interests WHERE id_interest = ?", INTEREST, id)
+                .stream().findFirst().orElse(null);
     }
 
     public List<Interest> findByName(String name) {
-        String sql = "SELECT * FROM interests WHERE name = ?";
-        return jdbcTemplate.query(sql, new InterestRowMapper(), name);
+        if (name == null || name.isBlank()) return List.of();
+        String key = normalizeName(name);
+        return findAll().stream().filter(interest -> normalizeName(interest.getName()).equals(key)).toList();
+    }
+
+    public static String normalizeName(String name) {
+        return name.strip().toLowerCase(Locale.ROOT);
     }
 
     public int save(Interest interest) {
-        String sql = "INSERT INTO interests(name) VALUES(?)";
-        return jdbcTemplate.update(sql, interest.getName());
+        String name = interest.getName().strip();
+        if (StudentRepository.isCanonicalId(interest.getIdInterest())) {
+            jdbc.update("INSERT INTO interests(id_interest, name) VALUES (?, ?)", interest.getIdInterest(), name);
+        } else {
+            interest.setIdInterest(jdbc.queryForObject("INSERT INTO interests(name) VALUES (?) RETURNING id_interest",
+                    String.class, name));
+        }
+        interest.setName(name);
+        return 1;
     }
 
-    // Actualizar un interés existente
     public int update(Interest interest) {
-        String sql = "UPDATE interests SET name = ? WHERE id_interest = ?";
-        return jdbcTemplate.update(sql, interest.getName(), interest.getIdInterest());
+        return jdbc.update("UPDATE interests SET name = ? WHERE id_interest = ?", interest.getName(), interest.getIdInterest());
     }
 
-    // Eliminar por ID
     public int deleteById(int id) {
-        String sql = "DELETE FROM interests WHERE id_interest = ?";
-        return jdbcTemplate.update(sql, id);
+        return deleteById(Integer.toString(id));
+    }
+
+    public int deleteById(String id) {
+        return jdbc.update("DELETE FROM interests WHERE id_interest = ?", id);
     }
 }

@@ -3,15 +3,13 @@ package co.edu.uniquindio.theknowledgebay;
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
-import org.springframework.boot.test.context.SpringBootTest;
-@SpringBootTest
 
 class InterestTest {
 
     @Test
     void testAllArgsConstructor() {
         Interest interest = new Interest("4", "Matemáticas");
-        assertEquals(1, interest.getIdInterest());
+        assertEquals("4", interest.getIdInterest());
         assertEquals("Matemáticas", interest.getName());
     }
 
@@ -21,7 +19,7 @@ class InterestTest {
         interest.setIdInterest("1");
         interest.setName("Programación");
 
-        assertEquals(2, interest.getIdInterest());
+        assertEquals("1", interest.getIdInterest());
         assertEquals("Programación", interest.getName());
     }
 
@@ -32,7 +30,7 @@ class InterestTest {
                 .name("Física")
                 .build();
 
-        assertEquals(3, interest.getIdInterest());
+        assertEquals("3", interest.getIdInterest());
         assertEquals("Física", interest.getName());
     }
 
