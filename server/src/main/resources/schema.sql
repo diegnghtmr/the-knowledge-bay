@@ -179,3 +179,26 @@ CREATE INDEX IF NOT EXISTS help_by_topic ON help_request_topics(interest_id, req
 CREATE INDEX IF NOT EXISTS followers_by_student ON follows(followed_id, follower_id);
 CREATE INDEX IF NOT EXISTS content_by_author ON contents(author_id);
 CREATE INDEX IF NOT EXISTS help_by_student ON help_requests(student_id);
+
+CREATE TABLE IF NOT EXISTS bearer_sessions (
+    token_hash TEXT NOT NULL PRIMARY KEY CHECK (length(token_hash) = 64),
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('STUDENT', 'MODERATOR')),
+    expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS session_expiry ON bearer_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS sessions_by_actor ON bearer_sessions(role, user_id);
+
+CREATE TABLE IF NOT EXISTS moderator_session_identity (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    user_id TEXT NOT NULL,
+    password_hash TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS content_attachments (
+    content_id INTEGER PRIMARY KEY REFERENCES contents(content_id) ON DELETE CASCADE,
+    storage_key TEXT NOT NULL UNIQUE,
+    file_name TEXT NOT NULL,
+    media_type TEXT NOT NULL CHECK (media_type IN ('application/pdf', 'image/png', 'image/jpeg')),
+    file_size INTEGER NOT NULL CHECK (file_size BETWEEN 1 AND 5242880)
+);

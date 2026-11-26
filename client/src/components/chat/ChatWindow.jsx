@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
-import { getChatMessages, sendMessage } from '../../services/chatApi';
+import { getChatMessages, sendMessage, watchChatMessages } from '../../services/chatApi';
+
+function mergeMessages(previous, incoming) {
+  const byId = new Map(previous.map(message => [message.id, message]));
+  for (const message of incoming) byId.set(message.id, message);
+  if (byId.size === previous.length) return previous;
+  return [...byId.values()].sort((a, b) => a.id - b.id);
+}
 
 const ChatWindow = ({ contact, onBack, onMessageSent }) => {
   const [messages, setMessages] = useState([]);
@@ -15,14 +22,32 @@ const ChatWindow = ({ contact, onBack, onMessageSent }) => {
   useEffect(() => {
     // Each contact selection has its own request generation and component key.
     let current = true;
-    getChatMessages(contact.id).then(history => {
-      if (current) setMessages([...new Map(history.map(message => [message.id, message])).values()]);
-    }).catch(() => {
-      if (current) setHistoryError(true);
-    }).finally(() => {
-      if (current) setLoading(false);
-    });
-    return () => { current = false; };
+    let pending = false;
+    let queued = false;
+    let hasHistory = false;
+    const sync = () => {
+      if (!current) return;
+      if (pending) { queued = true; return; }
+      pending = true;
+      getChatMessages(contact.id).then(history => {
+        if (!current) return;
+        hasHistory = true;
+        setHistoryError(false);
+        setMessages(previous => mergeMessages(previous, history));
+      }).catch(() => {
+        if (current && !hasHistory) setHistoryError(true);
+      }).finally(() => {
+        if (!current) return;
+        setLoading(false);
+        pending = false;
+        if (queued) { queued = false; sync(); }
+      });
+    };
+    sync();
+    const close = watchChatMessages(contact.id, message => {
+      if (current) setMessages(previous => mergeMessages(previous, [message]));
+    }, sync);
+    return () => { current = false; close(); };
   }, [contact.id]);
 
   useEffect(() => {
@@ -37,7 +62,7 @@ const ChatWindow = ({ contact, onBack, onMessageSent }) => {
     setSendError(false);
     try {
       const saved = await sendMessage(contact.id, text);
-      setMessages(previous => previous.some(message => message.id === saved.id) ? previous : [...previous, saved]);
+      setMessages(previous => mergeMessages(previous, [saved]));
       onMessageSent(saved);
       return true;
     } catch {

@@ -86,8 +86,8 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<AuthResponseDTO> logout(
-            @RequestAttribute(BearerSessionFilter.SESSION_TOKEN_ATTRIBUTE) String sessionToken) {
-        sessions.revoke(sessionToken);
+            @RequestAttribute(BearerSessionFilter.SESSION_KEY_ATTRIBUTE) SessionManager.SessionKey sessionKey) {
+        sessions.revoke(sessionKey);
         return ResponseEntity.ok(new AuthResponseDTO(true, "Logged out successfully."));
     }
 

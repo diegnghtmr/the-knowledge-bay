@@ -6,6 +6,7 @@ public class MarkdownPostDTO extends PostDTO {
     private String videoUrl;
     private String linkUrl;
     private String fileName;
+    private boolean hasAttachment;
     private String actualContentType;
 
     public MarkdownPostDTO() {
@@ -63,6 +64,10 @@ public class MarkdownPostDTO extends PostDTO {
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }
+
+    public boolean isHasAttachment() { return hasAttachment; }
+
+    public void setHasAttachment(boolean hasAttachment) { this.hasAttachment = hasAttachment; }
 
     public String getActualContentType() {
         return actualContentType;

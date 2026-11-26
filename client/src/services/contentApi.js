@@ -10,6 +10,8 @@ export const contentApi = {
     if (file) formData.append('file', file);
     return requireData(apiClient.post(CONTENT, formData), 'Error al crear el contenido');
   },
+  downloadAttachment: (id) => requireData(apiClient.get(`${path(id)}/attachment`, { responseType: 'blob' }),
+    'No se pudo descargar el archivo.'),
   getAllContent: () => requireData(apiClient.get(CONTENT), 'Error al obtener el contenido'),
   getContentById: (id) => requireData(apiClient.get(path(id)), 'Error al obtener el contenido'),
   likeContent: (id) => requireData(apiClient.post(`${path(id)}/like`), 'Error al dar like'),

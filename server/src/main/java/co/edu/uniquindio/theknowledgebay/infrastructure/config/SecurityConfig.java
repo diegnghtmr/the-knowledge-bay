@@ -1,6 +1,7 @@
 package co.edu.uniquindio.theknowledgebay.infrastructure.config;
 
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -50,7 +51,10 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, error) -> response.setStatus(HttpServletResponse.SC_FORBIDDEN)))
                 .addFilterBefore(new BearerSessionFilter(sessions), AnonymousAuthenticationFilter.class)
                 .authorizeHttpRequests(routes -> {
-                    routes.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                    routes.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
+                            .requestMatchers(request -> request.getDispatcherType() == DispatcherType.ERROR
+                                    && "/error".equals(request.getServletPath())).permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                             .requestMatchers(HttpMethod.GET, SPA_PATHS).permitAll()
                             .requestMatchers(HttpMethod.HEAD, SPA_PATHS).permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/interests").permitAll()
@@ -67,13 +71,13 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.GET, "/api/test-data/chats-status").hasRole("MODERATOR");
                     }
                     routes.requestMatchers(HttpMethod.GET, "/api/auth/session", "/api/profile", "/api/profile/{userId}",
-                                    "/api/users", "/api/users/search", "/api/content", "/api/content/{id}",
+                                    "/api/users", "/api/users/search", "/api/content", "/api/content/{id}", "/api/content/{id}/attachment",
                                     "/api/help-requests", "/api/help-requests/{id}", "/api/studygroups", "/api/studygroups/{id}",
                                     "/api/studygroups/{id}/posts").authenticated()
                             .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                             .requestMatchers(HttpMethod.PUT, "/api/profile").authenticated()
                             .requestMatchers(HttpMethod.GET, "/api/chat/contacts", "/api/chat/contacts/search",
-                                    "/api/chat/{contactId}/messages").hasRole("STUDENT")
+                                    "/api/chat/{contactId}/messages", "/api/chat/{contactId}/events").hasRole("STUDENT")
                             .requestMatchers(HttpMethod.POST, "/api/chat/send", "/api/content", "/api/content/{id}/like",
                                     "/api/help-requests", "/api/users/{id}/follow", "/api/studygroups/{groupId}/posts/{postId}/like",
                                     "/api/studygroups/{groupId}/posts/{postId}/comments").hasRole("STUDENT")

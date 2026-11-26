@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -18,6 +18,11 @@ const topics = ['Sistemas de prueba', 'Matemáticas de prueba'];
 const title = 'Bitácora de prueba: café & álgebra';
 const editedTitle = `${title} — editado`;
 const carryTitle = 'Muestra de prueba para comprobar el reinicio';
+const attachmentTitle = 'Recurso descargable de auditoría';
+const attachment = {
+  name: 'auditoría.png', mimeType: 'image/png',
+  buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC3sAAAAASUVORK5CYII=', 'base64'),
+};
 const helpText = 'Prueba de solicitud: ¿cómo comparar árboles?';
 const biography = 'Biografía sintética para validar la aplicación académica.';
 const opener = 'Inicio de conversación sintética';
@@ -50,6 +55,7 @@ async function launch(directory, port = 0) {
       SPRING_CONFIG_LOCATION: 'optional:classpath:/application.properties',
       SPRING_DATASOURCE_URL: `jdbc:sqlite:${join(directory, 'audit.sqlite')}?foreign_keys=on&busy_timeout=5000`,
       SPRING_SQL_INIT_MODE: 'always', SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
+      APP_UPLOADS_DIR: join(directory, 'uploads'),
       MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email, MODERATOR_PASSWORD: moderator.password,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -189,9 +195,13 @@ async function register(page, who, lastName) {
   assert.equal((await requested).status(), 200, 'UI registration');
 }
 
-async function publish(page, publicationTitle, burst = false) {
+async function publish(page, publicationTitle, burst = false, file) {
   await go(page, '/publish-content', 'Publicar Nuevo Contenido');
   await placeholder(page, 'Ej: Introducción a React Hooks').fill(publicationTitle);
+  if (file) {
+    await page.locator('#contentType').selectOption('RESOURCE');
+    await page.locator('input[type=file]').setInputFiles(file);
+  }
   await page.locator('textarea').first().fill('Lectura de prueba con ñ, & < 50 y signos ¿?.');
   await placeholder(page, 'Buscar tema principal').fill(topics[0]);
   await text(page, topics[0]).click();
@@ -411,21 +421,38 @@ async function run(browser, http, directory) {
   assert.equal(visible[0].authorId, initial.userId);
   confirm('rapid publication sends and persists exactly one post');
 
+  await publish(firstPage, attachmentTitle, false, attachment);
+  const [resource] = (await global(initial.token)).filter(entry => entry.title === attachmentTitle);
+  assert.ok(resource?.hasAttachment);
   const port = Number(new URL(origin).port);
   await stop();
   origin = await launch(directory, port);
-  await api(http, '/api/auth/session', { token: initial.token, status: 401 });
-  const signed = await login(firstPage, author);
-  const recipient = await login(secondPage, peer);
-  const mod = await login(adminPage, moderator);
-  assert.equal(signed.userId, initial.userId);
-  assert.equal(recipient.userId, other.userId);
+  const signed = initial;
+  const recipient = other;
+  const mod = initialAdmin;
+  for (const actor of [signed, recipient, mod]) {
+    assert.equal((await api(http, '/api/auth/session', { token: actor.token })).userId, actor.userId);
+  }
   await go(firstPage, '/profile');
   await text(firstPage, 'Biografía').waitFor();
   assert.equal(await text(firstPage, biography).count(), 1, 'the signup biography survives restart and appears in the profile');
-  assert.deepEqual((await global(signed.token)).map((entry) => entry.contentId), [id]);
+  assert.deepEqual((await global(signed.token)).map((entry) => entry.contentId), [id, resource.contentId]);
   assert.equal((await api(http, '/api/interests')).length, topics.length);
-  confirm('packaged restart preserves student IDs, posts and interests but revokes old sessions');
+  confirm('packaged restart preserves the original bearer sessions, student IDs, posts and interests');
+
+  const attachmentPath = `/api/content/${resource.contentId}/attachment`;
+  await api(http, attachmentPath, { status: 401 });
+  await openGroup(secondPage, attachmentTitle);
+  const downloadedFile = secondPage.waitForEvent('download');
+  const downloadResponse = response(secondPage, attachmentPath, 'GET');
+  await button(secondPage, `Descargar ${attachment.name}`).click();
+  const [downloaded, served] = await Promise.all([downloadedFile, downloadResponse]);
+  assert.equal(downloaded.suggestedFilename(), attachment.name);
+  assert.equal(served.status(), 200);
+  assert.equal(served.headers()['x-content-type-options'], 'nosniff');
+  assert.match(served.headers()['content-disposition'], /^attachment;/i);
+  assert.deepEqual(await readFile(await downloaded.path()), attachment.buffer);
+  confirm('resource uploaded in the picker downloads the same bytes through the group after restart');
 
   await publish(firstPage, carryTitle);
   await help(firstPage);
@@ -460,19 +487,28 @@ async function run(browser, http, directory) {
     await go(firstPage, '/chat', 'No se encontraron contactos');
     await shot(firstPage, '16-student-chat');
   }
+  const sourceStream = response(firstPage, `/api/chat/${recipient.userId}/events`, 'GET');
   const field = await chat(firstPage, peer.username);
   await send(firstPage, field, opener);
+  const targetStream = response(secondPage, `/api/chat/${signed.userId}/events`, 'GET');
   const incoming = await chat(secondPage, author.username);
+  for (const stream of await Promise.all([sourceStream, targetStream])) {
+    assert.equal(stream.status(), 200);
+    assert.match(stream.headers()['content-type'], /^text\/event-stream/);
+    assert.equal(new URL(stream.url()).search, '');
+    assert.ok((await stream.request().allHeaders()).authorization?.startsWith('Bearer '));
+  }
   await secondPage.getByRole('log', { name: 'Mensajes' }).getByText(opener, { exact: true }).waitFor();
   if (shots) {
     await api(http, '/api/affinity-graph/refresh', { method: 'POST', token: mod.token });
     await visualMatrix(browser, recipient.userId);
   }
-  await send(secondPage, incoming, 'Respuesta sintética de auditoría');
-  await firstPage.reload();
-  await chat(firstPage, peer.username);
-  await firstPage.getByRole('log', { name: 'Mensajes' }).getByText('Respuesta sintética de auditoría', { exact: true }).waitFor();
-  confirm('new peer discovered and messaged through the real chat search endpoint');
+  const reply = 'Respuesta sintética de auditoría';
+  await send(secondPage, incoming, reply);
+  for (const page of [firstPage, secondPage]) {
+    await browserExpect(page.getByRole('log', { name: 'Mensajes' }).getByText(reply, { exact: true })).toHaveCount(1);
+  }
+  confirm('two students discover each other and the open chat receives a live message once without reload');
 
   assert.equal((await secondPage.reload()).status(), 200);
   await secondPage.getByPlaceholder('Buscar conversaciones').waitFor();

@@ -135,6 +135,32 @@ test('distinct IDs with identical text both render before and after reload', asy
   assert.deepEqual(persisted.map(value => value.id), [1, 2]);
 });
 
+test('live events use the bearer header and reconnect without duplicating history or events', async t => {
+  const first = message(2, 'En vivo', '102');
+  const second = message(3, 'Después de reconectar', '102');
+  const headers = [];
+  let calls = 0;
+  const event = value => `event: message\r\ndata: ${JSON.stringify(value)}\r\n\r\n`;
+  const page = await openChat(t, {
+    '/api/chat/contacts': () => ({ json: contacts }),
+    '/api/chat/102/messages': () => ({ json: [message(1, 'Historial', '102')] }),
+    '/api/chat/102/events': (request, url) => {
+      headers.push([request.headers().authorization, url.search]);
+      calls += 1;
+      return {
+        contentType: 'text/event-stream',
+        body: `event: ready\r\ndata: {}\r\n\r\n${event(first)}${calls > 1 ? event(second) : ''}`,
+      };
+    },
+  });
+  const log = page.getByRole('log', { name: 'Mensajes' });
+  await browserExpect(log.getByText('Historial', { exact: true })).toHaveCount(1);
+  await browserExpect(log.getByText(second.text, { exact: true })).toHaveCount(1);
+  await browserExpect(log.getByText(first.text, { exact: true })).toHaveCount(1);
+  assert.ok(headers.length >= 2);
+  assert.ok(headers.every(([authorization, query]) => authorization === 'Bearer synthetic-chat-fixture' && query === ''));
+});
+
 test('a late history response never replaces the currently selected thread', { timeout: 15_000 }, async t => {
   const oldRequest = Promise.withResolvers();
   const deliverOld = Promise.withResolvers();

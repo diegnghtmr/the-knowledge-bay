@@ -4,24 +4,31 @@ import co.edu.uniquindio.theknowledgebay.api.dto.MessageDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.SendMessageRequestDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.Message;
 import co.edu.uniquindio.theknowledgebay.core.service.ChatService;
+import co.edu.uniquindio.theknowledgebay.core.service.SessionManager.SessionKey;
+import co.edu.uniquindio.theknowledgebay.infrastructure.config.BearerSessionFilter;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/chat")
 public class ChatController {
     private final ChatService chatService;
+    private final ChatEvents events;
 
     @PostMapping("/send")
     public ResponseEntity<?> sendMessage(@AuthenticationPrincipal AuthenticatedUser actor,
@@ -31,7 +38,19 @@ public class ChatController {
 
         Message message = chatService.sendMessage(actor.id(), request.getReceiverId(), request.getText());
         if (message == null) return ResponseEntity.badRequest().body("Error sending message");
-        return ResponseEntity.ok(toDto(message));
+        var saved = toDto(message);
+        events.publish(actor.id(), request.getReceiverId(), saved);
+        return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping(value = "/{contactId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<StreamingResponseBody> stream(@AuthenticationPrincipal AuthenticatedUser actor, @PathVariable String contactId,
+                                             @RequestAttribute(BearerSessionFilter.SESSION_KEY_ATTRIBUTE) SessionKey session) {
+        var denied = accessDenied(actor);
+        if (denied != null) return ResponseEntity.status(denied.getStatusCode()).build();
+        if (!chatService.canChatWith(actor.id(), contactId)) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(MediaType.TEXT_EVENT_STREAM)
+                .header("X-Accel-Buffering", "no").body(output -> events.stream(actor, contactId, session, output));
     }
 
     @GetMapping("/{contactId}/messages")

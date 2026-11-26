@@ -22,6 +22,12 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -42,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = {ImportController.class, TestDataController.class},
         properties = "spring.config.location=optional:classpath:/unit-a-isolated.properties")
-@Import({SecurityConfig.class, SessionManager.class, WebConfig.class, CorsWebConfig.class})
+@Import({SecurityConfig.class, SessionManager.class, WebConfig.class, CorsWebConfig.class, SessionContractTest.SessionDatabase.class})
 @ActiveProfiles("dev")
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @ExtendWith(OutputCaptureExtension.class)
@@ -94,6 +100,18 @@ class SessionContractTest {
     private MockHttpServletRequestBuilder importStudent(String password) throws Exception {
         return post("/api/import").contentType("application/json").content(json.writeValueAsBytes(Map.of("students", List.of(
                 Map.of("id", "103", "username", "imported", "email", "imported@example.test", "password", password)))));
+    }
+
+    @TestConfiguration
+    static class SessionDatabase {
+        @Bean JdbcTemplate sessionJdbc() throws Exception {
+            // The MVC slice excludes datasource auto-configuration.
+            var file = java.nio.file.Files.createTempFile("kb-dev-session-", ".sqlite").toFile();
+            file.deleteOnExit();
+            var source = new DriverManagerDataSource("jdbc:sqlite:" + file);
+            new ResourceDatabasePopulator(new ClassPathResource("schema.sql")).execute(source);
+            return new JdbcTemplate(source);
+        }
     }
 
     private MockHttpServletRequestBuilder as(Role role, MockHttpServletRequestBuilder request) {

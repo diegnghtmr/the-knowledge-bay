@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { ThumbsUp, MessageCircle, Link as LinkIcon, HelpCircle, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import ReactPlayer from 'react-player/lazy';
+import AttachmentDownload from '../content-publication/AttachmentDownload';
 
 const PostItem = ({
   post,
@@ -74,7 +75,9 @@ const PostItem = ({
                     {post.title || post.fileName}
                   </h3>
                 </div>
-                {post.fileName && <p className="text-sm text-blue-700 mb-1">Archivo: {post.fileName}</p>}
+                {post.hasAttachment ? (
+                  <AttachmentDownload contentId={post.id.slice('content-'.length)} fileName={post.fileName} />
+                ) : post.fileName && <p className="text-sm text-blue-700 mb-1">Archivo: {post.fileName}</p>}
                 {post.content && (
                     <div className="prose prose-sm sm:prose-base max-w-none break-words text-blue-800 group-hover:text-blue-900">
                         <ReactMarkdown>{post.content}</ReactMarkdown>

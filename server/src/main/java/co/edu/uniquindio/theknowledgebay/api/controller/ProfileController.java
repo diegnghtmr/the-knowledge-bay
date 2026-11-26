@@ -71,9 +71,10 @@ public class ProfileController {
                 .biography(dto.getBiography())
                 .build();
         try {
-            theKnowledgeBay.updateUser(caller.id(), patch, dto.getInterests());
-            if (dto.getPassword() != null && user instanceof Student student) {
-                authService.changeStudentPassword(student, dto.getPassword());
+            if (dto.getPassword() != null) {
+                authService.changeStudentPassword(patch, dto.getInterests(), dto.getPassword());
+            } else {
+                theKnowledgeBay.updateUser(caller.id(), patch, dto.getInterests());
             }
             return getProfile(caller);
         } catch (RuntimeException e) {

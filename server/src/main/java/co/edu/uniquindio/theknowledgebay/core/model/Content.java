@@ -24,6 +24,7 @@ public class Content implements Comparable<Content> {
     private int likeCount;
     private DoublyLinkedList<Comment> comments;
     private LocalDate date;
+    private Attachment attachment;
 
     public void addLike(Student s) {
         // TODO: implement functionality

@@ -21,6 +21,10 @@ public class ChatService {
         return theKnowledgeBay.sendMessage(actorId, peerId, text);
     }
 
+    public boolean canChatWith(String actorId, String peerId) {
+        return !actorId.equals(peerId) && theKnowledgeBay.getUserById(peerId) instanceof Student;
+    }
+
     public List<Message> getMessagesForChat(String actorId, String peerId) {
         var messages = theKnowledgeBay.getMessagesForChat(actorId, peerId);
         return StreamSupport.stream(messages.spliterator(), false).toList();
