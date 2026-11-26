@@ -4,9 +4,7 @@ export const contentApi = {
   // Crear nuevo contenido
   createContent: async (contentData, file = null) => {
     try {
-      // Try both localStorage and sessionStorage to find the token
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      console.log('Token encontrado en storage:', token);
+      const token = sessionStorage.getItem('token');
       
       // Crear FormData para manejar archivos
       const formData = new FormData();
@@ -30,10 +28,10 @@ export const contentApi = {
         body: formData,
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Error al crear el contenido');
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data) {
+        throw new Error(data?.message || 'Error al crear el contenido');
       }
 
       return data;

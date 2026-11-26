@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import useFormState from './FormState';
 import TextField from '../help/TextField';
 import AutoResizingTextarea from '../common/AutoResizingTextarea';
-import SelectField from '../help/SelectField';
 import FormButtons from '../help/FormButtons';
 import InterestSelector from './InterestSelector';
-import { FileUp, Video, Tags, Type, Heading1, AlertCircle, Link, MessageSquare } from 'lucide-react';
+import { FileUp, Video, Tags, Type, Heading1, Link, MessageSquare } from 'lucide-react';
 
 const contentTypes = [
   { value: 'ARTICLE', label: 'Artículo' },
@@ -131,6 +130,8 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
     // Validación del cuerpo (siempre requerido)
     if (config.showBodyField && !values.body.trim()) {
       errors.body = 'La descripción del contenido es obligatoria.';
+    } else if (values.body.length > 20000) {
+      errors.body = 'La descripción no puede exceder los 20000 caracteres.';
     }
     
     // Validaciones específicas por tipo
@@ -158,10 +159,11 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
   }
 
   function isValidHttpUrl(string) {
+    if (string.length > 2048) return false;
     let url;
     try {
       url = new URL(string);
-    } catch (_) {
+    } catch {
       return false;  
     }
     return url.protocol === "http:" || url.protocol === "https:";
@@ -175,13 +177,8 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  async function onSubmit() {
-    console.log('Publicando contenido:', { ...values, topics: selectedInterests });
-    const submissionData = {
-      ...values,
-      topics: selectedInterests,
-    };
-    onPublish(submissionData);
+  function onSubmit(formValues) {
+    return onPublish({ ...formValues, topics: selectedInterests });
   }
 
   const handleFileChange = (e) => {
@@ -240,7 +237,7 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
     if (config.specialFieldType !== 'file' && values.file) {
       setFieldValue('file', null);
     }
-  }, [values.contentType, setFieldValue]);
+  }, [values.contentType, values.linkUrl, values.videoUrl, values.file, setFieldValue]);
 
   // Obtener configuración del tipo actual
   const currentConfig = getContentConfig(values.contentType);
@@ -399,10 +396,8 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
       )}
 
       <FormButtons
-        submitText="Publicar Contenido"
-        cancelText="Cancelar"
         onCancel={handleCancel}
-        isSubmitting={isSubmitting}
+        submitDisabled={isSubmitting}
       />
     </form>
   );
