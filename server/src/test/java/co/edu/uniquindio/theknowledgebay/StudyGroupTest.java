@@ -5,12 +5,11 @@ import co.edu.uniquindio.theknowledgebay.core.model.StudyGroup;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+
 import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-@SpringBootTest
 class StudyGroupTest {
 
     private StudyGroup studyGroup;
@@ -34,7 +33,7 @@ class StudyGroupTest {
 
     @Test
     void testAttributes() {
-        assertEquals(101, studyGroup.getId());
+        assertEquals("101", studyGroup.getId());
         assertEquals("Grupo de Álgebra", studyGroup.getName());
         assertEquals("Matemáticas", studyGroup.getTopic().getName());
         assertFalse(studyGroup.isHidden());
@@ -50,8 +49,6 @@ class StudyGroupTest {
         studyGroup.getName();
     }
 
-
-
     @Test
     void testBuilder() {
         StudyGroup group = StudyGroup.builder()
@@ -59,13 +56,13 @@ class StudyGroupTest {
                 .name("Física Cuántica")
                 .members(new DoublyLinkedList<>())
                 .topic(Interest.builder().idInterest("2").name("Física").build())
-                .date(LocalDate.now())
+                .date(LocalDate.of(2024, 5, 15))
                 .hidden(true)
                 .associatedContents(new DoublyLinkedList<>())
                 .associatedHelpRequests(new DoublyLinkedList<>())
                 .build();
 
-        assertEquals(200, group.getId());
+        assertEquals("200", group.getId());
         assertEquals("Física Cuántica", group.getName());
         assertTrue(group.isHidden());
     }
