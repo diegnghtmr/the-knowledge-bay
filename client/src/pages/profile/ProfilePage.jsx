@@ -177,6 +177,8 @@ const ProfilePage = () => {
       const transformedContent = content.map(item => ({
         id: item.contentId,
         title: item.title,
+        hasAttachment: item.hasAttachment,
+        fileName: item.fileName,
         contentType: item.contentType,
         date: item.date,
         likeCount: item.likeCount

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { get as httpGet } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -14,21 +15,28 @@ const viewports = [{ width: 1440, height: 900 }, { width: 390, height: 844 }];
 const moderator = { email: 'audit-moderator@example.invalid', password: randomUUID() };
 const author = { email: 'audit-student@example.invalid', password: randomUUID(), username: 'auditstudent' };
 const peer = { email: 'audit-peer@example.invalid', password: randomUUID(), username: 'auditpeer' };
+const capProbe = { email: 'audit-cap@example.invalid', password: randomUUID(), username: 'auditcap' };
 const topics = ['Sistemas de prueba', 'Matemáticas de prueba'];
 const title = 'Bitácora de prueba: café & álgebra';
 const editedTitle = `${title} — editado`;
 const carryTitle = 'Muestra de prueba para comprobar el reinicio';
+const attachmentTitle = 'Recurso descargable de auditoría';
+const attachment = {
+  name: 'auditoría.png', mimeType: 'image/png',
+  buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC3sAAAAASUVORK5CYII=', 'base64'),
+};
 const helpText = 'Prueba de solicitud: ¿cómo comparar árboles?';
 const biography = 'Biografía sintética para validar la aplicación académica.';
 const opener = 'Inicio de conversación sintética';
 const repeated = 'Mensaje de auditoría idéntico';
-const secrets = [moderator.password, author.password, peer.password];
+const secrets = [moderator.password, author.password, peer.password, capProbe.password];
 const confirmed = [];
 const captures = [];
 const captureFailures = [];
 const pageErrors = [];
 let origin;
 let server;
+let tomcatHeaderException = false;
 
 function safe(message) {
   return secrets.reduce((value, key) => value.replaceAll(key, '[redacted]'), String(message))
@@ -50,15 +58,19 @@ async function launch(directory, port = 0) {
       SPRING_CONFIG_LOCATION: 'optional:classpath:/application.properties',
       SPRING_DATASOURCE_URL: `jdbc:sqlite:${join(directory, 'audit.sqlite')}?foreign_keys=on&busy_timeout=5000`,
       SPRING_SQL_INIT_MODE: 'always', SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
+      APP_UPLOADS_DIR: join(directory, 'uploads'),
       MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email, MODERATOR_PASSWORD: moderator.password,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   server = child;
   let output = '';
-  child.stderr.resume();
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (part) => { output = (output + part).slice(-16_384); });
+  const captureOutput = (part) => {
+    output = (output + part).slice(-16_384);
+    tomcatHeaderException ||= /org\.apache\.tomcat\.util\.http\.MimeHeaders|ArrayIndexOutOfBoundsException/.test(output);
+  };
+  child.stdout.setEncoding('utf8').on('data', captureOutput);
+  child.stderr.setEncoding('utf8').on('data', captureOutput);
   await once(child, 'spawn');
   for (let n = 0; n < 200; n += 1) {
     if (child.exitCode !== null) throw new Error(`Packaged server exited ${child.exitCode} before readiness`);
@@ -93,6 +105,48 @@ async function api(http, path, { method = 'GET', data, token, status = 200 } = {
   });
   assert.equal(result.status(), status, `${method} ${path} HTTP status`);
   return status === 200 ? result.json() : null;
+}
+
+// A fresh HTTP/1.1 connection for each attempt; do not retry missing responses.
+function probeStreamStatus(path, token) {
+  return new Promise((resolve, reject) => {
+    const probe = httpGet(origin + path, {
+      agent: false, headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream', 'Accept-Encoding': 'identity' },
+    }, (response) => {
+      response.on('error', reject);
+      response.on('end', () => resolve([response.statusCode, response.headers['retry-after']]));
+      response.resume();
+    });
+    probe.setTimeout(3000, () => probe.destroy(new Error('Over-cap HTTP probe timed out')));
+    probe.on('error', reject);
+  });
+}
+
+async function verifyStreamCap(http, contactId) {
+  await api(http, '/api/auth/register', { method: 'POST', data: capProbe });
+  const actor = await api(http, '/api/auth/login', { method: 'POST', data: capProbe });
+  const path = `/api/chat/${contactId}/events`;
+  const open = new AbortController();
+  try {
+    for (let i = 0; i < 3; i += 1) {
+      const response = await fetch(origin + path, {
+        headers: { Authorization: `Bearer ${actor.token}`, Accept: 'text/event-stream' },
+        signal: AbortSignal.any([open.signal, AbortSignal.timeout(30_000)]),
+      });
+      assert.equal(response.status, 200, `admitted stream ${i + 1}`);
+      const reader = response.body.getReader();
+      try {
+        assert.match(new TextDecoder().decode((await reader.read()).value), /^event:ready/);
+      } finally {
+        reader.releaseLock();
+      }
+    }
+    for (let i = 0; i < 20; i += 1) {
+      assert.deepEqual(await probeStreamStatus(path, actor.token), [429, '2'], `over-cap stream ${i + 1}`);
+    }
+  } finally {
+    open.abort();
+  }
 }
 
 async function open(browser, viewport) {
@@ -189,9 +243,13 @@ async function register(page, who, lastName) {
   assert.equal((await requested).status(), 200, 'UI registration');
 }
 
-async function publish(page, publicationTitle, burst = false) {
+async function publish(page, publicationTitle, burst = false, file) {
   await go(page, '/publish-content', 'Publicar Nuevo Contenido');
   await placeholder(page, 'Ej: Introducción a React Hooks').fill(publicationTitle);
+  if (file) {
+    await page.locator('#contentType').selectOption('RESOURCE');
+    await page.locator('input[type=file]').setInputFiles(file);
+  }
   await page.locator('textarea').first().fill('Lectura de prueba con ñ, & < 50 y signos ¿?.');
   await placeholder(page, 'Buscar tema principal').fill(topics[0]);
   await text(page, topics[0]).click();
@@ -411,21 +469,55 @@ async function run(browser, http, directory) {
   assert.equal(visible[0].authorId, initial.userId);
   confirm('rapid publication sends and persists exactly one post');
 
+  await publish(firstPage, attachmentTitle, false, attachment);
+  const [resource] = (await global(initial.token)).filter(entry => entry.title === attachmentTitle);
+  assert.ok(resource?.hasAttachment);
   const port = Number(new URL(origin).port);
   await stop();
   origin = await launch(directory, port);
-  await api(http, '/api/auth/session', { token: initial.token, status: 401 });
-  const signed = await login(firstPage, author);
-  const recipient = await login(secondPage, peer);
-  const mod = await login(adminPage, moderator);
-  assert.equal(signed.userId, initial.userId);
-  assert.equal(recipient.userId, other.userId);
+  const signed = initial;
+  const recipient = other;
+  const mod = initialAdmin;
+  for (const actor of [signed, recipient, mod]) {
+    assert.equal((await api(http, '/api/auth/session', { token: actor.token })).userId, actor.userId);
+  }
   await go(firstPage, '/profile');
   await text(firstPage, 'Biografía').waitFor();
   assert.equal(await text(firstPage, biography).count(), 1, 'the signup biography survives restart and appears in the profile');
-  assert.deepEqual((await global(signed.token)).map((entry) => entry.contentId), [id]);
+  assert.deepEqual((await global(signed.token)).map((entry) => entry.contentId), [id, resource.contentId]);
   assert.equal((await api(http, '/api/interests')).length, topics.length);
-  confirm('packaged restart preserves student IDs, posts and interests but revokes old sessions');
+  confirm('packaged restart preserves the original bearer sessions, student IDs, posts and interests');
+
+  const attachmentPath = `/api/content/${resource.contentId}/attachment`;
+  await api(http, attachmentPath, { status: 401 });
+  await openGroup(secondPage, attachmentTitle);
+  // The anchor is detached, so its click does not bubble to the document.
+  await secondPage.evaluate(() => {
+    const originalClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.protocol === 'blob:' && this.hasAttribute('download')) {
+        window.__kbAuditDownloadName = this.getAttribute('download');
+        HTMLAnchorElement.prototype.click = originalClick;
+      }
+      return originalClick.call(this);
+    };
+  });
+  const downloadedFile = secondPage.waitForEvent('download');
+  const downloadResponse = response(secondPage, attachmentPath, 'GET');
+  await button(secondPage, `Descargar ${attachment.name}`).click();
+  const [downloaded, served] = await Promise.all([downloadedFile, downloadResponse]);
+  assert.equal(served.status(), 200);
+  const headers = served.headers();
+  assert.equal(headers['content-type'], attachment.mimeType);
+  assert.equal(headers['x-content-type-options'], 'nosniff');
+  const disposition = headers['content-disposition'];
+  assert.match(disposition, /^attachment;/i);
+  const filename = /;\s*filename\*=UTF-8''([^;]+)(?:;|$)/i.exec(disposition);
+  assert.ok(filename, 'attachment should advertise an RFC 5987 UTF-8 filename');
+  assert.equal(decodeURIComponent(filename[1]), attachment.name);
+  assert.equal(await secondPage.evaluate(() => window.__kbAuditDownloadName), attachment.name);
+  assert.deepEqual(await readFile(await downloaded.path()), attachment.buffer);
+  confirm('resource uploaded in the picker downloads the same bytes through the group after restart');
 
   await publish(firstPage, carryTitle);
   await help(firstPage);
@@ -460,19 +552,28 @@ async function run(browser, http, directory) {
     await go(firstPage, '/chat', 'No se encontraron contactos');
     await shot(firstPage, '16-student-chat');
   }
+  const sourceStream = response(firstPage, `/api/chat/${recipient.userId}/events`, 'GET');
   const field = await chat(firstPage, peer.username);
   await send(firstPage, field, opener);
+  const targetStream = response(secondPage, `/api/chat/${signed.userId}/events`, 'GET');
   const incoming = await chat(secondPage, author.username);
+  for (const stream of await Promise.all([sourceStream, targetStream])) {
+    assert.equal(stream.status(), 200);
+    assert.match(stream.headers()['content-type'], /^text\/event-stream/);
+    assert.equal(new URL(stream.url()).search, '');
+    assert.ok((await stream.request().allHeaders()).authorization?.startsWith('Bearer '));
+  }
   await secondPage.getByRole('log', { name: 'Mensajes' }).getByText(opener, { exact: true }).waitFor();
   if (shots) {
     await api(http, '/api/affinity-graph/refresh', { method: 'POST', token: mod.token });
     await visualMatrix(browser, recipient.userId);
   }
-  await send(secondPage, incoming, 'Respuesta sintética de auditoría');
-  await firstPage.reload();
-  await chat(firstPage, peer.username);
-  await firstPage.getByRole('log', { name: 'Mensajes' }).getByText('Respuesta sintética de auditoría', { exact: true }).waitFor();
-  confirm('new peer discovered and messaged through the real chat search endpoint');
+  const reply = 'Respuesta sintética de auditoría';
+  await send(secondPage, incoming, reply);
+  for (const page of [firstPage, secondPage]) {
+    await browserExpect(page.getByRole('log', { name: 'Mensajes' }).getByText(reply, { exact: true })).toHaveCount(1);
+  }
+  confirm('two students discover each other and the open chat receives a live message once without reload');
 
   assert.equal((await secondPage.reload()).status(), 200);
   await secondPage.getByPlaceholder('Buscar conversaciones').waitFor();
@@ -533,6 +634,9 @@ async function run(browser, http, directory) {
   await firstPage.waitForURL('**/landing');
   await api(http, '/api/auth/session', { token: signed.token, status: 401 });
   confirm('logout revokes the bearer token and guards a reloaded deep route');
+  await verifyStreamCap(http, recipient.userId);
+  assert.equal(tomcatHeaderException, false, 'Tomcat must not log a response-header exception');
+  confirm('20/20 fresh over-cap HTTP connections returned 429 with Retry-After and no Tomcat header exception');
   assert.deepEqual(pageErrors, [], 'browser page errors');
 }
 

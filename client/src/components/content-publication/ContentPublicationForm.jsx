@@ -62,36 +62,8 @@ const getContentConfig = (contentType) => {
   return configs[contentType] || configs.ARTICLE;
 };
 
-// Límites de archivo prudentes
-const FILE_LIMITS = {
-  maxSize: 10 * 1024 * 1024, // 10MB en bytes
-  allowedTypes: [
-    // Documentos
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    // Texto
-    'text/plain',
-    'text/csv',
-    // Imágenes
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    // Código/comprimidos
-    'application/zip',
-    'application/x-rar-compressed',
-    'application/json',
-    'text/javascript',
-    'text/css',
-    'text/html'
-  ]
-};
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ACCEPTED_FILES = '.pdf,.png,.jpg,.jpeg';
 
 const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
   const initialState = {
@@ -189,15 +161,17 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
     }
 
     // Validar tamaño
-    if (file.size > FILE_LIMITS.maxSize) {
-      alert(`El archivo es demasiado grande. Tamaño máximo permitido: ${formatFileSize(FILE_LIMITS.maxSize)}`);
+    if (file.size > MAX_FILE_SIZE) {
+      alert('El archivo supera el límite de 5 MiB.');
+      setFieldValue('file', null);
       e.target.value = '';
       return;
     }
 
-    // Validar tipo
-    if (!FILE_LIMITS.allowedTypes.includes(file.type)) {
-      alert('Tipo de archivo no permitido. Tipos aceptados: PDF, Word, Excel, PowerPoint, imágenes, texto, código y archivos comprimidos.');
+    // The server validates the actual bytes. The picker only filters extensions.
+    if (!/\.(pdf|png|jpe?g)$/i.test(file.name)) {
+      alert('Solo se permiten archivos PDF, PNG o JPEG.');
+      setFieldValue('file', null);
       e.target.value = '';
       return;
     }
@@ -377,7 +351,7 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
               type="file"
               onChange={handleFileChange}
               onBlur={handleBlur}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.zip,.rar,.json,.js,.css,.html"
+              accept={ACCEPTED_FILES}
               className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--coastal-sea)] file:text-white hover:file:bg-opacity-90"
             />
           </div>
@@ -389,8 +363,7 @@ const ContentPublicationForm = ({ onPublish, onCancel, initialData = {} }) => {
             </div>
           )}
           <p className="text-xs text-gray-500">
-            Tamaño máximo: {formatFileSize(FILE_LIMITS.maxSize)}. 
-            Tipos permitidos: PDF, Word, Excel, PowerPoint, imágenes, texto, código y archivos comprimidos.
+            Tamaño máximo: 5 MiB. Tipos permitidos: PDF, PNG y JPEG.
           </p>
         </div>
       )}

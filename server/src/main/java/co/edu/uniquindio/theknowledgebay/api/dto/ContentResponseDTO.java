@@ -26,4 +26,5 @@ public class ContentResponseDTO {
     private String linkUrl;
     private String videoUrl;
     private String fileName;
+    private boolean hasAttachment;
 }

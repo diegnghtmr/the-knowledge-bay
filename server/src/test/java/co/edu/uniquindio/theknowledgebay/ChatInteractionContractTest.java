@@ -1,6 +1,7 @@
 package co.edu.uniquindio.theknowledgebay;
 
 import co.edu.uniquindio.theknowledgebay.api.controller.ChatController;
+import co.edu.uniquindio.theknowledgebay.api.controller.ChatEvents;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.service.ChatService;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
@@ -67,7 +68,8 @@ class ChatInteractionContractTest {
 
     private void open() {
         application = PersistenceContractTest.open(scratch.resolve("chat.db"));
-        application.register(ChatService.class, ChatController.class);
+        application.registerBean(ObjectMapper.class, () -> JSON);
+        application.register(ChatService.class, ChatController.class, ChatEvents.class);
         // Resolve the same principal as the production controller without depending on unit A's filter.
         mvc = MockMvcBuilders.standaloneSetup(application.getBean(ChatController.class))
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver()).build();

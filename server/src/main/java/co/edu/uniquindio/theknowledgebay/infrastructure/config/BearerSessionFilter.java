@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 public final class BearerSessionFilter extends OncePerRequestFilter {
-    public static final String SESSION_TOKEN_ATTRIBUTE = "knowledgeBay.bearerSessionToken";
+    public static final String SESSION_KEY_ATTRIBUTE = "knowledgeBay.sessionKey";
     private static final String PREFIX = "Bearer ";
     private final SessionManager sessions;
 
@@ -34,13 +34,13 @@ public final class BearerSessionFilter extends OncePerRequestFilter {
             String header = headers.nextElement();
             if (!headers.hasMoreElements() && header.length() == PREFIX.length() + 36
                     && header.regionMatches(true, 0, PREFIX, 0, PREFIX.length())) {
-                String token = header.substring(PREFIX.length());
-                sessions.authenticate(token).ifPresent(user -> {
+                var key = SessionManager.keyFor(header.substring(PREFIX.length()));
+                sessions.authenticate(key).ifPresent(user -> {
                     var context = SecurityContextHolder.createEmptyContext();
                     context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(user, null,
                             List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name()))));
                     SecurityContextHolder.setContext(context);
-                    request.setAttribute(SESSION_TOKEN_ATTRIBUTE, token);
+                    request.setAttribute(SESSION_KEY_ATTRIBUTE, key);
                 });
             }
         }
@@ -49,7 +49,7 @@ public final class BearerSessionFilter extends OncePerRequestFilter {
         try (var ignored = MDC.putCloseable(ApiFailure.REQUEST_ID, requestId)) {
             chain.doFilter(request, response);
         } finally {
-            request.removeAttribute(SESSION_TOKEN_ATTRIBUTE);
+            request.removeAttribute(SESSION_KEY_ATTRIBUTE);
         }
     }
 }

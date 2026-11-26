@@ -8,6 +8,7 @@ import co.edu.uniquindio.theknowledgebay.api.dto.HelpRequestResponseDTO;
 import co.edu.uniquindio.theknowledgebay.api.dto.ProfileResponseDTO;
 import co.edu.uniquindio.theknowledgebay.core.model.*;
 import co.edu.uniquindio.theknowledgebay.core.service.AuthService;
+import co.edu.uniquindio.theknowledgebay.core.service.AttachmentStorage;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.lists.DoublyLinkedList;
 import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.nodes.DoublyLinkedNode;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class AdminController {
 
     private final TheKnowledgeBay theKnowledgeBay;
     private final AuthService authService;
+    private final AttachmentStorage uploads;
 
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getAdminStats() {
@@ -166,7 +168,8 @@ public class AdminController {
                             .date(content.getDate())
                             .linkUrl(linkUrl)
                             .videoUrl(videoUrl)
-                            .fileName(fileName)
+                            .fileName(content.getAttachment() == null ? fileName : content.getAttachment().fileName())
+                            .hasAttachment(content.getAttachment() != null)
                             .build();
                     
                     response.add(dto);
@@ -245,9 +248,11 @@ public class AdminController {
     @DeleteMapping("/content/{id}")
     public ResponseEntity<AuthResponseDTO> deleteContent(@PathVariable int id) {
         try {
-            boolean deleted = theKnowledgeBay.deleteContent(id);
-            
+            var published = theKnowledgeBay.getContentById(id);
+            boolean deleted = published != null && theKnowledgeBay.deleteContent(id);
+
             if (deleted) {
+                uploads.discard(published.getAttachment());
                 return ResponseEntity.ok(new AuthResponseDTO(true, "Contenido eliminado exitosamente."));
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)

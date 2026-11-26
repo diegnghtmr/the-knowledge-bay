@@ -28,6 +28,17 @@ apiClient.interceptors.response.use(
   },
 );
 
+export async function openAuthenticatedStream(path, signal) {
+  const token = getSessionToken();
+  if (!token) return null;
+  const response = await fetch(apiClient.getUri({ url: path }), {
+    headers: { Accept: 'text/event-stream', Authorization: `Bearer ${token}` },
+    signal, cache: 'no-store', credentials: 'omit', redirect: 'error',
+  });
+  if (response.status === 401) clearSession(token);
+  return response;
+}
+
 export async function requireData(request, fallback) {
   const response = await request;
   if (!response.success) throw new Error(response.data?.message || fallback);

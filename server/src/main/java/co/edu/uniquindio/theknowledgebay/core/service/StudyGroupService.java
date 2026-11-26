@@ -98,6 +98,10 @@ public class StudyGroupService {
             }
             dto.setContent(body.toString());
         }
+        if (content.getAttachment() != null) {
+            dto.setHasAttachment(true);
+            dto.setFileName(content.getAttachment().fileName());
+        }
         dto.setComments(commentsDto(content.getComments()));
         if (content.getLikedBy() != null) {
             dto.setLikedByMe(StreamSupport.stream(content.getLikedBy().spliterator(), false)

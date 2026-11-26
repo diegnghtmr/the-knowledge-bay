@@ -101,6 +101,11 @@ public class DomainRepository {
                 content.getDate().toString());
         saveContentType(id, content.getContentType());
         saveTopics(PostKind.CONTENT, id, content.getTopics());
+        var attachment = content.getAttachment();
+        if (attachment != null) {
+            jdbc.update("INSERT INTO content_attachments(content_id, storage_key, file_name, media_type, file_size) VALUES (?, ?, ?, ?, ?)",
+                    id, attachment.storageKey(), attachment.fileName(), attachment.mediaType(), attachment.size());
+        }
         return id;
     }
 
@@ -146,6 +151,7 @@ public class DomainRepository {
         jdbc.update("DELETE FROM " + kind.groupPosts + " WHERE " + kind.id + " = ?", id);
         jdbc.update("DELETE FROM " + kind.topics + " WHERE " + kind.id + " = ?", id);
         if (kind == PostKind.CONTENT) {
+            jdbc.update("DELETE FROM content_attachments WHERE content_id = ?", id);
             jdbc.update("DELETE FROM content_likes WHERE content_id = ?", id);
             jdbc.update("DELETE FROM content_types WHERE content_id = ?", id);
         }
@@ -250,14 +256,19 @@ public class DomainRepository {
     private Map<Integer, Content> loadContents(Selection selection, Profiles profiles) {
         var contents = new LinkedHashMap<Integer, Content>();
         jdbc.query("""
-                SELECT p.*, ct.type FROM (SELECT * FROM contents %s) p
-                LEFT JOIN content_types ct ON ct.content_id = p.content_id ORDER BY p.content_id
+                SELECT p.*, ct.type, a.storage_key, a.file_name, a.media_type, a.file_size FROM (SELECT * FROM contents %s) p
+                LEFT JOIN content_types ct ON ct.content_id = p.content_id
+                LEFT JOIN content_attachments a ON a.content_id = p.content_id ORDER BY p.content_id
                 """.formatted(selection.sql), row -> {
             int id = row.getInt("content_id");
             String type = row.getString("type");
+            String key = row.getString("storage_key");
+            var attachment = key == null ? null : new Attachment(key, row.getString("file_name"),
+                    row.getString("media_type"), row.getLong("file_size"));
             contents.put(id, Content.builder().contentId(id).title(row.getString("title"))
                     .author(profiles.get(row.getString("author_id"))).information(row.getString("information"))
                     .date(LocalDate.parse(row.getString("date"))).contentType(type == null ? ContentType.ARTICLE : ContentType.valueOf(type))
+                    .attachment(attachment)
                     .topics(new DoublyLinkedList<>()).likedBy(new DoublyLinkedList<>()).comments(new DoublyLinkedList<>()).build());
         }, selection.args);
         if (contents.isEmpty()) return contents;

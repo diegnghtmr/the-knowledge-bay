@@ -52,7 +52,8 @@ class ContentGroupContractTest {
         var topic = new Interest("11", "Álgebra");
         domain.addInterest(topic);
         PersistenceContractTest.createStudent(application, STUDENT.id(), "alfa", PersistenceContractTest.topics(topic));
-        mvc = standaloneSetup(new ContentController(domain))
+        mvc = standaloneSetup(new ContentController(domain, new co.edu.uniquindio.theknowledgebay.core.service.AttachmentStorage(
+                scratch.resolve("uploads").toString(), new org.springframework.core.env.StandardEnvironment())))
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
     }
