@@ -1,0 +1,30 @@
+# Configuration
+
+Set the server variables in the process environment before starting the JAR. See the [quick start](../README.md#quick-start) for a working local configuration and [deployment](deployment.md) for the packaged topology.
+
+## Server environment
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `MODERATOR_NAME` | Display name of the deployment moderator. | Override for your deployment |
+| `MODERATOR_EMAIL` | Sign-in email of the deployment moderator. | Override for your deployment |
+| `MODERATOR_PASSWORD` | Private password of the deployment moderator; it must be nonblank and at most 72 UTF-8 bytes. Supply it through the process environment, not a command-line argument or a file committed to Git. | Override for your deployment |
+| `SPRING_DATASOURCE_URL` | SQLite JDBC URL. Choose a file on a persistent, writable volume to keep data across restarts. | `jdbc:sqlite:mydb.sqlite` |
+| `SPRING_SQL_INIT_MODE` | Apply the idempotent schema at startup on both new and existing databases. Keep it set to `always`. | `always` |
+| `APP_SESSIONS_TTL` | Positive lifetime for newly issued sessions, expressed as a duration. The expiry is recorded at login. | `PT8H` |
+| `APP_CHAT_MAX_STREAMS_PER_USER` | Positive concurrent SSE connection limit per student across all tokens and tabs; Spring property `app.chat.max-streams-per-user`. | `3` |
+| `APP_UPLOADS_DIR` | Private directory for uploaded bytes. Use a persistent, writable volume outside all static resource roots. | `./data/uploads`, relative to the server working directory |
+| `APP_CORS_ALLOWED_ORIGINS` | Comma-separated browser origins allowed to make cross-origin requests. A same-origin deployment needs no additional origin. | `http://localhost:3000,http://127.0.0.1:3000` |
+| `SPRING_PROFILES_ACTIVE` | Import and synthetic fixture routes require `dev` and moderator authorization. Either `prod` or `production` disables them, even if `dev` is also active. Seed only a disposable development database. | No explicit profile |
+| `SPRING_WEB_RESOURCES_STATIC_LOCATIONS` | Directory from which Spring serves the built SPA. For the packaged deployment, supply an absolute `file:` URI with a trailing slash. | `classpath:/invalid-path/` (no packaged SPA served by default) |
+| `SERVER_ADDRESS` | Server bind address. Use `127.0.0.1` for local development and smoke tests. | Not set by the app |
+| `SERVER_PORT` | Server HTTP port. The development proxy targets `127.0.0.1:8080`. | `8080` |
+
+Changing the configured moderator email or password revokes moderator sessions on the next startup. See [persistence](persistence.md) for the session and storage model.
+
+## Client and browser tests
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | Optional API origin used by the client build. Leave it unset for the Vite development proxy and the same-origin Spring deployment. | Unset; the client uses same-origin `/api` |
+| `CHROMIUM_PATH` | Path to a specific local Chromium executable for browser tests and the packaged audit. | Unset; the audit uses Playwright's Chromium, and client tests can also use `/usr/bin/chromium` locally |
