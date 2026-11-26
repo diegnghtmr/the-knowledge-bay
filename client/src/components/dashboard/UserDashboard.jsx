@@ -1,4 +1,5 @@
 import React from 'react';
+import TableErrorBoundary from './TableErrorBoundary';
 import UserTable from './users/UserTable';
 
 /**
@@ -14,7 +15,9 @@ const UserDashboard = () => {
       </div>
 
       {/* Tabla de usuarios */}
-      <UserTable />
+      <TableErrorBoundary>
+        <UserTable />
+      </TableErrorBoundary>
     </div>
   );
 };

@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, User, ThumbsUp } from 'lucide-react';
 import Table from '../common/Table';
 import TableActions from '../common/TableActions';
-import { getAllContentAdmin, deleteContent } from '../../services/adminApi';
+import { getAllContentAdmin, deleteContent, updateContentAdmin } from '../../services/adminApi';
+
+const contentId = (content) => content.contentId ?? content.id;
 
 const ContentTable = () => {
   const [contents, setContents] = useState([]);
-  const [filtered, setFiltered] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [editError, setEditError] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Cargar contenido desde la API
   useEffect(() => {
@@ -21,7 +24,6 @@ const ContentTable = () => {
         setError(null);
         const data = await getAllContentAdmin();
         setContents(data);
-        setFiltered(data);
       } catch (err) {
         setError('Error al cargar los contenidos');
         console.error('Error fetching content:', err);
@@ -33,49 +35,48 @@ const ContentTable = () => {
     fetchContent();
   }, []);
 
-  // Filtrar contenidos cuando cambian los criterios de búsqueda
-  useEffect(() => {
-    const term = searchTerm.toLowerCase();
-    let result = [...contents];
-    
-    // Filtrar por término de búsqueda
-    if (term) {
-      result = result.filter(content => 
-        content.title.toLowerCase().includes(term) ||
-        content.information.toLowerCase().includes(term) ||
-        content.authorUsername.toLowerCase().includes(term)
-      );
-    }
-    
-    setFiltered(result);
-  }, [searchTerm, contents]);
+  const term = searchTerm.toLowerCase();
+  const filtered = term ? contents.filter((content) => (
+    [content.title, content.information, content.authorUsername]
+      .some((value) => typeof value === 'string' && value.toLowerCase().includes(term))
+  )) : contents;
 
-  // Iniciar edición de un contenido
   const startEdit = (content) => {
-    setEditingId(content.contentId || content.id);
-    setForm({ ...content });
+    if (isSaving) return;
+    setEditingId(contentId(content));
+    setEditError(null);
+    setForm({ title: content.title ?? '', information: content.information ?? '' });
   };
 
-  // Cancelar edición
   const cancelEdit = () => {
+    if (isSaving) return;
+    setEditError(null);
     setEditingId(null);
   };
 
-  // Confirmar edición
-  const confirmEdit = () => {
-    const updatedContents = contents.map(content => 
-      (content.contentId || content.id) === editingId ? { ...form } : content
-    );
-    setContents(updatedContents);
-    setEditingId(null);
+  const confirmEdit = async () => {
+    if (isSaving || editingId == null) return;
+    setIsSaving(true);
+    setEditError(null);
+    try {
+      await updateContentAdmin(editingId, form);
+      setContents((previous) => previous.map((content) => (
+        contentId(content) === editingId ? { ...content, ...form } : content
+      )));
+      setEditingId(null);
+    } catch (error) {
+      setEditError(error.message || 'Error al actualizar el contenido.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Eliminar contenido
   const removeContent = async (id) => {
-    if (window.confirm('¿Está seguro que desea eliminar este contenido?')) {
+    if (!isSaving && window.confirm('¿Está seguro que desea eliminar este contenido?')) {
       try {
         await deleteContent(id);
-        setContents(contents.filter(content => content.contentId !== id));
+        setContents((previous) => previous.filter((content) => contentId(content) !== id));
       } catch (error) {
         alert('Error al eliminar el contenido');
         console.error('Error deleting content:', error);
@@ -98,9 +99,9 @@ const ContentTable = () => {
   ];
 
   // Renderizar celdas según la columna
-  const renderCell = (row, column, index) => {
+  const renderCell = (row, column) => {
     const { key } = column;
-    const isRowEditing = editingId === (row.contentId || row.id);
+    const isRowEditing = editingId !== null && editingId === contentId(row);
 
     switch (key) {
       case 'title':
@@ -108,11 +109,14 @@ const ContentTable = () => {
           <div className="space-y-2">
             <input
               value={form.title}
+              readOnly={isSaving}
+              aria-label="Título"
               onChange={(e) => handleChange('title', e.target.value)}
               className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
             />
             <input
               value={form.information}
+              readOnly={isSaving}
               onChange={(e) => handleChange('information', e.target.value)}
               placeholder="Información"
               className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
@@ -130,8 +134,9 @@ const ContentTable = () => {
       case 'author':
         return isRowEditing ? (
           <input
-            value={form.authorUsername}
-            onChange={(e) => handleChange('authorUsername', e.target.value)}
+            value={row.authorUsername ?? ''}
+            readOnly
+            aria-label="Autor"
             className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           />
         ) : (
@@ -146,8 +151,9 @@ const ContentTable = () => {
           <input
             type="number"
             min="0"
-            value={form.likes}
-            onChange={(e) => handleChange('likes', parseInt(e.target.value))}
+            value={row.likeCount ?? row.likes ?? 0}
+            readOnly
+            aria-label="Likes"
             className="w-full rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           />
         ) : (
@@ -161,8 +167,9 @@ const ContentTable = () => {
         return isRowEditing ? (
           <input
             type="date"
-            value={form.date}
-            onChange={(e) => handleChange('date', e.target.value)}
+            value={row.date ?? ''}
+            readOnly
+            aria-label="Fecha"
             className="rounded-md border border-[var(--coastal-sea)]/30 px-2 py-1 focus:border-[var(--coastal-sea)] focus:outline-none focus:ring-1 focus:ring-[var(--coastal-sea)]"
           />
         ) : (
@@ -177,7 +184,7 @@ const ContentTable = () => {
           <TableActions 
             isEditing={isRowEditing}
             onEdit={() => startEdit(row)}
-            onDelete={() => removeContent(row.contentId || row.id)}
+            onDelete={() => removeContent(contentId(row))}
             onConfirm={confirmEdit}
             onCancel={cancelEdit}
           />
@@ -221,6 +228,7 @@ const ContentTable = () => {
         </div>
       </div>
       
+      {editError && <div role="alert" className="mb-4 text-red-600"><p>{editError}</p></div>}
       {/* Tabla */}
       <Table
         columns={columns}
