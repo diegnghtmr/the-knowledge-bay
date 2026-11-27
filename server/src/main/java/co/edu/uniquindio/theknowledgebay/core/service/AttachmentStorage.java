@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
@@ -28,6 +29,7 @@ import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 @Service
 @Slf4j
 public class AttachmentStorage {
+    public static final String DEFAULT_DIRECTORY = "./data/uploads";
     public static final int MAX_SIZE = 5 * 1024 * 1024;
     public static final String SIZE_ERROR = "El archivo supera el límite de 5 MiB.";
     private static final String TYPE_ERROR = "Solo se permiten archivos PDF, PNG o JPEG.";
@@ -37,7 +39,8 @@ public class AttachmentStorage {
     private final Path configuredRoot;
     private final List<Path> staticRoots;
 
-    public AttachmentStorage(@Value("${app.uploads.dir:./data/uploads}") String directory, Environment environment) {
+    public AttachmentStorage(@Value("${app.uploads.dir:" + DEFAULT_DIRECTORY + "}") String directory, Environment environment) {
+        if (directory.isBlank()) throw new InvalidPathException(directory, "The attachments directory is blank");
         configuredRoot = Path.of(directory).toAbsolutePath().normalize();
         var locations = environment.getProperty("spring.web.resources.static-locations", DEFAULT_STATIC_LOCATIONS);
         staticRoots = Arrays.stream(locations.split(",")).map(String::strip).flatMap(AttachmentStorage::fileRoot).toList();
@@ -102,9 +105,21 @@ public class AttachmentStorage {
         return root().resolve(key);
     }
 
+    public void verifyWritableDirectory() throws IOException {
+        var probe = root(false).resolve(".kb-upload-probe-" + UUID.randomUUID());
+        try (var channel = Files.newByteChannel(probe, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE,
+                StandardOpenOption.DELETE_ON_CLOSE)) {
+            // Opening a file tests the mounted filesystem with this process's effective permissions.
+        }
+    }
+
     private Path root() throws IOException {
+        return root(true);
+    }
+
+    private Path root(boolean create) throws IOException {
         checkOutsideStatic(configuredRoot);
-        var actual = Files.createDirectories(configuredRoot).toRealPath();
+        var actual = (create ? Files.createDirectories(configuredRoot) : configuredRoot).toRealPath();
         checkOutsideStatic(actual);
         return actual;
     }

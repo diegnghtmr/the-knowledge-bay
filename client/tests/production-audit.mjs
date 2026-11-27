@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { get as httpGet } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -77,7 +77,7 @@ function confirm(name) {
   console.log(`PASS ${name}`);
 }
 
-function spawnServer(directory, port, password) {
+function spawnServer(directory, port, password, uploads = join(directory, 'uploads')) {
   const java = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, 'bin', 'java') : 'java';
   return spawn(java, ['-jar', join(root, 'server/target/server-0.0.1-SNAPSHOT.jar')], {
     cwd: directory,
@@ -88,7 +88,7 @@ function spawnServer(directory, port, password) {
       SPRING_DATASOURCE_URL: database.url, SPRING_DATASOURCE_USERNAME: database.username,
       SPRING_DATASOURCE_PASSWORD: database.password,
       SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
-      APP_UPLOADS_DIR: join(directory, 'uploads'),
+      APP_UPLOADS_DIR: uploads,
       MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email,
       ...(password === undefined ? {} : { MODERATOR_PASSWORD: password }),
     },
@@ -96,12 +96,10 @@ function spawnServer(directory, port, password) {
   });
 }
 
-async function verifyModeratorPasswordRequired(directory) {
-  const message = 'MODERATOR_PASSWORD is required: set it to the moderator account password.';
-  const probes = [['missing', undefined], ['empty', ''], ['whitespace-only', ' \t ']];
+async function verifyStartupRejection(directory, probes, message) {
   const results = [];
-  for (const [input, password] of probes) {
-    const child = spawnServer(directory, 0, password);
+  for (const { input, password, uploads } of probes) {
+    const child = spawnServer(directory, 0, password, uploads);
     server = child;
     let stdout = '';
     let stderr = '';
@@ -120,10 +118,38 @@ async function verifyModeratorPasswordRequired(directory) {
       await stop();
     }
   }
-  assert.deepEqual(results, probes.map(([input]) => ({
+  assert.deepEqual(results, probes.map(({ input }) => ({
     input, code: 1, signal: null, stdoutIsEmpty: true, stderr: `${message}\n`, bcryptError: false,
   })));
+}
+
+async function verifyModeratorPasswordRequired(directory) {
+  const probes = [['missing', undefined], ['empty', ''], ['whitespace-only', ' \t ']];
+  await verifyStartupRejection(directory, probes.map(([input, password]) => ({ input, password })),
+    'MODERATOR_PASSWORD is required: set it to the moderator account password.');
   console.log('PASS packaged startup rejects missing, empty and whitespace-only MODERATOR_PASSWORD');
+}
+
+async function verifyAttachmentsDirectoryRequired(directory) {
+  const probes = [
+    { input: 'missing directory', uploads: join(directory, 'missing-uploads') },
+    { input: 'regular file', uploads: join(directory, 'not-a-directory') },
+    { input: 'blank path', uploads: ' \t ' },
+  ];
+  const regularFile = probes[1].uploads;
+  await writeFile(regularFile, 'untouched');
+  // POSIX permission bits cannot deny writes to root, and Windows does not enforce this mode.
+  if (process.getuid?.() > 0) {
+    const uploads = join(directory, 'read-only-uploads');
+    await mkdir(uploads, { mode: 0o555 });
+    probes.push({ input: 'unwritable directory', uploads });
+  }
+  const entries = (await readdir(directory)).sort();
+  await verifyStartupRejection(directory, probes.map((probe) => ({ ...probe, password: moderator.password })),
+    'APP_UPLOADS_DIR must point to an existing, writable attachments directory.');
+  assert.deepEqual((await readdir(directory)).sort(), entries);
+  assert.equal(await readFile(regularFile, 'utf8'), 'untouched');
+  console.log(`PASS packaged startup rejects invalid APP_UPLOADS_DIR (${probes.map(({ input }) => input).join(', ')})`);
 }
 
 async function launch(directory, port = 0) {
@@ -716,7 +742,9 @@ try {
   database = smokeDatabase();
   await schemaCommand('CREATE SCHEMA ' + database.schema);
   schemaCreated = true;
+  await mkdir(join(directory, 'uploads'));
   await verifyModeratorPasswordRequired(directory);
+  await verifyAttachmentsDirectoryRequired(directory);
   if (shots) await mkdir(shots, { recursive: true });
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
   http = await request.newContext({ timeout: 8000 });

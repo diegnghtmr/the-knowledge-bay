@@ -14,7 +14,7 @@ Set the server variables in the process environment before starting the JAR. See
 | `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password. Supply it through the process environment or your deployment's secret manager. | Required for password authentication |
 | `APP_SESSIONS_TTL` | Positive lifetime for newly issued sessions, expressed as a duration. The expiry is recorded at login. | `PT8H` |
 | `APP_CHAT_MAX_STREAMS_PER_USER` | Positive concurrent SSE connection limit per student across all instances, tokens and tabs; use the same value on every instance. Spring property `app.chat.max-streams-per-user`. | `3` |
-| `APP_UPLOADS_DIR` | Private directory for uploaded bytes. Use the same persistent, writable storage on all instances, outside all static resource roots. | `./data/uploads`, relative to the server working directory |
+| `APP_UPLOADS_DIR` | Private directory for uploaded bytes. Create it before starting the server. Use the same persistent, writable storage on all instances, outside all static resource roots. | `./data/uploads`, relative to the server working directory |
 | `APP_CORS_ALLOWED_ORIGINS` | Comma-separated browser origins allowed to make cross-origin requests. A same-origin deployment needs no additional origin. | `http://localhost:3000,http://127.0.0.1:3000` |
 | `SPRING_PROFILES_ACTIVE` | Import and synthetic fixture routes require `dev` and moderator authorization. Either `prod` or `production` disables them, even if `dev` is also active. Seed only a disposable development database. | No explicit profile |
 | `SPRING_WEB_RESOURCES_STATIC_LOCATIONS` | Directory from which Spring serves the built SPA. For the packaged deployment, supply an absolute `file:` URI with a trailing slash. | `classpath:/invalid-path/` (no packaged SPA served by default) |
@@ -22,6 +22,8 @@ Set the server variables in the process environment before starting the JAR. See
 | `SERVER_PORT` | Server HTTP port. The development proxy targets `127.0.0.1:8080`. | `8080` |
 
 There is no default `MODERATOR_PASSWORD`. If it is unset, empty, or only whitespace, the server exits with code `1` and prints `MODERATOR_PASSWORD is required: set it to the moderator account password.` before starting.
+
+If the attachments directory is missing, not writable by the server, or inside a static resource directory, the server exits with code `1` and prints `APP_UPLOADS_DIR must point to an existing, writable attachments directory.` before starting.
 
 Changing the configured moderator email or password revokes moderator sessions on the next startup. See [persistence](persistence.md) for the session and storage model.
 
