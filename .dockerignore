@@ -1,0 +1,23 @@
+# Send only build inputs, not local databases, browser artifacts, or credentials.
+**
+!client/
+!client/package.json
+!client/package-lock.json
+!client/index.html
+!client/vite.config.js
+!client/tailwind.config.js
+!client/public/
+!client/public/**
+!client/src/
+!client/src/**
+!server/
+!server/.mvn/
+!server/.mvn/wrapper/
+!server/.mvn/wrapper/maven-wrapper.properties
+!server/mvnw
+!server/pom.xml
+!server/src/
+!server/src/main/
+!server/src/main/**
+**/.env*
+**/.npmrc

@@ -59,3 +59,11 @@ jobs:
           KB_SMOKE_DB_USER: kb_ci
           KB_SMOKE_DB_PASSWORD: ci-${{ github.run_id }}
         run: node client/tests/production-audit.mjs
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the deployable image
+        run: docker build --tag knowledge-bay:ci .
