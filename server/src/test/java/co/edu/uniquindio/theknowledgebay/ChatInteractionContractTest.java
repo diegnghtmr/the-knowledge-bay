@@ -3,6 +3,7 @@ package co.edu.uniquindio.theknowledgebay;
 import co.edu.uniquindio.theknowledgebay.api.controller.ChatController;
 import co.edu.uniquindio.theknowledgebay.api.controller.ChatEvents;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
+import co.edu.uniquindio.theknowledgebay.core.repository.ChatStreamLeases;
 import co.edu.uniquindio.theknowledgebay.core.service.ChatService;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser.Role;
@@ -11,7 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -25,7 +26,6 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -49,7 +49,7 @@ class ChatInteractionContractTest {
     private static final AuthenticatedUser CY = new AuthenticatedUser("103", Role.STUDENT);
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    @TempDir Path scratch;
+    @RegisterExtension final PostgresTestSchema database = new PostgresTestSchema();
     private AnnotationConfigApplicationContext application;
     private MockMvc mvc;
 
@@ -67,9 +67,9 @@ class ChatInteractionContractTest {
     }
 
     private void open() {
-        application = PersistenceContractTest.open(scratch.resolve("chat.db"));
+        application = PersistenceContractTest.open(database);
         application.registerBean(ObjectMapper.class, () -> JSON);
-        application.register(ChatService.class, ChatController.class, ChatEvents.class);
+        application.register(ChatService.class, ChatController.class, ChatEvents.class, ChatStreamLeases.class);
         // Resolve the same principal as the production controller without depending on unit A's filter.
         mvc = MockMvcBuilders.standaloneSetup(application.getBean(ChatController.class))
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver()).build();
