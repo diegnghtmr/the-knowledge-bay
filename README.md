@@ -51,6 +51,10 @@ An explanation shared in a private conversation is hard for the next student to 
 
 ## Quick start
 
+For a local deployment, follow the [Docker Compose quick start](docs/deployment.md#docker-compose-quick-start). With `MODERATOR_PASSWORD` and `POSTGRES_PASSWORD` in the environment, run `docker compose up -d --build --wait` and open `http://127.0.0.1:8080`. PostgreSQL and attachments use separate persistent volumes.
+
+### Develop locally without Docker
+
 Use **Node.js 22**, **npm**, **JDK 21**, and an empty **PostgreSQL 17** database. The checked-in wrapper supplies Maven. For an existing installation, follow the [one-time SQLite copy instructions](docs/persistence.md#copy-an-existing-sqlite-database-once) instead of starting with an empty database.
 
 ```sh
@@ -67,6 +71,7 @@ Configure the server from the repository root. For all settings, see the [config
 | `MODERATOR_NAME`, `MODERATOR_EMAIL` | Moderator display name and sign-in email. | Override for local use |
 | `MODERATOR_PASSWORD` | Private password for the moderator account. | Required; no default |
 | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | PostgreSQL connection for the application and Flyway. | Supply your database and credentials |
+| `APP_UPLOADS_DIR` | Existing private directory writable by the server. | `./data/uploads` |
 | `SERVER_ADDRESS`, `SERVER_PORT` | Bind to loopback on the port the Vite proxy uses. | Spring Boot bind address; port `8080` |
 
 Export both passwords from a secret manager or enter them at these Bash prompts. The moderator password must be nonblank and at most 72 UTF-8 bytes; the server refuses to start without it. Do not commit either password or supply it as a command-line argument.
@@ -88,6 +93,8 @@ export SPRING_DATASOURCE_URL='jdbc:postgresql://127.0.0.1:5432/knowledge_bay'
 export SPRING_DATASOURCE_USERNAME='knowledge_bay'
 export SERVER_ADDRESS=127.0.0.1
 export SERVER_PORT=8080
+export APP_UPLOADS_DIR="$PWD/data/uploads"
+install -d -m 0700 "$APP_UPLOADS_DIR"
 java -jar server/target/server-0.0.1-SNAPSHOT.jar
 ```
 
@@ -138,9 +145,9 @@ After building the client and packaging the server, set the [packaged audit data
 node client/tests/production-audit.mjs
 ```
 
-The audit starts the JAR on loopback with the production profile, a disposable PostgreSQL schema, and generated accounts. It verifies that the JAR refuses to start without a nonblank `MODERATOR_PASSWORD`. Chromium then exercises the real API, including moderator sign-in, an existing bearer session after a restart, live messaging between two students, and an upload/download round trip across the restart. The audit stops the server and removes the disposable data; it needs no supplied moderator credentials or running development server. For portfolio comparisons against a separately stored baseline, append `--shots` to capture 40 states at both viewports in `../shots-final/`.
+The audit starts the JAR on loopback with the production profile, a disposable PostgreSQL schema, and generated accounts. It verifies that the JAR refuses to start without a nonblank `MODERATOR_PASSWORD` or an existing, writable attachments directory. Chromium then exercises the real API, including moderator sign-in, an existing bearer session after a restart, live messaging between two students, and an upload/download round trip across the restart. The audit stops the server and removes the disposable data; it needs no supplied moderator credentials or running development server. For portfolio comparisons against a separately stored baseline, append `--shots` to capture 40 states at both viewports in `../shots-final/`.
 
-The [CI workflow](.github/workflows/ci.yml) runs on pushes and pull requests. It provisions PostgreSQL 17, installs client dependencies and Chromium, runs lint, tests, and the production build, verifies and packages the server with Maven, and runs the packaged audit.
+The [CI workflow](.github/workflows/ci.yml) runs on pushes and pull requests. It provisions PostgreSQL 17, runs the client checks and build, verifies and packages the server, and runs the Chromium packaged audit. A separate job builds the Docker image without publishing it.
 
 ## Documentation
 

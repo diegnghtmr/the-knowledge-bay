@@ -1,5 +1,45 @@
 # Deployment: one origin, served by Spring
 
+## Docker Compose quick start
+
+From the repository root, use Docker with the Compose plugin. The build uses Node.js 22 and JDK 21; the resulting image contains the built client, the Spring Boot JAR, and a JRE 21. The app runs as UID/GID `10001:10001`; no separate web server or Node.js runtime is needed.
+
+Inject passwords through the process environment or enter them at these Bash prompts. Use a separate password for each account and do not commit either value.
+
+```bash
+read -r -s -p 'Moderator password: ' MODERATOR_PASSWORD
+printf '\n'
+read -r -s -p 'PostgreSQL password: ' POSTGRES_PASSWORD
+printf '\n'
+export MODERATOR_PASSWORD POSTGRES_PASSWORD
+export MODERATOR_EMAIL='moderator@example.invalid'
+export COMPOSE_DISABLE_ENV_FILE=1
+docker compose up -d --build --wait
+```
+
+Open `http://127.0.0.1:8080` and sign in with the configured moderator email and password. Set `KB_APP_PORT` to change the loopback port. PostgreSQL is reachable only on the Compose network. The app waits for PostgreSQL to accept TCP connections and reports readiness through `GET /api/interests` (no sign-in required).
+
+### Volumes and backups
+
+- `pgdata` stores the PostgreSQL 17 cluster at `/var/lib/postgresql/data`. `POSTGRES_PASSWORD` sets the initial role password; changing the environment variable alone does not rotate it in an existing cluster.
+- `uploads` stores attachment bytes at `/var/lib/knowledge-bay/uploads`. If you substitute an existing volume or a bind mount, make sure the directory exists and is writable by UID/GID `10001:10001`. Keep it outside the static client tree.
+- Restarts and `docker compose down` preserve both named volumes. **Do not use `docker compose down -v` on data you want to keep.** Quiesce writes and back up PostgreSQL and the attachments together. See [persistence](persistence.md) for backups and SQLite cutover.
+
+### Run more than one instance
+
+On one Docker engine, replicas share both the `db` service and the `uploads` volume. To try two replicas locally, give Compose two free loopback ports:
+
+```sh
+export KB_APP_PORT=18080-18081
+docker compose up -d --scale app=2 --wait
+docker compose port --index 1 app 8080
+docker compose port --index 2 app 8080
+```
+
+Compose chooses a free port from the range for each replica, so check the mapping again after a restart. For deployment, put both instances behind the same TLS reverse proxy and follow the [storage and routing requirements](#reverse-proxy-and-storage) below. A default local named volume is not shared across Docker hosts; use a shared persistent filesystem and the same database and schema for replicas on different hosts.
+
+## Run the packaged JAR without Docker
+
 Build the React application and package the Java server from the repository root. Set the [disposable PostgreSQL test connection](configuration.md#disposable-postgresql-for-tests) before running Maven verification:
 
 ```sh
@@ -14,6 +54,8 @@ From the directory containing both artifacts in the paths above, start the serve
 ```sh
 export SPRING_PROFILES_ACTIVE=prod
 export SPRING_WEB_RESOURCES_STATIC_LOCATIONS="file:$PWD/client/dist/"
+export APP_UPLOADS_DIR="$PWD/data/uploads"
+install -d -m 0700 "$APP_UPLOADS_DIR"
 java -jar server/target/server-0.0.1-SNAPSHOT.jar
 ```
 
