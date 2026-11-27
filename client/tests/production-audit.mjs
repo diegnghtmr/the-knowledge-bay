@@ -37,6 +37,35 @@ const pageErrors = [];
 let origin;
 let server;
 let tomcatHeaderException = false;
+let database;
+
+function smokeDatabase() {
+  const url = process.env.KB_SMOKE_DB_URL;
+  const username = process.env.KB_SMOKE_DB_USER;
+  const password = process.env.KB_SMOKE_DB_PASSWORD;
+  if (!url?.startsWith('jdbc:postgresql://') || !username || !password) {
+    throw new Error('Set KB_SMOKE_DB_URL, KB_SMOKE_DB_USER and KB_SMOKE_DB_PASSWORD for a disposable PostgreSQL database');
+  }
+  secrets.push(password);
+  const uri = new URL(url.slice('jdbc:'.length));
+  if (uri.username || uri.password || [...uri.searchParams.keys()].some((key) => /user|password|schema|options/i.test(key))) {
+    throw new Error('Use a bare PostgreSQL JDBC URL and supply credentials in the dedicated variables');
+  }
+  const schema = 'kb_smoke_' + randomUUID().replaceAll('-', '');
+  return { connectionUri: uri.toString(), url: url + (uri.search ? '&' : '?') + 'currentSchema=' + schema,
+    username, password, schema };
+}
+
+async function schemaCommand(sql) {
+  // The schema identifier is generated here, not supplied by the environment.
+  const child = spawn('psql', ['-X', '-w', '-q', '-v', 'ON_ERROR_STOP=1', '--dbname', database.connectionUri,
+    '--username', database.username, '--command', sql], {
+    env: { PATH: process.env.PATH, PGPASSWORD: database.password, PGCONNECT_TIMEOUT: '5' },
+    stdio: 'ignore',
+  });
+  const [code] = await once(child, 'exit');
+  assert.equal(code, 0, 'PostgreSQL audit schema command failed');
+}
 
 function safe(message) {
   return secrets.reduce((value, key) => value.replaceAll(key, '[redacted]'), String(message))
@@ -56,8 +85,9 @@ async function launch(directory, port = 0) {
       PATH: process.env.PATH, HOME: directory, LANG: 'C.UTF-8', TZ: 'America/Bogota',
       SERVER_ADDRESS: '127.0.0.1', SERVER_PORT: String(port), SPRING_PROFILES_ACTIVE: 'prod',
       SPRING_CONFIG_LOCATION: 'optional:classpath:/application.properties',
-      SPRING_DATASOURCE_URL: `jdbc:sqlite:${join(directory, 'audit.sqlite')}?foreign_keys=on&busy_timeout=5000`,
-      SPRING_SQL_INIT_MODE: 'always', SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
+      SPRING_DATASOURCE_URL: database.url, SPRING_DATASOURCE_USERNAME: database.username,
+      SPRING_DATASOURCE_PASSWORD: database.password,
+      SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
       APP_UPLOADS_DIR: join(directory, 'uploads'),
       MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email, MODERATOR_PASSWORD: moderator.password,
     },
@@ -75,7 +105,7 @@ async function launch(directory, port = 0) {
   for (let n = 0; n < 200; n += 1) {
     if (child.exitCode !== null) throw new Error(`Packaged server exited ${child.exitCode} before readiness`);
     const match = /Tomcat started on port (\d+)/.exec(output);
-    if (match) {
+    if (match && /Started App in /.test(output)) {
       const base = `http://127.0.0.1:${match[1]}`;
       const check = await fetch(`${base}/api/interests`, { signal: AbortSignal.timeout(1000) }).catch(() => null);
       if (check?.ok) return base;
@@ -643,7 +673,11 @@ async function run(browser, http, directory) {
 const directory = await mkdtemp(join(tmpdir(), 'kb-production-'));
 let browser;
 let http;
+let schemaCreated = false;
 try {
+  database = smokeDatabase();
+  await schemaCommand('CREATE SCHEMA ' + database.schema);
+  schemaCreated = true;
   if (shots) await mkdir(shots, { recursive: true });
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
   http = await request.newContext({ timeout: 8000 });
@@ -660,7 +694,15 @@ try {
     await browser?.close();
     await http?.dispose();
   } finally {
-    try { await stop(); } finally { await rm(directory, { recursive: true, force: true }); }
+    try {
+      await stop();
+      if (schemaCreated) await schemaCommand('DROP SCHEMA ' + database.schema + ' CASCADE');
+    } catch (error) {
+      console.error(`FAIL audit cleanup: ${safe(error.message)}`);
+      process.exitCode = 1;
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }
   console.log(`RESULT ${confirmed.length} packaged scenarios; ${new Set(captures).size} captures; ${captureFailures.length} incomplete capture steps`);
 }
