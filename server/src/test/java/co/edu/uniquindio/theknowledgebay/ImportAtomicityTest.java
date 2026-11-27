@@ -5,21 +5,19 @@ import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import co.edu.uniquindio.theknowledgebay.core.service.ImportService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.nio.file.Path;
 import java.util.UUID;
 
 import static co.edu.uniquindio.theknowledgebay.PersistenceContractTest.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ImportAtomicityTest {
-    @TempDir Path scratch;
+    @RegisterExtension final PostgresTestSchema database = new PostgresTestSchema();
 
     @Test
     void conflictAfterValidRowsRollsBackWholeImportWithoutChangingExistingIdentity() throws Exception {
-        Path database = scratch.resolve("rollback.db");
         try (var application = open(database)) {
             var domain = application.getBean(TheKnowledgeBay.class);
             var existing = createStudent(application, "401", "existing", null);
@@ -46,7 +44,7 @@ class ImportAtomicityTest {
 
     @Test
     void identicalImportIsIdempotentAndDoesNotReplaceExistingStudents() throws Exception {
-        try (var application = open(scratch.resolve("repeat.db"))) {
+        try (var application = open(database)) {
             var domain = application.getBean(TheKnowledgeBay.class);
             createStudent(application, "501", "already-present", null);
             var hash = application.getBean(PasswordEncoder.class).encode(UUID.randomUUID().toString());

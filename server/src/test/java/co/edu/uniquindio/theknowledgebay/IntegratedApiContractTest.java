@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@PostgresTestSchema.Isolated
 @SpringBootTest
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 class IntegratedApiContractTest {

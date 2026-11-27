@@ -9,7 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -21,7 +24,6 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,12 +44,13 @@ class ContentGroupContractTest {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     @TempDir Path scratch;
+    @RegisterExtension final PostgresTestSchema database = new PostgresTestSchema();
     private AnnotationConfigApplicationContext application;
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        application = PersistenceContractTest.open(scratch.resolve("content.db"));
+        application = PersistenceContractTest.open(database);
         var domain = application.getBean(TheKnowledgeBay.class);
         var topic = new Interest("11", "Álgebra");
         domain.addInterest(topic);

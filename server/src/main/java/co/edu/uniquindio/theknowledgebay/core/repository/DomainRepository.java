@@ -7,7 +7,9 @@ import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.list
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.jdbc.core.ConnectionCallback;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -19,28 +21,43 @@ public class DomainRepository {
     private final JdbcTemplate jdbc;
     private final StudentRepository students;
     private final InterestRepository interests;
-    private final TransactionTemplate transactions;
+    private final TransactionTemplate writes;
+    private final TransactionTemplate reads;
 
     public DomainRepository(JdbcTemplate jdbc, StudentRepository students, InterestRepository interests) {
         this.jdbc = jdbc;
         this.students = students;
         this.interests = interests;
-        this.transactions = new TransactionTemplate(new JdbcTransactionManager(Objects.requireNonNull(jdbc.getDataSource())));
+        var manager = new JdbcTransactionManager(Objects.requireNonNull(jdbc.getDataSource()));
+        this.writes = new TransactionTemplate(manager);
+        this.reads = new TransactionTemplate(manager);
+        this.reads.setReadOnly(true);
+        this.reads.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
     }
 
-    // Serialize compound writes within the application; SQLite supplies transaction isolation and IDs.
-    public synchronized <T> T write(Supplier<T> operation) {
-        return transactions.execute(status -> operation.get());
+    // Preserve the compound-write boundary across all app instances using this schema.
+    public <T> T write(Supplier<T> operation) {
+        return writes.execute(status -> {
+            if (status.isNewTransaction()) {
+                jdbc.execute((ConnectionCallback<Void>) connection -> {
+                    try (var statement = connection.createStatement()) {
+                        statement.execute("SELECT pg_advisory_xact_lock(hashtextextended(current_schema(), 736145))");
+                    }
+                    return null;
+                });
+            }
+            return operation.get();
+        });
     }
 
     public <T> T read(Supplier<T> operation) {
-        return transactions.execute(status -> operation.get());
+        return reads.execute(status -> operation.get());
     }
 
     public void replaceStudentInterests(String studentId, Iterable<Interest> topics) {
-        jdbc.update("DELETE FROM students_interests WHERE student_id = ?", studentId);
-        for (String id : topicIds(topics)) {
-            jdbc.update("INSERT INTO students_interests(student_id, interest_id) VALUES (?, ?)", studentId, id);
+        jdbc.update("DELETE FROM students_interests WHERE student_id = ?", StudentRepository.numericId(studentId));
+        for (Long id : topicIds(topics)) {
+            jdbc.update("INSERT INTO students_interests(student_id, interest_id) VALUES (?, ?)", StudentRepository.numericId(studentId), id);
         }
         ensureAutomaticGroups();
     }
@@ -48,19 +65,20 @@ public class DomainRepository {
     public void ensureAutomaticGroups() {
         jdbc.update("""
                 INSERT INTO study_groups(name, topic_id, date, hidden)
-                SELECT 'Grupo de ' || i.name, i.id_interest, ?, 0
+                SELECT 'Grupo de ' || i.name, i.id_interest, ?, FALSE
                 FROM interests i
                 WHERE NOT EXISTS (SELECT 1 FROM study_groups g WHERE g.topic_id = i.id_interest)
                   AND (SELECT COUNT(*) FROM students_interests si WHERE si.interest_id = i.id_interest) >= 2
-                """, LocalDate.now().toString());
+                """, LocalDate.now());
     }
 
     public void renameAutomaticGroups(Interest original, String newName) {
         jdbc.update("UPDATE study_groups SET name = ? WHERE topic_id = ? AND name = ?",
-                "Grupo de " + newName, original.getIdInterest(), "Grupo de " + original.getName());
+                "Grupo de " + newName, StudentRepository.numericId(original.getIdInterest()), "Grupo de " + original.getName());
     }
 
-    public void removeInterestRelations(String id) {
+    public void removeInterestRelations(String interestId) {
+        long id = StudentRepository.numericId(interestId);
         jdbc.update("DELETE FROM students_interests WHERE interest_id = ?", id);
         jdbc.update("DELETE FROM content_topics WHERE interest_id = ?", id);
         jdbc.update("DELETE FROM help_request_topics WHERE interest_id = ?", id);
@@ -79,17 +97,17 @@ public class DomainRepository {
                 INSERT INTO follows(follower_id, followed_id)
                 SELECT a.id, b.id FROM students a CROSS JOIN students b WHERE a.id = ? AND b.id = ?
                 ON CONFLICT(follower_id, followed_id) DO UPDATE SET followed_id = excluded.followed_id
-                """, actor, target) == 1;
+                """, StudentRepository.numericId(actor), StudentRepository.numericId(target)) == 1;
     }
 
     public boolean unfollow(String actor, String target) {
         if (!StudentRepository.isCanonicalId(actor) || !StudentRepository.isCanonicalId(target)) return false;
-        return jdbc.update("DELETE FROM follows WHERE follower_id = ? AND followed_id = ?", actor, target) == 1;
+        return jdbc.update("DELETE FROM follows WHERE follower_id = ? AND followed_id = ?", StudentRepository.numericId(actor), StudentRepository.numericId(target)) == 1;
     }
 
     public boolean isFollowing(String actor, String target) {
         if (!StudentRepository.isCanonicalId(actor) || !StudentRepository.isCanonicalId(target)) return false;
-        return count("SELECT COUNT(*) FROM follows WHERE follower_id = ? AND followed_id = ?", actor, target) != 0;
+        return count("SELECT COUNT(*) FROM follows WHERE follower_id = ? AND followed_id = ?", StudentRepository.numericId(actor), StudentRepository.numericId(target)) != 0;
     }
 
     public int insertContent(Content content) {
@@ -97,8 +115,8 @@ public class DomainRepository {
                 || content.getAuthor() == null || students.findProfile(content.getAuthor().getId()) == null) return 0;
         int id = jdbc.queryForObject("""
                 INSERT INTO contents(title, information, author_id, date) VALUES (?, ?, ?, ?) RETURNING content_id
-                """, Integer.class, content.getTitle(), text(content.getInformation()), content.getAuthor().getId(),
-                content.getDate().toString());
+                """, Integer.class, content.getTitle(), text(content.getInformation()), StudentRepository.numericId(content.getAuthor().getId()),
+                content.getDate());
         saveContentType(id, content.getContentType());
         saveTopics(PostKind.CONTENT, id, content.getTopics());
         var attachment = content.getAttachment();
@@ -129,15 +147,15 @@ public class DomainRepository {
         int id = jdbc.queryForObject("""
                 INSERT INTO help_requests(information, urgency, student_id, is_completed, request_date)
                 VALUES (?, ?, ?, ?, ?) RETURNING request_id
-                """, Integer.class, text(request.getInformation()), request.getUrgency().name(), request.getStudent().getId(),
-                request.isCompleted(), request.getRequestDate().toString());
+                """, Integer.class, text(request.getInformation()), request.getUrgency().name(), StudentRepository.numericId(request.getStudent().getId()),
+                request.isCompleted(), request.getRequestDate());
         saveTopics(PostKind.HELP, id, request.getTopics());
         return id;
     }
 
     public boolean completeHelp(int id, String studentId) {
         return StudentRepository.isCanonicalId(studentId)
-                && jdbc.update("UPDATE help_requests SET is_completed = 1 WHERE request_id = ? AND student_id = ?", id, studentId) == 1;
+                && jdbc.update("UPDATE help_requests SET is_completed = TRUE WHERE request_id = ? AND student_id = ?", id, StudentRepository.numericId(studentId)) == 1;
     }
 
     public boolean updateHelp(int id, String information, Urgency urgency, boolean completed) {
@@ -173,12 +191,12 @@ public class DomainRepository {
                 INSERT INTO content_likes(content_id, student_id)
                 SELECT c.content_id, s.id FROM contents c CROSS JOIN students s WHERE c.content_id = ? AND s.id = ?
                 ON CONFLICT(content_id, student_id) DO NOTHING
-                """, id, studentId) == 1;
+                """, id, StudentRepository.numericId(studentId)) == 1;
     }
 
     public boolean unlikeContent(int id, String studentId) {
         if (!StudentRepository.isCanonicalId(studentId)) return false;
-        return jdbc.update("DELETE FROM content_likes WHERE content_id = ? AND student_id = ?", id, studentId) == 1;
+        return jdbc.update("DELETE FROM content_likes WHERE content_id = ? AND student_id = ?", id, StudentRepository.numericId(studentId)) == 1;
     }
 
     public boolean isGroupMember(String groupId, String studentId) {
@@ -188,13 +206,13 @@ public class DomainRepository {
                     SELECT 1 FROM students_interests si WHERE si.interest_id = g.topic_id AND si.student_id = ?
                     UNION ALL SELECT 1 FROM study_group_members gm WHERE gm.group_id = g.group_id AND gm.student_id = ?
                 )
-                """, groupId, studentId, studentId) != 0;
+                """, StudentRepository.numericId(groupId), StudentRepository.numericId(studentId), StudentRepository.numericId(studentId)) != 0;
     }
 
     public boolean isGroupPost(String groupId, PostKind kind, int postId) {
         if (!StudentRepository.isCanonicalId(groupId)) return false;
         return count("SELECT COUNT(*) FROM study_groups g WHERE g.group_id = ? AND EXISTS (SELECT 1 FROM "
-                + kind.posts + " p WHERE p." + kind.id + " = ? AND " + groupPostPredicate(kind) + ")", groupId, postId) != 0;
+                + kind.posts + " p WHERE p." + kind.id + " = ? AND " + groupPostPredicate(kind) + ")", StudentRepository.numericId(groupId), postId) != 0;
     }
 
     private static String groupPostPredicate(PostKind kind) {
@@ -209,37 +227,37 @@ public class DomainRepository {
             return null;
         }
         int id = jdbc.queryForObject("INSERT INTO comments(text, author_id, date) VALUES (?, ?, ?) RETURNING comment_id",
-                Integer.class, text, studentId, date.toString());
+                Integer.class, text, StudentRepository.numericId(studentId), date);
         jdbc.update("INSERT INTO " + kind.comments + "(" + kind.id + ", comment_id) VALUES (?, ?)", postId, id);
         return new Comment(id, text, author, date);
     }
 
-    private Set<String> topicIds(Iterable<Interest> topics) {
-        Set<String> ids = new LinkedHashSet<>();
+    private Set<Long> topicIds(Iterable<Interest> topics) {
+        Set<Long> ids = new LinkedHashSet<>();
         if (topics == null) return ids;
         for (Interest candidate : topics) {
             if (candidate == null) continue;
             Interest interest = interests.findById(candidate.getIdInterest());
             if (interest == null) interest = interests.findByName(candidate.getName()).stream().findFirst().orElse(null);
-            if (interest != null) ids.add(interest.getIdInterest());
+            if (interest != null) ids.add(StudentRepository.numericId(interest.getIdInterest()));
         }
         return ids;
     }
 
     private void saveTopics(PostKind kind, int postId, Iterable<Interest> topics) {
-        for (String topic : topicIds(topics)) {
+        for (Long topic : topicIds(topics)) {
             jdbc.update("INSERT INTO " + kind.topics + "(" + kind.id + ", interest_id) VALUES (?, ?)", postId, topic);
         }
     }
 
     public int contentCount(String studentId) {
         return studentId == null ? count("SELECT COUNT(*) FROM contents")
-                : count("SELECT COUNT(*) FROM contents WHERE author_id = ?", studentId);
+                : count("SELECT COUNT(*) FROM contents WHERE author_id = ?", StudentRepository.numericId(studentId));
     }
 
     public int helpCount(String studentId) {
         return studentId == null ? count("SELECT COUNT(*) FROM help_requests")
-                : count("SELECT COUNT(*) FROM help_requests WHERE student_id = ?", studentId);
+                : count("SELECT COUNT(*) FROM help_requests WHERE student_id = ?", StudentRepository.numericId(studentId));
     }
 
     private int count(String sql, Object... arguments) {
@@ -274,7 +292,7 @@ public class DomainRepository {
         if (contents.isEmpty()) return contents;
         readTopics(PostKind.CONTENT, selection, (id, topic) -> contents.get(id).getTopics().addLast(topic));
         jdbc.query("SELECT l.content_id, l.student_id FROM content_likes l WHERE l.content_id IN (SELECT content_id FROM (SELECT * FROM contents "
-                + selection.sql + ")) ORDER BY l.rowid", row -> {
+                + selection.sql + ")) ORDER BY l.ordinal", row -> {
             var content = contents.get(row.getInt(1));
             var liker = profiles.get(row.getString(2));
             if (liker != null) {
@@ -311,7 +329,7 @@ public class DomainRepository {
     private void readTopics(PostKind kind, Selection selection, BiConsumer<Integer, Interest> consume) {
         jdbc.query("SELECT t." + kind.id + ", i.id_interest, i.name FROM " + kind.topics
                 + " t JOIN interests i ON i.id_interest = t.interest_id WHERE t." + kind.id + " IN (SELECT " + kind.id
-                + " FROM (SELECT * FROM " + kind.posts + " " + selection.sql + ")) ORDER BY t.rowid", row -> {
+                + " FROM (SELECT * FROM " + kind.posts + " " + selection.sql + ")) ORDER BY t.ordinal", row -> {
             consume.accept(row.getInt(1), new Interest(row.getString(2), row.getString(3)));
         }, selection.args);
     }
@@ -362,7 +380,7 @@ public class DomainRepository {
                     SELECT g.group_id FROM study_groups g JOIN students_interests si ON si.interest_id = g.topic_id WHERE si.student_id = ?
                     UNION SELECT group_id FROM study_group_members WHERE student_id = ?
                 )
-                """, studentId, studentId);
+                """, StudentRepository.numericId(studentId), StudentRepository.numericId(studentId));
     }
 
     private static String groupFeedFilter(PostKind kind) {

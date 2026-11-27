@@ -3,9 +3,8 @@ package co.edu.uniquindio.theknowledgebay;
 import co.edu.uniquindio.theknowledgebay.core.model.Interest;
 import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.CyclicBarrier;
@@ -18,11 +17,11 @@ import static co.edu.uniquindio.theknowledgebay.PersistenceContractTest.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ConcurrentDomainTest {
-    @TempDir Path scratch;
+    @RegisterExtension final PostgresTestSchema database = new PostgresTestSchema();
 
     @Test
     void concurrentCreationReadsLikesAndMessagesPreserveExactCounts() throws Exception {
-        try (var application = open(scratch.resolve("parallel.db"))) {
+        try (var application = open(database)) {
             var domain = application.getBean(TheKnowledgeBay.class);
             var interest = new Interest("21", "Databases");
             assertTrue(domain.addInterest(interest));
@@ -85,7 +84,7 @@ class ConcurrentDomainTest {
 
     @Test
     void sortedContentCanBeInsertedTraversedAndLookedUpWithoutRecursiveDepth() {
-        try (var application = open(scratch.resolve("sorted.db"))) {
+        try (var application = open(database)) {
             var domain = application.getBean(TheKnowledgeBay.class);
             var author = createStudent(application, "301", "many-publications", null);
             int previous = 0;

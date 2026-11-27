@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 import org.springframework.boot.test.context.SpringBootTest;
 
+@PostgresTestSchema.Isolated
 @SpringBootTest
 public class ContentTest {
 

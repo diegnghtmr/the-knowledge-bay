@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 
+@PostgresTestSchema.Isolated
 @SpringBootTest
 public class CommentTest {
 

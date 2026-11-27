@@ -17,14 +17,12 @@ import co.edu.uniquindio.theknowledgebay.infrastructure.util.datastructures.list
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.core.io.ClassPathResource;
+import com.zaxxer.hikari.HikariDataSource;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.sqlite.SQLiteConfig;
-import org.sqlite.SQLiteDataSource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PersistenceContractTest {
     @TempDir Path scratch;
+    @RegisterExtension final PostgresTestSchema database = new PostgresTestSchema();
     static final LocalDate DATE = LocalDate.of(2025, 1, 1);
 
     @Test
@@ -57,7 +56,7 @@ class PersistenceContractTest {
         var diagnostics = scratch.resolve(phase + ".stderr");
         var command = new ProcessBuilder(java.toString(), "-cp",
                 System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
-                PersistenceContractTest.class.getName(), phase, scratch.toString())
+                PersistenceContractTest.class.getName(), phase, scratch.toString(), database.name())
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(diagnostics.toFile());
         if (fixturePassword != null) command.environment().put("KB_TEST_FIXTURE_PASSWORD", fixturePassword);
         var process = command.start();
@@ -82,20 +81,21 @@ class PersistenceContractTest {
 
     public static void main(String[] args) throws Exception {
         Path scratch = Path.of(args[1]);
+        var database = PostgresTestSchema.existing(args[2]);
         String fixturePassword = System.getenv("KB_TEST_FIXTURE_PASSWORD");
         switch (args[0]) {
-            case "accounts-write" -> writeAccounts(scratch, fixturePassword);
-            case "accounts-read" -> verifyAccounts(scratch, fixturePassword);
-            case "resources-write" -> writeResources(scratch);
-            case "resources-read" -> verifyResources(scratch);
+            case "accounts-write" -> writeAccounts(scratch, database, fixturePassword);
+            case "accounts-read" -> verifyAccounts(scratch, database, fixturePassword);
+            case "resources-write" -> writeResources(scratch, database);
+            case "resources-read" -> verifyResources(scratch, database);
             default -> throw new IllegalArgumentException("Unknown persistence test phase");
         }
     }
 
-    private static void writeAccounts(Path scratch, String fixturePassword) throws Exception {
+    private static void writeAccounts(Path scratch, PostgresTestSchema database, String fixturePassword) throws Exception {
         Student account = student("registration", fixturePassword);
         Student direct = student("direct", new BCryptPasswordEncoder(4).encode(fixturePassword));
-        try (var application = open(scratch.resolve("accounts.db"))) {
+        try (var application = open(database)) {
             assertEquals("true", application.getBean(AuthService.class).registerStudent(account)[0]);
             application.getBean(TheKnowledgeBay.class).addStudent(direct);
             assertAll(() -> assertNotNull(account.getId()), () -> assertNotNull(direct.getId()));
@@ -106,9 +106,9 @@ class PersistenceContractTest {
         Files.write(scratch.resolve("account-ids"), List.of(account.getId(), direct.getId()));
     }
 
-    private static void verifyAccounts(Path scratch, String fixturePassword) throws Exception {
+    private static void verifyAccounts(Path scratch, PostgresTestSchema database, String fixturePassword) throws Exception {
         var ids = Files.readAllLines(scratch.resolve("account-ids"));
-        try (var application = open(scratch.resolve("accounts.db"))) {
+        try (var application = open(database)) {
             var auth = application.getBean(AuthService.class);
             var domain = application.getBean(TheKnowledgeBay.class);
             String email = "registration@example.invalid";
@@ -120,7 +120,7 @@ class PersistenceContractTest {
         }
     }
 
-    private static void writeResources(Path scratch) throws Exception {
+    private static void writeResources(Path scratch, PostgresTestSchema database) throws Exception {
         Student author = student("author", null);
         author.setId("101");
         Student peer = student("peer", null);
@@ -129,7 +129,7 @@ class PersistenceContractTest {
         var topics = topics(interest);
         Content publication = content(author, topics);
         HelpRequest request = help(author, topics);
-        try (var application = open(scratch.resolve("resources.db"))) {
+        try (var application = open(database)) {
             var domain = application.getBean(TheKnowledgeBay.class);
             author.setPassword(application.getBean(PasswordEncoder.class).encode(UUID.randomUUID().toString()));
             peer.setPassword(author.getPassword());
@@ -150,9 +150,9 @@ class PersistenceContractTest {
         Files.write(scratch.resolve("post-ids"), List.of(Integer.toString(publication.getContentId()), Integer.toString(request.getRequestId())));
     }
 
-    private static void verifyResources(Path scratch) throws Exception {
+    private static void verifyResources(Path scratch, PostgresTestSchema database) throws Exception {
         var ids = Files.readAllLines(scratch.resolve("post-ids"));
-        try (var application = open(scratch.resolve("resources.db"))) {
+        try (var application = open(database)) {
             var domain = application.getBean(TheKnowledgeBay.class);
             assertAll(
                 () -> assertEquals(2, domain.getTotalUsersCount()),
@@ -176,7 +176,7 @@ class PersistenceContractTest {
 
     @Test
     void groupViewsResolveTheSameEditsAndDeletionsAsGlobalViews() {
-        try (var application = open(scratch.resolve("groups.db"))) {
+        try (var application = open(database)) {
             var domain = application.getBean(TheKnowledgeBay.class);
             var topic = new Interest("12", "Algorithms");
             assertTrue(domain.addInterest(topic));
@@ -201,15 +201,20 @@ class PersistenceContractTest {
         }
     }
 
-    static AnnotationConfigApplicationContext open(Path database) {
-        var config = new SQLiteConfig();
-        config.enforceForeignKeys(true);
-        var source = new SQLiteDataSource(config);
-        source.setUrl("jdbc:sqlite:" + database);
-        new ResourceDatabasePopulator(new ClassPathResource("schema.sql")).execute(source);
+    static AnnotationConfigApplicationContext open(PostgresTestSchema database) {
+        database.migrate();
         var application = new AnnotationConfigApplicationContext();
         application.getBeanFactory().setConversionService(ApplicationConversionService.getSharedInstance());
-        application.registerBean(JdbcTemplate.class, () -> new JdbcTemplate(source));
+        application.registerBean(HikariDataSource.class, () -> {
+            var source = new HikariDataSource();
+            source.setJdbcUrl(database.url());
+            source.setUsername(database.user());
+            source.setPassword(database.password());
+            source.setMaximumPoolSize(6);
+            source.setMinimumIdle(0);
+            return source;
+        }, definition -> ((org.springframework.beans.factory.support.AbstractBeanDefinition) definition).setDestroyMethodName("close"));
+        application.registerBean(JdbcTemplate.class, () -> new JdbcTemplate(application.getBean(HikariDataSource.class)));
         application.registerBean(PasswordEncoder.class, () -> new BCryptPasswordEncoder(4));
         application.registerBean(ModeratorProperties.class,
                 () -> new ModeratorProperties("moderator", "moderator@example.invalid", UUID.randomUUID().toString()));

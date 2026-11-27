@@ -9,6 +9,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.http.ContentDisposition;
@@ -48,6 +54,7 @@ class DurableFeaturesTest {
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC3sAAAAASUVORK5CYII=");
 
     @TempDir Path scratch;
+    @RegisterExtension final PostgresTestSchema database = new PostgresTestSchema();
     private final HttpClient http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(5)).build();
     private String origin;
@@ -60,10 +67,13 @@ class DurableFeaturesTest {
             student = register("ada", STUDENT);
             moderator = login(MOD_EMAIL, PASSWORD);
         }
-        // Inspect the closed SQLite file at the persistence boundary without depending on a table name.
-        var atRest = new String(Files.readAllBytes(scratch.resolve("durable.db")), StandardCharsets.ISO_8859_1);
-        assertFalse(atRest.contains(student.token()), "raw student token at rest");
-        assertFalse(atRest.contains(moderator.token()), "raw moderator token at rest");
+        var jdbc = new JdbcTemplate(database.migrate());
+        var stored = jdbc.queryForList("SELECT token_hash FROM bearer_sessions", String.class);
+        var hash = java.security.MessageDigest.getInstance("SHA-256");
+        var hex = java.util.HexFormat.of();
+        assertEquals(java.util.Set.of(hex.formatHex(hash.digest(student.token().getBytes(UTF_8))),
+                        hex.formatHex(hash.digest(moderator.token().getBytes(UTF_8)))),
+                new java.util.HashSet<>(stored), "Only fingerprints may be persisted");
         var rotated = UUID.randomUUID().toString();
         try (var app = launch("PT8H", PASSWORD)) {
             assertSession(student);
@@ -85,6 +95,89 @@ class DurableFeaturesTest {
             assertSession(login(MOD_EMAIL, rotated));
         }
     }
+
+    @Test
+    void offlineSqliteCopyPreservesDataSessionsAndIdHighWaterMarks() throws Exception {
+        var sqlite = scratch.resolve("legacy.db");
+        var source = new DriverManagerDataSource("jdbc:sqlite:" + sqlite);
+        new ResourceDatabasePopulator(new ClassPathResource("legacy-sqlite.sql")).execute(source);
+        var seed = new JdbcTemplate(source);
+        var hash = new BCryptPasswordEncoder(4).encode(PASSWORD);
+        var token = UUID.randomUUID().toString();
+        var fingerprint = java.util.HexFormat.of().formatHex(
+                java.security.MessageDigest.getInstance("SHA-256").digest(token.getBytes(UTF_8)));
+        seed.update("INSERT INTO students(id, username, email, password, first_name, last_name, date_birth) VALUES (101, 'ada', ?, ?, 'Ada', 'Test', '2002-03-04')", STUDENT, hash);
+        seed.update("INSERT INTO students(id, username, email, password, first_name, last_name) VALUES (102, 'bea', 'bea@example.invalid', ?, 'Bea', 'Test')", hash);
+        seed.update("UPDATE sqlite_sequence SET seq = 200 WHERE name = 'students'");
+        seed.update("INSERT INTO interests(id_interest, name) VALUES (11, 'Topic')");
+        seed.update("INSERT INTO students_interests VALUES (101, 11), (102, 11)");
+        seed.update("INSERT INTO study_groups(group_id, name, topic_id, date, hidden) VALUES (9, 'Grupo de Topic', 11, '2025-01-01', 0)");
+        seed.update("INSERT INTO contents(content_id, title, information, author_id, date) VALUES (10, 'Apuntes', ?, 101, '2025-01-02')", "Línea 1\n'Álgebra'");
+        seed.update("INSERT INTO content_types VALUES (10, 'RESOURCE')");
+        seed.update("INSERT INTO content_topics VALUES (10, 11)");
+        seed.update("INSERT INTO content_likes VALUES (10, 102)");
+        seed.update("INSERT INTO follows VALUES (102, 101)");
+        seed.update("INSERT INTO chats(chat_id, student_a_id, student_b_id) VALUES (3, 102, 101)");
+        seed.update("INSERT INTO messages VALUES (7, ?, 102, '2025-01-02T10:15:30.123456789', 3)", "Hola, Ada");
+        seed.update("INSERT INTO bearer_sessions VALUES (?, '101', 'STUDENT', ?)", fingerprint, System.currentTimeMillis() + 600_000);
+        seed.update("INSERT INTO moderator_session_identity VALUES (1, ?, ?)", MOD_EMAIL, hash);
+        String key = UUID.randomUUID() + ".bin";
+        seed.update("INSERT INTO content_attachments VALUES (10, ?, 'gráfica.png', 'image/png', ?)", key, PNG.length);
+        Files.createDirectory(scratch.resolve("private-uploads"));
+        Files.write(scratch.resolve("private-uploads").resolve(key), PNG);
+
+        // An orphaned row must roll back even the earlier tables and identity resets.
+        seed.update("UPDATE contents SET author_id = 999 WHERE content_id = 10");
+        assertEquals(new CliResult(1, "", "SQLite copy failed. Check the source schema, data constraints and PostgreSQL configuration.\n"),
+                copySqlite(sqlite));
+        seed.update("UPDATE contents SET author_id = 101 WHERE content_id = 10");
+
+        var first = copySqlite(sqlite);
+        assertEquals(new CliResult(0, "SQLite data copied to PostgreSQL.\n", ""), first);
+        var retry = copySqlite(sqlite);
+        assertEquals(new CliResult(1, "", "SQLite copy refused: the PostgreSQL destination is not empty.\n"), retry);
+        try (var app = launch("PT8H", PASSWORD)) {
+            assertSession(new Actor("101", token));
+            assertEquals("102", login("bea@example.invalid", PASSWORD).id());
+            var post = json("GET", "/api/content/10", token, null, 200);
+            assertEquals("Apuntes", post.path("title").asText());
+            assertEquals(1, post.path("likeCount").asInt());
+            assertEquals("gráfica.png", post.path("fileName").asText());
+            var file = http.send(request("/api/content/10/attachment", token).build(), HttpResponse.BodyHandlers.ofByteArray());
+            assertEquals(200, file.statusCode());
+            assertArrayEquals(PNG, file.body());
+            assertEquals(JSON.readTree("""
+                    [{"id":7,"senderId":"102","text":"Hola, Ada","timestamp":"2025-01-02T10:15:30.123456789"}]
+                    """), json("GET", "/api/chat/102/messages", token, null, 200));
+            var next = json("POST", "/api/chat/send", token, Map.of("receiverId", "102", "text", "Otro mensaje"), 200);
+            assertEquals(8, next.path("id").asInt());
+            assertEquals("201", register("cy", "cy@example.invalid").id());
+        }
+    }
+
+    private CliResult copySqlite(Path source) throws Exception {
+        var java = Path.of(System.getProperty("java.home"), "bin", "java");
+        var stdout = scratch.resolve("copy.stdout");
+        var stderr = scratch.resolve("copy.stderr");
+        var command = new ProcessBuilder(java.toString(), "-cp",
+                System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
+                App.class.getName(), "--import-sqlite", source.toString())
+                .redirectOutput(stdout.toFile()).redirectError(stderr.toFile());
+        command.environment().putAll(Map.of("SPRING_DATASOURCE_URL", database.url(),
+                "SPRING_DATASOURCE_USERNAME", database.user(), "SPRING_DATASOURCE_PASSWORD", database.password(), "SERVER_PORT", "0"));
+        var process = command.start();
+        try {
+            assertTrue(process.waitFor(12, TimeUnit.SECONDS), "The SQLite copy command did not exit");
+            return new CliResult(process.exitValue(), Files.readString(stdout), Files.readString(stderr));
+        } finally {
+            if (process.isAlive()) {
+                process.destroyForcibly();
+                process.waitFor(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    private record CliResult(int code, String stdout, String stderr) {}
 
     @Test
     void aTokenExpiresAccordingToTheTtlEvenAcrossRestart() throws Exception {
@@ -132,6 +225,81 @@ class DurableFeaturesTest {
                 json("POST", "/api/chat/send", a.token(), Map.of("receiverId", b.id(), "text", "Sesión revocada"), 200);
                 assertNull(pool.submit(() -> nextEvent(right)).get(3, TimeUnit.SECONDS));
                 expectEmpty("/api/chat/" + a.id() + "/events", b.token(), 401);
+            }
+        }
+    }
+
+    @Test
+    void aMessageSentOnOneInstanceReachesThePeerOnAnother() throws Exception {
+        try (var first = launch("PT8H", PASSWORD); var second = launch("PT8H", PASSWORD)) {
+            origin = originOf(first);
+            var sender = register("ada", STUDENT);
+            var receiver = register("bea", "bea@example.invalid");
+            origin = originOf(second);
+            try (var pool = Executors.newVirtualThreadPerTaskExecutor();
+                 var remote = stream("/api/chat/" + sender.id() + "/events", receiver)) {
+                assertEquals("event:ready", pool.submit(() -> nextEvent(remote)).get(3, TimeUnit.SECONDS));
+                origin = originOf(first);
+                var sent = json("POST", "/api/chat/send", sender.token(),
+                        Map.of("receiverId", receiver.id(), "text", "Mensaje entre instancias"), 200);
+                assertEquals("event:message", pool.submit(() -> nextEvent(remote)).get(3, TimeUnit.SECONDS));
+                assertEquals(sent, JSON.readTree(pool.submit(() -> nextData(remote)).get(3, TimeUnit.SECONDS)));
+                origin = originOf(second);
+                assertEquals(sent, json("GET", "/api/chat/" + sender.id() + "/messages", receiver.token(), null, 200).get(0));
+            }
+        }
+    }
+
+    @Test
+    void thePerStudentLimitCountsStreamsAndTokensOnBothInstances() throws Exception {
+        try (var first = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=2");
+             var second = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=2")) {
+            origin = originOf(first);
+            var student = register("ada", STUDENT);
+            var peer = register("bea", "bea@example.invalid");
+            var sibling = login(STUDENT, PASSWORD);
+            var path = "/api/chat/" + peer.id() + "/events";
+            try (var left = stream(path, student)) {
+                assertEquals("event:ready", nextEvent(left));
+                origin = originOf(second);
+                try (var right = stream(path, sibling)) {
+                    assertEquals("event:ready", nextEvent(right));
+                    for (var instance : new ServletWebServerApplicationContext[]{first, second}) {
+                        origin = originOf(instance);
+                        var result = http.send(request(path, student.token()).header("Accept", "text/event-stream").build(),
+                                HttpResponse.BodyHandlers.ofInputStream());
+                        try (var body = result.body()) {
+                            assertEquals(429, result.statusCode());
+                            assertEquals("2", result.headers().firstValue("Retry-After").orElseThrow());
+                            assertEquals("Too many active chat streams.", new String(body.readAllBytes(), UTF_8));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void remoteLogoutClosesTheIdleStreamAndReleasesItsSlotButKeepsOtherTokens() throws Exception {
+        try (var first = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=1");
+             var second = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=1")) {
+            origin = originOf(first);
+            var student = register("ada", STUDENT);
+            var peer = register("bea", "bea@example.invalid");
+            var sibling = login(STUDENT, PASSWORD);
+            var path = "/api/chat/" + peer.id() + "/events";
+            origin = originOf(second);
+            try (var pool = Executors.newVirtualThreadPerTaskExecutor(); var remote = stream(path, student)) {
+                assertEquals("event:ready", pool.submit(() -> nextEvent(remote)).get(3, TimeUnit.SECONDS));
+                origin = originOf(first);
+                assertEquals(JSON.readTree("{\"success\":true,\"message\":\"Logged out successfully.\"}"),
+                        json("POST", "/api/auth/logout", student.token(), null, 200));
+                assertNull(pool.submit(() -> nextEvent(remote)).get(3, TimeUnit.SECONDS));
+                origin = originOf(second);
+                expectEmpty(path, student.token(), 401);
+                try (var reopened = stream(path, sibling)) {
+                    assertEquals("event:ready", pool.submit(() -> nextEvent(reopened)).get(3, TimeUnit.SECONDS));
+                }
             }
         }
     }
@@ -278,16 +446,21 @@ class DurableFeaturesTest {
     }
 
     private ServletWebServerApplicationContext launch(String ttl, String moderatorPassword, String... properties) {
-        var context = (ServletWebServerApplicationContext) new SpringApplicationBuilder(App.class).properties(properties).run(
-                "--spring.config.location=optional:classpath:/durable-test.properties", "--server.port=0",
-                "--server.address=127.0.0.1", "--server.shutdown=immediate", "--spring.datasource.driver-class-name=org.sqlite.JDBC",
-                "--spring.datasource.url=jdbc:sqlite:" + scratch.resolve("durable.db") + "?foreign_keys=on&busy_timeout=5000",
-                "--spring.sql.init.mode=always", "--spring.servlet.multipart.max-file-size=5MB", "--spring.servlet.multipart.max-request-size=6MB",
-                "--moderator.name=Moderator", "--moderator.email=" + MOD_EMAIL,
-                "--moderator.password=" + moderatorPassword, "--app.sessions.ttl=" + ttl,
-                "--app.uploads.dir=" + scratch.resolve("private-uploads"), "--logging.level.root=WARN");
-        origin = "http://127.0.0.1:" + context.getWebServer().getPort();
+        var context = (ServletWebServerApplicationContext) new SpringApplicationBuilder(App.class).properties(properties)
+                .properties(Map.of("spring.datasource.url", database.url(), "spring.datasource.username", database.user(),
+                        "spring.datasource.password", database.password(), "moderator.password", moderatorPassword,
+                        "spring.datasource.hikari.minimum-idle", 0, "spring.datasource.hikari.maximum-pool-size", 6))
+                .run("--spring.config.location=optional:classpath:/durable-test.properties", "--server.port=0",
+                        "--server.address=127.0.0.1", "--server.shutdown=immediate",
+                        "--spring.servlet.multipart.max-file-size=5MB", "--spring.servlet.multipart.max-request-size=6MB",
+                        "--moderator.name=Moderator", "--moderator.email=" + MOD_EMAIL, "--app.sessions.ttl=" + ttl,
+                        "--app.uploads.dir=" + scratch.resolve("private-uploads"), "--logging.level.root=WARN");
+        origin = originOf(context);
         return context;
+    }
+
+    private static String originOf(ServletWebServerApplicationContext context) {
+        return "http://127.0.0.1:" + context.getWebServer().getPort();
     }
 
     private Actor register(String username, String email) throws Exception {

@@ -298,6 +298,10 @@ public class TheKnowledgeBay {
         return linked(domain.read(() -> chats.messagesFor(actorId, peerId)));
     }
 
+    public Message getMessageForChat(String actorId, String peerId, int messageId) {
+        return domain.read(() -> chats.messageFor(actorId, peerId, messageId));
+    }
+
     public List<Chat> getChatContacts(String actorId) {
         return domain.read(() -> chats.chatsFor(actorId));
     }
