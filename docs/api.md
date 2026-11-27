@@ -16,7 +16,7 @@ Use `GET /api/auth/session` to check the session and `POST /api/auth/logout` to 
 | `GET /api/chat/{contactId}/messages` | Read saved messages for the caller's thread with that peer. |
 | `GET /api/chat/{contactId}/events` | Stream server-sent events (SSE) for the signed-in student's thread with that peer. |
 
-The browser authenticates the stream with the bearer header, reconnects with backoff, and reconciles against HTTP history by message ID so repeated events do not duplicate messages. A request above the per-student or server-wide stream limit returns HTTP `429 Too Many Requests` with `Retry-After: 2` before opening a stream. The browser waits at least that long before retrying and continues to use HTTP history. Configure the student limit in [server environment variables](configuration.md#server-environment).
+The browser authenticates the stream with the bearer header, reconnects with backoff, and reconciles against HTTP history by message ID so repeated events do not duplicate messages. A request above the cross-instance per-student limit or the per-instance safety limit returns HTTP `429 Too Many Requests` with `Retry-After: 2` before opening a stream. The browser waits at least that long before retrying and continues to use HTTP history. Configure the student limit in [server environment variables](configuration.md#server-environment). When an instance's PostgreSQL listener is reconnecting, new SSE requests return `503` and history remains the fallback. Revoking a session closes its open streams even if they are connected to another instance.
 
 ## Attachments
 

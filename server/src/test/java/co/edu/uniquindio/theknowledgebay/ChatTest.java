@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
 
 
+@PostgresTestSchema.Isolated
 @SpringBootTest
 public class ChatTest {
 

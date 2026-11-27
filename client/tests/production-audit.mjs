@@ -37,6 +37,35 @@ const pageErrors = [];
 let origin;
 let server;
 let tomcatHeaderException = false;
+let database;
+
+function smokeDatabase() {
+  const url = process.env.KB_SMOKE_DB_URL;
+  const username = process.env.KB_SMOKE_DB_USER;
+  const password = process.env.KB_SMOKE_DB_PASSWORD;
+  if (!url?.startsWith('jdbc:postgresql://') || !username || !password) {
+    throw new Error('Set KB_SMOKE_DB_URL, KB_SMOKE_DB_USER and KB_SMOKE_DB_PASSWORD for a disposable PostgreSQL database');
+  }
+  secrets.push(password);
+  const uri = new URL(url.slice('jdbc:'.length));
+  if (uri.username || uri.password || [...uri.searchParams.keys()].some((key) => /user|password|schema|options/i.test(key))) {
+    throw new Error('Use a bare PostgreSQL JDBC URL and supply credentials in the dedicated variables');
+  }
+  const schema = 'kb_smoke_' + randomUUID().replaceAll('-', '');
+  return { connectionUri: uri.toString(), url: url + (uri.search ? '&' : '?') + 'currentSchema=' + schema,
+    username, password, schema };
+}
+
+async function schemaCommand(sql) {
+  // The schema identifier is generated here, not supplied by the environment.
+  const child = spawn('psql', ['-X', '-w', '-q', '-v', 'ON_ERROR_STOP=1', '--dbname', database.connectionUri,
+    '--username', database.username, '--command', sql], {
+    env: { PATH: process.env.PATH, PGPASSWORD: database.password, PGCONNECT_TIMEOUT: '5' },
+    stdio: 'ignore',
+  });
+  const [code] = await once(child, 'exit');
+  assert.equal(code, 0, 'PostgreSQL audit schema command failed');
+}
 
 function safe(message) {
   return secrets.reduce((value, key) => value.replaceAll(key, '[redacted]'), String(message))
@@ -48,21 +77,57 @@ function confirm(name) {
   console.log(`PASS ${name}`);
 }
 
-async function launch(directory, port = 0) {
+function spawnServer(directory, port, password) {
   const java = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, 'bin', 'java') : 'java';
-  const child = spawn(java, ['-jar', join(root, 'server/target/server-0.0.1-SNAPSHOT.jar')], {
+  return spawn(java, ['-jar', join(root, 'server/target/server-0.0.1-SNAPSHOT.jar')], {
     cwd: directory,
     env: {
       PATH: process.env.PATH, HOME: directory, LANG: 'C.UTF-8', TZ: 'America/Bogota',
       SERVER_ADDRESS: '127.0.0.1', SERVER_PORT: String(port), SPRING_PROFILES_ACTIVE: 'prod',
       SPRING_CONFIG_LOCATION: 'optional:classpath:/application.properties',
-      SPRING_DATASOURCE_URL: `jdbc:sqlite:${join(directory, 'audit.sqlite')}?foreign_keys=on&busy_timeout=5000`,
-      SPRING_SQL_INIT_MODE: 'always', SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
+      SPRING_DATASOURCE_URL: database.url, SPRING_DATASOURCE_USERNAME: database.username,
+      SPRING_DATASOURCE_PASSWORD: database.password,
+      SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
       APP_UPLOADS_DIR: join(directory, 'uploads'),
-      MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email, MODERATOR_PASSWORD: moderator.password,
+      MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email,
+      ...(password === undefined ? {} : { MODERATOR_PASSWORD: password }),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+}
+
+async function verifyModeratorPasswordRequired(directory) {
+  const message = 'MODERATOR_PASSWORD is required: set it to the moderator account password.';
+  const probes = [['missing', undefined], ['empty', ''], ['whitespace-only', ' \t ']];
+  const results = [];
+  for (const [input, password] of probes) {
+    const child = spawnServer(directory, 0, password);
+    server = child;
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (part) => {
+      stdout += part;
+      if (stdout.includes('Started App in ')) child.kill();
+    });
+    child.stderr.setEncoding('utf8').on('data', (part) => { stderr += part; });
+    const timeout = setTimeout(() => child.kill('SIGKILL'), 15_000);
+    try {
+      const [code, signal] = await once(child, 'close');
+      results.push({ input, code, signal, stdoutIsEmpty: stdout === '', stderr,
+        bcryptError: (stdout + stderr).includes('rawPassword cannot be null') });
+    } finally {
+      clearTimeout(timeout);
+      await stop();
+    }
+  }
+  assert.deepEqual(results, probes.map(([input]) => ({
+    input, code: 1, signal: null, stdoutIsEmpty: true, stderr: `${message}\n`, bcryptError: false,
+  })));
+  console.log('PASS packaged startup rejects missing, empty and whitespace-only MODERATOR_PASSWORD');
+}
+
+async function launch(directory, port = 0) {
+  const child = spawnServer(directory, port, moderator.password);
   server = child;
   let output = '';
   const captureOutput = (part) => {
@@ -75,7 +140,7 @@ async function launch(directory, port = 0) {
   for (let n = 0; n < 200; n += 1) {
     if (child.exitCode !== null) throw new Error(`Packaged server exited ${child.exitCode} before readiness`);
     const match = /Tomcat started on port (\d+)/.exec(output);
-    if (match) {
+    if (match && /Started App in /.test(output)) {
       const base = `http://127.0.0.1:${match[1]}`;
       const check = await fetch(`${base}/api/interests`, { signal: AbortSignal.timeout(1000) }).catch(() => null);
       if (check?.ok) return base;
@@ -449,6 +514,9 @@ async function run(browser, http, directory) {
   const firstPage = await open(browser, viewports[0]);
   const secondPage = await open(browser, viewports[1]);
   const initialAdmin = await login(adminPage, moderator);
+  assert.deepEqual(await api(http, '/api/auth/session', { token: initialAdmin.token }),
+    { userId: initialAdmin.userId, role: 'MODERATOR' });
+  console.log('PASS packaged startup with a valid MODERATOR_PASSWORD allows moderator sign-in');
   await api(http, '/api/test-data/load', { method: 'POST', token: initialAdmin.token, status: 403 });
   assert.deepEqual(await api(http, '/api/interests'), [], 'production keeps fixture loading disabled');
   for (const name of topics) {
@@ -643,7 +711,12 @@ async function run(browser, http, directory) {
 const directory = await mkdtemp(join(tmpdir(), 'kb-production-'));
 let browser;
 let http;
+let schemaCreated = false;
 try {
+  database = smokeDatabase();
+  await schemaCommand('CREATE SCHEMA ' + database.schema);
+  schemaCreated = true;
+  await verifyModeratorPasswordRequired(directory);
   if (shots) await mkdir(shots, { recursive: true });
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
   http = await request.newContext({ timeout: 8000 });
@@ -660,7 +733,15 @@ try {
     await browser?.close();
     await http?.dispose();
   } finally {
-    try { await stop(); } finally { await rm(directory, { recursive: true, force: true }); }
+    try {
+      await stop();
+      if (schemaCreated) await schemaCommand('DROP SCHEMA ' + database.schema + ' CASCADE');
+    } catch (error) {
+      console.error(`FAIL audit cleanup: ${safe(error.message)}`);
+      process.exitCode = 1;
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }
   console.log(`RESULT ${confirmed.length} packaged scenarios; ${new Set(captures).size} captures; ${captureFailures.length} incomplete capture steps`);
 }

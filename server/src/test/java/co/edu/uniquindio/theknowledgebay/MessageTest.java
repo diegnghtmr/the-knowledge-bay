@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.*;
 import org.springframework.boot.test.context.SpringBootTest;
 
+@PostgresTestSchema.Isolated
 @SpringBootTest
 class MessageTest {
 

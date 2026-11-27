@@ -41,9 +41,7 @@ public class ChatController {
 
         Message message = chatService.sendMessage(actor.id(), request.getReceiverId(), request.getText());
         if (message == null) return ResponseEntity.badRequest().body("Error sending message");
-        var saved = toDto(message);
-        events.publish(actor.id(), request.getReceiverId(), saved);
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(toDto(message));
     }
 
     @GetMapping(value = "/{contactId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -52,6 +50,7 @@ public class ChatController {
         var denied = accessDenied(actor);
         if (denied != null) return ResponseEntity.status(denied.getStatusCode()).build();
         if (!chatService.canChatWith(actor.id(), contactId)) return ResponseEntity.notFound().build();
+        if (!events.listening()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         var slot = events.reserve(actor.id(), request);
         if (slot == null) throw new StreamCapacityExceeded();
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(MediaType.TEXT_EVENT_STREAM)
@@ -99,7 +98,7 @@ public class ChatController {
         return null;
     }
 
-    private static MessageDTO toDto(Message message) {
+    static MessageDTO toDto(Message message) {
         return MessageDTO.builder()
                 .id(message.getMessageId())
                 .senderId(message.getSender().getId())

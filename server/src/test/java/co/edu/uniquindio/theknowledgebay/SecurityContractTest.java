@@ -1,8 +1,10 @@
 package co.edu.uniquindio.theknowledgebay;
 
+import co.edu.uniquindio.theknowledgebay.core.model.Student;
+import co.edu.uniquindio.theknowledgebay.core.model.TheKnowledgeBay;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,16 +15,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -31,10 +29,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import javax.sql.DataSource;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -47,9 +41,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@PostgresTestSchema.Isolated
 @SpringBootTest(properties = {
         "spring.config.location=optional:classpath:/unit-a-isolated.properties",
-        "spring.sql.init.mode=never",
         "app.sessions.ttl=PT1H",
         "app.cors.allowed-origins=https://kb-client.example.test"
 })
@@ -65,41 +59,30 @@ class SecurityContractTest {
     private static final String SECOND_PASSWORD = UUID.randomUUID().toString();
     private static final String MODERATOR_PASSWORD = UUID.randomUUID().toString();
     private static final String CLIENT_ORIGIN = "https://kb-client.example.test";
-    private static Path database;
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
+    @Autowired TheKnowledgeBay domain;
     @Autowired TestClock clock;
 
     @DynamicPropertySource
-    static void isolatedDatabase(DynamicPropertyRegistry properties) throws IOException {
-        Path target = Files.createDirectories(Path.of("target"));
-        database = Files.createTempFile(target, "security-contract-", ".db");
-        String url = "jdbc:sqlite:" + database.toAbsolutePath();
-        DriverManagerDataSource source = new DriverManagerDataSource(url);
-        new ResourceDatabasePopulator(new FileSystemResource("src/main/resources/schema.sql")).execute(source);
-        JdbcTemplate seed = new JdbcTemplate(source);
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        addFixture(seed, "101", "student-one", FIRST_EMAIL, encoder.encode(FIRST_PASSWORD));
-        addFixture(seed, "102", "student-two", SECOND_EMAIL, encoder.encode(SECOND_PASSWORD));
-        properties.add("spring.datasource.url", () -> url);
-        properties.add("spring.datasource.driver-class-name", () -> "org.sqlite.JDBC");
+    static void moderatorProperties(DynamicPropertyRegistry properties) {
         properties.add("moderator.name", () -> "contract-moderator");
         properties.add("moderator.email", () -> MODERATOR_EMAIL);
         properties.add("moderator.password", () -> MODERATOR_PASSWORD);
     }
 
-    private static void addFixture(JdbcTemplate seed, String id, String name, String email, String passwordHash) {
-        seed.update("INSERT INTO students (id, username, email, password, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?)",
-                id, name, email, passwordHash, "Test", "Student");
+    @BeforeAll
+    void seedDatabase() {
+        var encoder = new BCryptPasswordEncoder();
+        addFixture("101", "student-one", FIRST_EMAIL, encoder.encode(FIRST_PASSWORD));
+        addFixture("102", "student-two", SECOND_EMAIL, encoder.encode(SECOND_PASSWORD));
     }
 
-    @AfterAll
-    void closeDatabase() throws IOException {
-        if (database != null) {
-            Files.deleteIfExists(database);
-        }
+    private void addFixture(String id, String name, String email, String passwordHash) {
+        domain.addStudent(Student.builder().id(id).username(name).email(email).password(passwordHash)
+                .firstName("Test").lastName("Student").build());
     }
 
     @Test
@@ -205,7 +188,7 @@ class SecurityContractTest {
             authenticated(put("/api/profile").contentType("application/json")
                     .content(json.writeValueAsBytes(Map.of("password", newPassword))), token)
                     .andExpect(status().isOk()).andExpect(jsonPath("$.password").doesNotExist());
-            String hash = jdbc.queryForObject("SELECT password FROM students WHERE id = ?", String.class, "102");
+            String hash = jdbc.queryForObject("SELECT password FROM students WHERE id = ?", String.class, 102);
             assertTrue(new BCryptPasswordEncoder().matches(newPassword, hash), "Only the new BCrypt hash may be stored");
             mvc.perform(loginRequest(SECOND_EMAIL, SECOND_PASSWORD)).andExpect(status().isUnauthorized());
             assertEquals("102", login(SECOND_EMAIL, newPassword).path("userId").asText());
@@ -305,11 +288,6 @@ class SecurityContractTest {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class ClockConfiguration {
-        @Bean
-        DataSource dataSource(Environment environment) {
-            return new DriverManagerDataSource(environment.getRequiredProperty("spring.datasource.url"));
-        }
-
         @Bean
         @Primary
         TestClock contractClock() {

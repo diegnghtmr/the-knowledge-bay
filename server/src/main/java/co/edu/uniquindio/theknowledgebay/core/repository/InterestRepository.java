@@ -28,7 +28,7 @@ public class InterestRepository {
 
     public Interest findById(String id) {
         if (!StudentRepository.isCanonicalId(id)) return null;
-        return jdbc.query("SELECT * FROM interests WHERE id_interest = ?", INTEREST, id)
+        return jdbc.query("SELECT * FROM interests WHERE id_interest = ?", INTEREST, StudentRepository.numericId(id))
                 .stream().findFirst().orElse(null);
     }
 
@@ -44,8 +44,10 @@ public class InterestRepository {
 
     public int save(Interest interest) {
         String name = interest.getName().strip();
-        if (StudentRepository.isCanonicalId(interest.getIdInterest())) {
-            jdbc.update("INSERT INTO interests(id_interest, name) VALUES (?, ?)", interest.getIdInterest(), name);
+        Long id = StudentRepository.numericId(interest.getIdInterest());
+        if (id != null) {
+            jdbc.update("INSERT INTO interests(id_interest, name) VALUES (?, ?)", id, name);
+            ExplicitIdentity.INTEREST.advance(jdbc, id);
         } else {
             interest.setIdInterest(jdbc.queryForObject("INSERT INTO interests(name) VALUES (?) RETURNING id_interest",
                     String.class, name));
@@ -55,7 +57,7 @@ public class InterestRepository {
     }
 
     public int update(Interest interest) {
-        return jdbc.update("UPDATE interests SET name = ? WHERE id_interest = ?", interest.getName(), interest.getIdInterest());
+        return jdbc.update("UPDATE interests SET name = ? WHERE id_interest = ?", interest.getName(), StudentRepository.numericId(interest.getIdInterest()));
     }
 
     public int deleteById(int id) {
@@ -63,6 +65,6 @@ public class InterestRepository {
     }
 
     public int deleteById(String id) {
-        return jdbc.update("DELETE FROM interests WHERE id_interest = ?", id);
+        return jdbc.update("DELETE FROM interests WHERE id_interest = ?", StudentRepository.numericId(id));
     }
 }

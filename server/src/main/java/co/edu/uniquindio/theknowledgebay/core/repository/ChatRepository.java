@@ -32,12 +32,14 @@ public class ChatRepository {
         long second = Math.max(Long.parseLong(actor), Long.parseLong(peer));
         jdbc.update("INSERT INTO chats(student_a_id, student_b_id) VALUES (?, ?) ON CONFLICT DO NOTHING", first, second);
         int chat = jdbc.queryForObject("""
-                SELECT chat_id FROM chats WHERE min(student_a_id, student_b_id) = ? AND max(student_a_id, student_b_id) = ?
+                SELECT chat_id FROM chats WHERE LEAST(student_a_id, student_b_id) = ? AND GREATEST(student_a_id, student_b_id) = ?
                 """, Integer.class, first, second);
         LocalDateTime timestamp = LocalDateTime.now();
         int id = jdbc.queryForObject("""
                 INSERT INTO messages(text, sender_id, timestamp, chat_id) VALUES (?, ?, ?, ?) RETURNING message_id
-                """, Integer.class, text, actor, timestamp.toString(), chat);
+                """, Integer.class, text, Long.parseLong(actor), timestamp.toString(), chat);
+        jdbc.query("SELECT pg_notify('kb_message_' || md5(current_schema()), ?)",
+                rs -> {}, first + ":" + second + ":" + id);
         return new Message(id, text, sender, timestamp);
     }
 
@@ -47,16 +49,33 @@ public class ChatRepository {
 
     public List<Chat> chatsFor(String actor) {
         if (!StudentRepository.isCanonicalId(actor)) return List.of();
-        return load("WHERE c.student_a_id = ? OR c.student_b_id = ?", "AND m.message_id = (SELECT MAX(message_id) FROM messages WHERE chat_id = c.chat_id)", actor, actor);
+        return load("WHERE c.student_a_id = ? OR c.student_b_id = ?", "AND m.message_id = (SELECT MAX(message_id) FROM messages WHERE chat_id = c.chat_id)", Long.parseLong(actor), Long.parseLong(actor));
     }
 
     public List<Message> messagesFor(String actor, String peer) {
         if (!validPair(actor, peer)) return List.of();
         long first = Math.min(Long.parseLong(actor), Long.parseLong(peer));
         long second = Math.max(Long.parseLong(actor), Long.parseLong(peer));
-        var results = load("WHERE min(c.student_a_id, c.student_b_id) = ? AND max(c.student_a_id, c.student_b_id) = ?", "", first, second);
+        var results = load("WHERE LEAST(c.student_a_id, c.student_b_id) = ? AND GREATEST(c.student_a_id, c.student_b_id) = ?", "", first, second);
         if (results.isEmpty()) return List.of();
         return StreamSupport.stream(results.getFirst().getMessages().spliterator(), false).toList();
+    }
+
+    public Message messageFor(String actor, String peer, int messageId) {
+        if (!validPair(actor, peer) || messageId <= 0) return null;
+        long a = Long.parseLong(actor);
+        long b = Long.parseLong(peer);
+        return jdbc.query("""
+                SELECT m.message_id, m.text, m.sender_id, m.timestamp FROM messages m
+                JOIN chats c ON c.chat_id = m.chat_id
+                WHERE m.message_id = ?
+                  AND LEAST(c.student_a_id, c.student_b_id) = ?
+                  AND GREATEST(c.student_a_id, c.student_b_id) = ?
+                """, (row, n) -> {
+            var sender = students.findProfile(row.getString("sender_id"));
+            return sender == null ? null : new Message(row.getInt("message_id"), row.getString("text"), sender,
+                    LocalDateTime.parse(row.getString("timestamp")));
+        }, messageId, Math.min(a, b), Math.max(a, b)).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
     }
 
     private List<Chat> load(String filter, String messageFilter, Object... arguments) {

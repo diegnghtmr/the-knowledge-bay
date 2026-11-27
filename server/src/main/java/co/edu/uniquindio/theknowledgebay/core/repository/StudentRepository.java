@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,12 +26,12 @@ public class StudentRepository {
         var profiles = profilesById();
         jdbc.query("""
                 SELECT si.student_id, i.id_interest, i.name FROM students_interests si
-                JOIN interests i ON i.id_interest = si.interest_id ORDER BY si.rowid
+                JOIN interests i ON i.id_interest = si.interest_id ORDER BY si.ordinal
                 """, row -> {
             var student = profiles.get(row.getString(1));
             if (student != null) student.getInterests().addLast(new Interest(row.getString(2), row.getString(3)));
         });
-        jdbc.query("SELECT follower_id, followed_id FROM follows ORDER BY rowid", row -> {
+        jdbc.query("SELECT follower_id, followed_id FROM follows ORDER BY ordinal", row -> {
             var follower = profiles.get(row.getString(1));
             var followed = profiles.get(row.getString(2));
             if (follower != null && followed != null) {
@@ -59,23 +60,25 @@ public class StudentRepository {
         if (student == null) return null;
         jdbc.query("""
                 SELECT i.id_interest, i.name FROM students_interests si
-                JOIN interests i ON i.id_interest = si.interest_id WHERE si.student_id = ? ORDER BY si.rowid
+                JOIN interests i ON i.id_interest = si.interest_id WHERE si.student_id = ? ORDER BY si.ordinal
                 """, row -> {
             student.getInterests().addLast(new Interest(row.getString(1), row.getString(2)));
-        }, id);
+        }, numericId(id));
         jdbc.query("""
                 SELECT s.* FROM follows f JOIN students s ON s.id = f.followed_id
-                WHERE f.follower_id = ? ORDER BY f.rowid
-                """, PROFILE, id).forEach(student.getFollowing()::addLast);
+                WHERE f.follower_id = ? ORDER BY f.ordinal
+                """, PROFILE, numericId(id)).forEach(student.getFollowing()::addLast);
         jdbc.query("""
                 SELECT s.* FROM follows f JOIN students s ON s.id = f.follower_id
-                WHERE f.followed_id = ? ORDER BY f.rowid
-                """, PROFILE, id).forEach(student.getFollowers()::addLast);
+                WHERE f.followed_id = ? ORDER BY f.ordinal
+                """, PROFILE, numericId(id)).forEach(student.getFollowers()::addLast);
         return student;
     }
 
     public Student findByEmail(String email) {
-        return jdbc.query("SELECT * FROM students WHERE email = ? COLLATE NOCASE ORDER BY id LIMIT 1", PROFILE, email)
+        return jdbc.query("""
+                SELECT * FROM students WHERE lower(email COLLATE "C") = lower(CAST(? AS text) COLLATE "C") ORDER BY id LIMIT 1
+                """, PROFILE, email)
                 .stream().findFirst().orElse(null);
     }
 
@@ -96,7 +99,7 @@ public class StudentRepository {
 
     Student findProfile(String id) {
         if (!isCanonicalId(id)) return null;
-        return jdbc.query("SELECT * FROM students WHERE id = ?", PROFILE, id).stream().findFirst().orElse(null);
+        return jdbc.query("SELECT * FROM students WHERE id = ?", PROFILE, numericId(id)).stream().findFirst().orElse(null);
     }
 
     public void save(Student student) {
@@ -108,15 +111,17 @@ public class StudentRepository {
                     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
                     """, String.class, student.getUsername(), student.getEmail(), student.getPassword(),
                     blankIfNull(student.getFirstName()), blankIfNull(student.getLastName()),
-                    dateString(student.getDateBirth()), student.getBiography()));
+                    student.getDateBirth(), student.getBiography()));
         } else {
-            if (!isCanonicalId(id)) throw new IllegalArgumentException("Invalid student ID");
+            Long number = numericId(id);
+            if (number == null) throw new IllegalArgumentException("Invalid student ID");
             jdbc.update("""
                     INSERT INTO students (id, username, email, password, first_name, last_name, date_birth, biography)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, id, student.getUsername(), student.getEmail(), student.getPassword(),
+                    """, number, student.getUsername(), student.getEmail(), student.getPassword(),
                     blankIfNull(student.getFirstName()), blankIfNull(student.getLastName()),
-                    dateString(student.getDateBirth()), student.getBiography());
+                    student.getDateBirth(), student.getBiography());
+            ExplicitIdentity.STUDENT.advance(jdbc, number);
         }
     }
 
@@ -127,16 +132,20 @@ public class StudentRepository {
                     date_birth = ?, biography = ? WHERE id = ?
                 """, student.getUsername(), student.getEmail(), student.getPassword(),
                 blankIfNull(student.getFirstName()), blankIfNull(student.getLastName()),
-                dateString(student.getDateBirth()), student.getBiography(), student.getId());
+                student.getDateBirth(), student.getBiography(), numericId(student.getId()));
     }
 
     public static boolean isCanonicalId(String id) {
-        if (id == null) return false;
+        return numericId(id) != null;
+    }
+
+    static Long numericId(String id) {
+        if (id == null) return null;
         try {
             long number = Long.parseLong(id);
-            return number > 0 && Long.toString(number).equals(id);
+            return number > 0 && Long.toString(number).equals(id) ? number : null;
         } catch (NumberFormatException e) {
-            return false;
+            return null;
         }
     }
 
@@ -150,16 +159,11 @@ public class StudentRepository {
         return value == null ? "" : value;
     }
 
-    private static String dateString(LocalDate value) {
-        return value == null ? null : value.toString();
-    }
-
     private static final RowMapper<Student> PROFILE = (row, number) -> {
-        String date = row.getString("date_birth");
         return Student.builder().id(row.getString("id")).username(row.getString("username"))
                 .email(row.getString("email")).password(row.getString("password"))
                 .firstName(row.getString("first_name")).lastName(row.getString("last_name"))
-                .dateBirth(date == null || date.isBlank() ? null : LocalDate.parse(date))
+                .dateBirth(row.getObject("date_birth", LocalDate.class))
                 .biography(row.getString("biography")).build();
     };
 }

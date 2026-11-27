@@ -1,12 +1,14 @@
 package co.edu.uniquindio.theknowledgebay.api.controller;
 
-import co.edu.uniquindio.theknowledgebay.api.dto.MessageDTO;
+import co.edu.uniquindio.theknowledgebay.core.repository.ChatStreamLeases;
+import co.edu.uniquindio.theknowledgebay.core.service.ChatService;
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager;
 import co.edu.uniquindio.theknowledgebay.core.service.SessionManager.SessionKey;
 import co.edu.uniquindio.theknowledgebay.infrastructure.security.AuthenticatedUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.async.CallableProcessingInterceptor;
@@ -15,9 +17,9 @@ import org.springframework.web.context.request.async.WebAsyncUtils;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,37 +32,62 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Component
 public class ChatEvents {
     private static final long STREAM_NANOS = Duration.ofMinutes(5).toNanos();
+    private static final long HEARTBEAT_NANOS = Duration.ofSeconds(15).toNanos();
     private static final String SLOT_ATTRIBUTE = ChatEvents.class.getName() + ".streamSlot";
     private final SessionManager sessions;
+    private final ChatStreamLeases leases;
+    private final ChatService chats;
     private final ObjectMapper json;
     private final Map<ThreadKey, Set<Subscription>> threads = new ConcurrentHashMap<>();
     private final Semaphore capacity = new Semaphore(256);
-    private final Map<String, Integer> streamsByUser = new HashMap<>();
     private final int maxStreamsPerUser;
+    private volatile Object listenerGeneration;
 
-    ChatEvents(SessionManager sessions, ObjectMapper json,
+    ChatEvents(SessionManager sessions, ChatStreamLeases leases, ChatService chats, ObjectMapper json,
                @Value("${app.chat.max-streams-per-user:${APP_CHAT_MAX_STREAMS_PER_USER:3}}") int maxStreamsPerUser) {
         if (maxStreamsPerUser < 1) throw new IllegalArgumentException("The per-user chat stream limit must be positive.");
         this.sessions = sessions;
+        this.leases = leases;
+        this.chats = chats;
         this.json = json;
         this.maxStreamsPerUser = maxStreamsPerUser;
     }
 
+    boolean listening() {
+        return listenerGeneration != null;
+    }
+
+    void listenerConnected() {
+        listenerGeneration = new Object();
+    }
+
+    void listenerDisconnected() {
+        listenerGeneration = null;
+        sessionsChanged();
+    }
+
     StreamSlot reserve(String userId, HttpServletRequest request) {
-        if (!acquire(userId)) return null;
-        var slot = new StreamSlot(userId);
+        if (!capacity.tryAcquire()) return null;
+        UUID lease = null;
         try {
-            request.setAttribute(SLOT_ATTRIBUTE, slot);
-            WebAsyncUtils.getAsyncManager(request).registerCallableInterceptor(SLOT_ATTRIBUTE, new CallableProcessingInterceptor() {
-                @Override
-                public <T> void afterCompletion(NativeWebRequest webRequest, Callable<T> task) {
-                    slot.cancelUnstarted();
-                }
-            });
-            return slot;
-        } catch (RuntimeException e) {
-            slot.cancelUnstarted();
-            throw e;
+            lease = leases.reserve(userId, maxStreamsPerUser);
+            if (lease == null) return null;
+            var slot = new StreamSlot(lease);
+            try {
+                request.setAttribute(SLOT_ATTRIBUTE, slot);
+                WebAsyncUtils.getAsyncManager(request).registerCallableInterceptor(SLOT_ATTRIBUTE, new CallableProcessingInterceptor() {
+                    @Override
+                    public <T> void afterCompletion(NativeWebRequest webRequest, Callable<T> task) {
+                        slot.cancelUnstarted();
+                    }
+                });
+                return slot;
+            } catch (RuntimeException e) {
+                slot.cancelUnstarted();
+                throw e;
+            }
+        } finally {
+            if (lease == null) capacity.release();
         }
     }
 
@@ -74,52 +101,61 @@ public class ChatEvents {
         var key = ThreadKey.of(actor.id(), peer);
         var sub = new Subscription();
         try {
-            if (!isActive(actor, session)) return;
+            Object generation = listenerGeneration;
+            if (generation == null) return;
             threads.compute(key, (thread, existing) -> {
                 var subscribers = existing == null ? ConcurrentHashMap.<Subscription>newKeySet() : existing;
                 subscribers.add(sub);
                 return subscribers;
             });
+            // Subscribe before verifying so revocations between HTTP authorization and the ready frame aren't missed.
+            if (generation != listenerGeneration || !isActive(actor, session) || !leases.renew(slot.lease)) return;
             write(output, "event:ready\ndata:{}\n\n");
-            long start = System.nanoTime();
-            while (!sub.overflow && System.nanoTime() - start < STREAM_NANOS) {
-                var message = sub.pending.poll(15, TimeUnit.SECONDS);
-                if (sub.overflow || !isActive(actor, session)) break;
-                if (message == null) write(output, ":keepalive\n\n");
-                else write(output, "event:message\nid:" + message.getId() + "\ndata:" + json.writeValueAsString(message) + "\n\n");
+            long end = System.nanoTime() + STREAM_NANOS;
+            long heartbeat = System.nanoTime() + HEARTBEAT_NANOS;
+            while (!sub.overflow && generation == listenerGeneration) {
+                long wait = end - System.nanoTime();
+                if (wait <= 0) break;
+                Integer id = sub.pending.poll(Math.min(wait, heartbeat - System.nanoTime()), TimeUnit.NANOSECONDS);
+                if (sub.overflow || generation != listenerGeneration || System.nanoTime() - end >= 0
+                        || !isActive(actor, session) || !leases.renew(slot.lease)) break;
+                if (id != null && id > 0) {
+                    var message = chats.getMessageForChat(actor.id(), peer, id);
+                    if (message == null) continue;
+                    write(output, "event:message\nid:" + id + "\ndata:" + json.writeValueAsString(ChatController.toDto(message)) + "\n\n");
+                    heartbeat = System.nanoTime() + HEARTBEAT_NANOS;
+                } else if (System.nanoTime() - heartbeat >= 0) {
+                    write(output, ":keepalive\n\n");
+                    heartbeat = System.nanoTime() + HEARTBEAT_NANOS;
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (IOException ignored) {
-            // The client disconnected; it can reconcile with the durable HTTP history on reconnect.
+        } catch (IOException | DataAccessException ignored) {
+            // Unavailable stream or disconnected client; reconnects reconcile with the durable HTTP history.
         } finally {
             threads.computeIfPresent(key, (thread, subscribers) -> {
                 subscribers.remove(sub);
                 return subscribers.isEmpty() ? null : subscribers;
             });
-            slot.finish();
+            // Spring can interrupt the stream task on async completion. JDBC socket I/O on an interrupted
+            // virtual thread would fail before releasing its lease, so restore the flag after cleanup.
+            boolean interrupted = Thread.interrupted();
+            try {
+                slot.finish();
+            } finally {
+                if (interrupted) Thread.currentThread().interrupt();
+            }
         }
-    }
-
-    private synchronized boolean acquire(String userId) {
-        int count = streamsByUser.getOrDefault(userId, 0);
-        if (count >= maxStreamsPerUser || !capacity.tryAcquire()) return false;
-        streamsByUser.put(userId, count + 1);
-        return true;
-    }
-
-    private synchronized void release(String userId) {
-        streamsByUser.computeIfPresent(userId, (key, count) -> count == 1 ? null : count - 1);
-        capacity.release();
     }
 
     private enum SlotState { RESERVED, STREAMING, RELEASED }
 
     final class StreamSlot {
-        private final String userId;
+        private final UUID lease;
         private final AtomicReference<SlotState> state = new AtomicReference<>(SlotState.RESERVED);
 
-        private StreamSlot(String userId) { this.userId = userId; }
+        private StreamSlot(UUID lease) { this.lease = lease; }
 
         private boolean start() { return state.compareAndSet(SlotState.RESERVED, SlotState.STREAMING); }
 
@@ -128,7 +164,13 @@ public class ChatEvents {
         private void finish() { releaseFrom(SlotState.STREAMING); }
 
         private void releaseFrom(SlotState expected) {
-            if (state.compareAndSet(expected, SlotState.RELEASED)) release(userId);
+            if (state.compareAndSet(expected, SlotState.RELEASED)) {
+                try {
+                    leases.release(lease);
+                } finally {
+                    capacity.release();
+                }
+            }
         }
     }
 
@@ -136,10 +178,15 @@ public class ChatEvents {
         return sessions.authenticate(session).filter(actor::equals).isPresent();
     }
 
-    void publish(String actor, String peer, MessageDTO message) {
-        for (var sub : threads.getOrDefault(ThreadKey.of(actor, peer), Set.of())) {
-            if (!sub.pending.offer(message)) sub.overflow = true;
+    void messageCommitted(String first, String second, int id) {
+        for (var sub : threads.getOrDefault(ThreadKey.of(first, second), Set.of())) {
+            if (!sub.pending.offer(id)) sub.overflow = true;
         }
+    }
+
+    void sessionsChanged() {
+        // Zero is a wake-up, not a message. If the queue is full the stream is already awake.
+        threads.values().forEach(subscribers -> subscribers.forEach(sub -> sub.pending.offer(0)));
     }
 
     private static void write(OutputStream output, String frame) throws IOException {
@@ -148,7 +195,7 @@ public class ChatEvents {
     }
 
     private static final class Subscription {
-        private final ArrayBlockingQueue<MessageDTO> pending = new ArrayBlockingQueue<>(64);
+        private final ArrayBlockingQueue<Integer> pending = new ArrayBlockingQueue<>(64);
         private volatile boolean overflow;
     }
 

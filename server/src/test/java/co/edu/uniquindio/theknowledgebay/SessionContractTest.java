@@ -23,9 +23,6 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -104,13 +101,15 @@ class SessionContractTest {
 
     @TestConfiguration
     static class SessionDatabase {
-        @Bean JdbcTemplate sessionJdbc() throws Exception {
+        @Bean(destroyMethod = "close")
+        PostgresTestSchema database() {
+            return new PostgresTestSchema();
+        }
+
+        @Bean
+        JdbcTemplate sessionJdbc(PostgresTestSchema database) {
             // The MVC slice excludes datasource auto-configuration.
-            var file = java.nio.file.Files.createTempFile("kb-dev-session-", ".sqlite").toFile();
-            file.deleteOnExit();
-            var source = new DriverManagerDataSource("jdbc:sqlite:" + file);
-            new ResourceDatabasePopulator(new ClassPathResource("schema.sql")).execute(source);
-            return new JdbcTemplate(source);
+            return new JdbcTemplate(database.migrate());
         }
     }
 
