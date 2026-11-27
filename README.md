@@ -64,11 +64,12 @@ Configure the server from the repository root. For all settings, see the [config
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `MODERATOR_NAME`, `MODERATOR_EMAIL`, `MODERATOR_PASSWORD` | Moderator identity and private password. | Override all three for local use |
+| `MODERATOR_NAME`, `MODERATOR_EMAIL` | Moderator display name and sign-in email. | Override for local use |
+| `MODERATOR_PASSWORD` | Private password for the moderator account. | Required; no default |
 | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | PostgreSQL connection for the application and Flyway. | Supply your database and credentials |
 | `SERVER_ADDRESS`, `SERVER_PORT` | Bind to loopback on the port the Vite proxy uses. | Spring Boot bind address; port `8080` |
 
-Export both passwords from a secret manager or enter them at these Bash prompts. The moderator password must be nonblank and at most 72 UTF-8 bytes. Do not commit them or supply them as command-line arguments.
+Export both passwords from a secret manager or enter them at these Bash prompts. The moderator password must be nonblank and at most 72 UTF-8 bytes; the server refuses to start without it. Do not commit either password or supply it as a command-line argument.
 
 ```bash
 read -r -s -p 'Moderator password: ' MODERATOR_PASSWORD
@@ -137,7 +138,7 @@ After building the client and packaging the server, set the [packaged audit data
 node client/tests/production-audit.mjs
 ```
 
-The audit starts the JAR on loopback with the production profile, a disposable PostgreSQL schema, and generated accounts. Chromium exercises the real API, including an existing bearer session after a restart, live messaging between two students, and an upload/download round trip across the restart. The audit stops the server and removes the disposable data; it needs no supplied moderator credentials or running development server. For portfolio comparisons against a separately stored baseline, append `--shots` to capture 40 states at both viewports in `../shots-final/`.
+The audit starts the JAR on loopback with the production profile, a disposable PostgreSQL schema, and generated accounts. It verifies that the JAR refuses to start without a nonblank `MODERATOR_PASSWORD`. Chromium then exercises the real API, including moderator sign-in, an existing bearer session after a restart, live messaging between two students, and an upload/download round trip across the restart. The audit stops the server and removes the disposable data; it needs no supplied moderator credentials or running development server. For portfolio comparisons against a separately stored baseline, append `--shots` to capture 40 states at both viewports in `../shots-final/`.
 
 The [CI workflow](.github/workflows/ci.yml) runs on pushes and pull requests. It provisions PostgreSQL 17, installs client dependencies and Chromium, runs lint, tests, and the production build, verifies and packages the server with Maven, and runs the packaged audit.
 

@@ -21,6 +21,8 @@ Set the server variables in the process environment before starting the JAR. See
 | `SERVER_ADDRESS` | Server bind address. Use `127.0.0.1` for local development and smoke tests. | Not set by the app |
 | `SERVER_PORT` | Server HTTP port. The development proxy targets `127.0.0.1:8080`. | `8080` |
 
+There is no default `MODERATOR_PASSWORD`. If it is unset, empty, or only whitespace, the server exits with code `1` and prints `MODERATOR_PASSWORD is required: set it to the moderator account password.` before starting.
+
 Changing the configured moderator email or password revokes moderator sessions on the next startup. See [persistence](persistence.md) for the session and storage model.
 
 ## Disposable PostgreSQL for tests

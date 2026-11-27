@@ -7,7 +7,7 @@ Build the React application and package the Java server from the repository root
 (cd server && ./mvnw -B verify)
 ```
 
-Ship both `client/dist/` and `server/target/server-0.0.1-SNAPSHOT.jar`. Leave `VITE_API_BASE_URL` unset at build time for this topology. Supply the [server environment variables](configuration.md#server-environment), including the moderator credentials, a persistent PostgreSQL 17 database, and a private persistent upload directory. Flyway migrates the database on startup. Use a non-development profile.
+Ship both `client/dist/` and `server/target/server-0.0.1-SNAPSHOT.jar`. Leave `VITE_API_BASE_URL` unset at build time for this topology. Supply the [server environment variables](configuration.md#server-environment), including a persistent PostgreSQL 17 database and a private persistent upload directory. Inject `MODERATOR_PASSWORD` from your deployment's secret manager on every instance. It has no default: an unset, empty, or whitespace-only value prevents the server from starting. Flyway migrates the database on startup. Use a non-development profile.
 
 From the directory containing both artifacts in the paths above, start the server. The static resource location must be an absolute `file:` URI with a trailing slash:
 

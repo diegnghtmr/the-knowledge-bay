@@ -77,9 +77,9 @@ function confirm(name) {
   console.log(`PASS ${name}`);
 }
 
-async function launch(directory, port = 0) {
+function spawnServer(directory, port, password) {
   const java = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, 'bin', 'java') : 'java';
-  const child = spawn(java, ['-jar', join(root, 'server/target/server-0.0.1-SNAPSHOT.jar')], {
+  return spawn(java, ['-jar', join(root, 'server/target/server-0.0.1-SNAPSHOT.jar')], {
     cwd: directory,
     env: {
       PATH: process.env.PATH, HOME: directory, LANG: 'C.UTF-8', TZ: 'America/Bogota',
@@ -89,10 +89,45 @@ async function launch(directory, port = 0) {
       SPRING_DATASOURCE_PASSWORD: database.password,
       SPRING_WEB_RESOURCES_STATIC_LOCATIONS: `file:${join(root, 'client/dist')}/`,
       APP_UPLOADS_DIR: join(directory, 'uploads'),
-      MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email, MODERATOR_PASSWORD: moderator.password,
+      MODERATOR_NAME: 'Audit Moderator', MODERATOR_EMAIL: moderator.email,
+      ...(password === undefined ? {} : { MODERATOR_PASSWORD: password }),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+}
+
+async function verifyModeratorPasswordRequired(directory) {
+  const message = 'MODERATOR_PASSWORD is required: set it to the moderator account password.';
+  const probes = [['missing', undefined], ['empty', ''], ['whitespace-only', ' \t ']];
+  const results = [];
+  for (const [input, password] of probes) {
+    const child = spawnServer(directory, 0, password);
+    server = child;
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (part) => {
+      stdout += part;
+      if (stdout.includes('Started App in ')) child.kill();
+    });
+    child.stderr.setEncoding('utf8').on('data', (part) => { stderr += part; });
+    const timeout = setTimeout(() => child.kill('SIGKILL'), 15_000);
+    try {
+      const [code, signal] = await once(child, 'close');
+      results.push({ input, code, signal, stdoutIsEmpty: stdout === '', stderr,
+        bcryptError: (stdout + stderr).includes('rawPassword cannot be null') });
+    } finally {
+      clearTimeout(timeout);
+      await stop();
+    }
+  }
+  assert.deepEqual(results, probes.map(([input]) => ({
+    input, code: 1, signal: null, stdoutIsEmpty: true, stderr: `${message}\n`, bcryptError: false,
+  })));
+  console.log('PASS packaged startup rejects missing, empty and whitespace-only MODERATOR_PASSWORD');
+}
+
+async function launch(directory, port = 0) {
+  const child = spawnServer(directory, port, moderator.password);
   server = child;
   let output = '';
   const captureOutput = (part) => {
@@ -479,6 +514,9 @@ async function run(browser, http, directory) {
   const firstPage = await open(browser, viewports[0]);
   const secondPage = await open(browser, viewports[1]);
   const initialAdmin = await login(adminPage, moderator);
+  assert.deepEqual(await api(http, '/api/auth/session', { token: initialAdmin.token }),
+    { userId: initialAdmin.userId, role: 'MODERATOR' });
+  console.log('PASS packaged startup with a valid MODERATOR_PASSWORD allows moderator sign-in');
   await api(http, '/api/test-data/load', { method: 'POST', token: initialAdmin.token, status: 403 });
   assert.deepEqual(await api(http, '/api/interests'), [], 'production keeps fixture loading disabled');
   for (const name of topics) {
@@ -678,6 +716,7 @@ try {
   database = smokeDatabase();
   await schemaCommand('CREATE SCHEMA ' + database.schema);
   schemaCreated = true;
+  await verifyModeratorPasswordRequired(directory);
   if (shots) await mkdir(shots, { recursive: true });
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
   http = await request.newContext({ timeout: 8000 });

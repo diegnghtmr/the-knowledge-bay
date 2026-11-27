@@ -251,6 +251,38 @@ class DurableFeaturesTest {
     }
 
     @Test
+    void aForgedNotificationCannotDeliverAnotherPairsPrivateMessage() throws Exception {
+        try (var first = launch("PT8H", PASSWORD); var second = launch("PT8H", PASSWORD)) {
+            origin = originOf(first);
+            var a = register("ada", STUDENT);
+            var b = register("bea", "bea@example.invalid");
+            var c = register("cy", "cy@example.invalid");
+            var privateMessage = json("POST", "/api/chat/send", a.token(),
+                    Map.of("receiverId", b.id(), "text", "Solo entre Ada y Bea"), 200);
+            var thread = "/api/chat/" + b.id();
+            origin = originOf(second);
+            try (var pool = Executors.newVirtualThreadPerTaskExecutor(); var remote = stream(thread + "/events", c)) {
+                assertEquals("event:ready", pool.submit(() -> nextEvent(remote)).get(3, TimeUnit.SECONDS));
+                assertEquals(JSON.createArrayNode(), json("GET", thread + "/messages", c.token(), null, 200));
+                first.getBean(JdbcTemplate.class).query("SELECT pg_notify('kb_message_' || md5(current_schema()), ?)",
+                        row -> {}, b.id() + ":" + c.id() + ":" + privateMessage.path("id").asInt());
+
+                origin = originOf(first);
+                var visible = json("POST", "/api/chat/send", b.token(),
+                        Map.of("receiverId", c.id(), "text", "Hola, Cy"), 200);
+                assertEquals("event:message", pool.submit(() -> nextEvent(remote)).get(3, TimeUnit.SECONDS));
+                assertEquals(visible, JSON.readTree(pool.submit(() -> nextData(remote)).get(3, TimeUnit.SECONDS)));
+                var unexpected = pool.submit(() -> nextEvent(remote));
+                assertThrows(TimeoutException.class, () -> unexpected.get(500, TimeUnit.MILLISECONDS));
+
+                origin = originOf(second);
+                assertEquals(JSON.createArrayNode().add(visible), json("GET", thread + "/messages", c.token(), null, 200));
+                assertEquals(JSON.createArrayNode().add(privateMessage), json("GET", thread + "/messages", a.token(), null, 200));
+            }
+        }
+    }
+
+    @Test
     void thePerStudentLimitCountsStreamsAndTokensOnBothInstances() throws Exception {
         try (var first = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=2");
              var second = launch("PT8H", PASSWORD, "app.chat.max-streams-per-user=2")) {
